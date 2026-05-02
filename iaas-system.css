@@ -1025,6 +1025,7 @@ body {
   margin: 0;
   font-family: Aptos, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f7fbff;
+  text-rendering: geometricPrecision;
 }
 
 .iaas-shell {
@@ -1368,6 +1369,144 @@ body {
   font-weight: 850;
 }
 
+.census-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, .9fr);
+  gap: 14px;
+}
+
+.command-visual,
+.epi-board {
+  border: 1px solid rgba(208, 222, 240, .82);
+  border-radius: 24px;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 18px 42px rgba(26, 42, 83, .08);
+  overflow: hidden;
+}
+
+.command-visual {
+  position: relative;
+  min-height: 238px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 82% 34%, rgba(96, 239, 255, .20), transparent 32%),
+    linear-gradient(115deg, rgba(8, 18, 50, .96), rgba(36, 46, 154, .88)),
+    url("./assets/epivida-pro/backgrounds/extra-biomedical-holographic-interface.webp");
+  background-size: cover;
+  background-position: center;
+}
+
+.command-copy span {
+  display: block;
+  margin-bottom: 8px;
+  color: #8ef4ff;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.command-copy h2 {
+  margin: 0 0 9px;
+  color: #fff;
+  font-size: clamp(27px, 2.4vw, 42px);
+  line-height: 1.05;
+}
+
+.command-copy p {
+  max-width: 620px;
+  margin: 0;
+  color: rgba(236, 246, 255, .86);
+  line-height: 1.55;
+}
+
+.command-visual > img {
+  justify-self: center;
+  width: min(235px, 100%);
+  max-height: 235px;
+  object-fit: contain;
+  filter: drop-shadow(0 26px 46px rgba(0,0,0,.34));
+}
+
+.command-mini-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.command-mini-stats strong {
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font-size: 12px;
+}
+
+.epi-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.94), rgba(246, 250, 255, .91)),
+    url("./assets/epivida-pro/backgrounds/card-bg-quality-ring.webp");
+  background-size: cover;
+}
+
+.epi-visual {
+  min-height: 119px;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-right: 1px solid rgba(214, 225, 240, .82);
+  border-bottom: 1px solid rgba(214, 225, 240, .82);
+}
+
+.epi-visual:nth-child(2n) {
+  border-right: 0;
+}
+
+.epi-visual:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.epi-visual img {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 22px rgba(73, 63, 214, .18));
+}
+
+.epi-visual strong {
+  display: block;
+  color: #0b1848;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.epi-visual span {
+  display: block;
+  margin-top: 4px;
+  color: #18285f;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.epi-visual small {
+  display: block;
+  margin-top: 2px;
+  color: #687898;
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
 .service-atlas {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -1376,7 +1515,7 @@ body {
 
 .service-atlas button,
 .service-atlas-summary {
-  min-height: 104px;
+  min-height: 144px;
   display: grid;
   align-content: center;
   justify-items: start;
@@ -1389,19 +1528,28 @@ body {
 }
 
 .service-atlas button {
+  position: relative;
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
+  align-content: end;
+  padding-top: 66px;
 }
 
 .service-atlas button img {
-  width: 34px;
-  height: 34px;
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 82px;
+  height: 82px;
   object-fit: contain;
+  filter: drop-shadow(0 18px 24px rgba(74, 70, 241, .20));
 }
 
 .service-atlas button strong {
   color: #0b1848;
-  font-size: 12px;
+  max-width: 132px;
+  font-size: 11px;
   line-height: 1.18;
 }
 
@@ -1418,6 +1566,10 @@ body {
     linear-gradient(135deg, rgba(245, 248, 255, .95), rgba(237, 244, 255, .92)),
     url("./assets/epivida-pro/backgrounds/card-bg-purple-gradient.webp");
   box-shadow: 0 20px 42px rgba(79, 70, 229, .16);
+}
+
+.service-atlas button.active img {
+  transform: scale(1.08);
 }
 
 .service-atlas button.empty {
@@ -1643,6 +1795,14 @@ body {
     min-height: 190px;
   }
 
+  .census-command {
+    grid-template-columns: 1fr;
+  }
+
+  .command-visual {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
   .service-atlas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1827,6 +1987,31 @@ body {
     width: 100%;
   }
 
+  .command-visual {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .command-visual > img {
+    order: -1;
+    width: min(210px, 72vw);
+  }
+
+  .epi-board {
+    grid-template-columns: 1fr;
+  }
+
+  .epi-visual,
+  .epi-visual:nth-child(2n),
+  .epi-visual:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid rgba(214, 225, 240, .82);
+  }
+
+  .epi-visual:last-child {
+    border-bottom: 0;
+  }
+
   .census-scroll {
     padding: 12px;
     overflow: visible;
@@ -1933,6 +2118,15 @@ body {
   .census-hero-copy h1 {
     font-size: 30px;
   }
+
+  .service-atlas button {
+    min-height: 132px;
+  }
+
+  .service-atlas button img {
+    width: 72px;
+    height: 72px;
+  }
 }
 
 @media print {
@@ -1947,6 +2141,7 @@ body {
   .iaas-button,
   .service-filter,
   .service-atlas,
+  .census-command,
   .census-tools,
   .census-hero-meta,
   .quick-device-grid,

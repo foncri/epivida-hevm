@@ -25,6 +25,15 @@
     "GINECOLOGÍA Y OBSTETRICIA": "servicio-ginecologia-obstetricia",
     AMBULATORIO: "icon-pacientes"
   };
+  const SECTOR_LABELS = {
+    MAG: "Magisterio",
+    BUR: "Burocracia",
+    ISSTECH: "ISSTECH",
+    PIM: "Pensionado ISSTECH Magisterio",
+    PIB: "Pensionado ISSTECH Burocracia",
+    PRIV: "Privado",
+    PRIVADO: "Privado"
+  };
 
   const SERVICES = [
     "MEDICINA INTERNA",
@@ -514,13 +523,14 @@
     const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
     const visibleRows = rows.filter(censusServiceMatch).filter(censusSearchMatch);
     const stats = computeStats(date);
+    const epiTotals = censusEpiCounts(rows);
     return h("div", { class: "iaas-page hospital-census-page" }, [
       h("section", { class: "iaas-panel census-hero-panel" }, [
         h("div", { class: "census-hero-copy" }, [
           h("img", { src: `${PRO_ASSET}/icons/icon-censo-operativo.webp`, alt: "", loading: "lazy" }),
           h("div", {}, [
-            h("h1", {}, ["Censo hospitalario"]),
-            h("p", {}, ["Vista institucional del censo actual con servicio, cama, paciente, estancia, diagnostico hospitalario, diagnostico epidemiologico y observaciones."])
+            h("h1", {}, ["Censo Hospitalario Integral"]),
+            h("p", {}, ["Mesa visual de vigilancia epidemiológica: servicios, camas, estado clínico, diagnóstico hospitalario y clasificación epidemiológica en una sola lectura operativa."])
           ])
         ]),
         h("div", { class: "census-hero-meta" }, [
@@ -535,10 +545,13 @@
       ]),
       renderMetricGrid([
         ["Pacientes", rows.length, "censo visible"],
-        ["IAAS", stats.alertPatients.length, "alertas"],
-        ["Pendientes", stats.pendingPatients, "ronda"],
+        ["IAAS", epiTotals.iaas, "activos/importados"],
+        ["Riesgo IAAS", epiTotals.riesgo, "vigilancia"],
+        ["VIG", epiTotals.vig, "seguimiento"],
+        ["No IAAS", epiTotals.noIaas, "sin IAAS"],
         ["Invasivos", stats.activeDevices, "activos"]
       ], "compact"),
+      rows.length ? renderCensusCommandPanel(rows, visibleRows, stats) : "",
       rows.length ? renderCensusServiceAtlas(rows) : "",
       rows.length ? h("section", { class: "iaas-panel census-table-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
@@ -586,6 +599,47 @@
     return getCensusRows(date).map(row => ({ row, patient: store.patients[row.patientId] || {} }));
   }
 
+  function renderCensusCommandPanel(rows, visibleRows, stats) {
+    const serviceRows = ui.censusService === "Todos" ? rows : rows.filter(censusServiceMatch);
+    const focusService = ui.censusService === "Todos" ? "Hospital completo" : ui.censusService;
+    const focusImage = ui.censusService === "Todos"
+      ? `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`
+      : serviceArtAsset(ui.censusService);
+    const epi = censusEpiCounts(serviceRows);
+    return h("section", { class: "census-command" }, [
+      h("article", { class: "command-visual" }, [
+        h("div", { class: "command-copy" }, [
+          h("span", {}, ["Vista activa"]),
+          h("h2", {}, [focusService]),
+          h("p", {}, [`${serviceRows.length} paciente${serviceRows.length === 1 ? "" : "s"} en seguimiento. ${visibleRows.length} registro${visibleRows.length === 1 ? "" : "s"} coincide${visibleRows.length === 1 ? "" : "n"} con los filtros actuales.`]),
+          h("div", { class: "command-mini-stats" }, [
+            h("strong", {}, [`${epi.iaas} IAAS`]),
+            h("strong", {}, [`${epi.riesgo} riesgo`]),
+            h("strong", {}, [`${epi.vig} VIG`])
+          ])
+        ]),
+        h("img", { src: focusImage, alt: "", loading: "lazy" })
+      ]),
+      h("article", { class: "epi-board" }, [
+        renderEpiVisual("IAAS", epi.iaas, "Infecciones asociadas", `${PRO_ASSET}/badges/badge-iaas.webp`),
+        renderEpiVisual("Riesgo IAAS", epi.riesgo, "Vigilancia prioritaria", `${PRO_ASSET}/badges/badge-riesgo.webp`),
+        renderEpiVisual("VIG", epi.vig, "Transmisible / no transmisible", `${PRO_ASSET}/badges/badge-vig.webp`),
+        renderEpiVisual("No IAAS", epi.noIaas, "Sin IAAS activa", `${PRO_ASSET}/badges/badge-estable.webp`)
+      ])
+    ]);
+  }
+
+  function renderEpiVisual(label, value, caption, src) {
+    return h("div", { class: "epi-visual" }, [
+      h("img", { src, alt: "", loading: "lazy" }),
+      h("div", {}, [
+        h("strong", {}, [String(value)]),
+        h("span", {}, [label]),
+        h("small", {}, [caption])
+      ])
+    ]);
+  }
+
   function renderHospitalCensusRow(item) {
     const { row, patient } = item;
     const admission = patient.admissionDate || row.admissionDate || null;
@@ -603,7 +657,7 @@
           ])
         ])
       ]),
-      h("td", { class: "patient-census-cell", "data-label": "Paciente" }, [h("strong", {}, [patientLabel(patient, row)]), h("small", {}, [patient.hospitalInternalId || patient.displayCode || row.patientId])]),
+      h("td", { class: "patient-census-cell", "data-label": "Paciente" }, [h("strong", {}, [patientLabel(patient, row)]), h("small", {}, [patientCensusMeta(patient, row)])]),
       h("td", { "data-label": "Edad / sexo" }, [`${patient.age ?? row.age ?? "S/E"} / ${patient.sex || row.sex || "S/S"}`]),
       h("td", { "data-label": "Ingreso / estancia" }, [h("strong", {}, [admission || "AMB"]), h("small", {}, [stay === null || stay === undefined ? "Ambulatorio" : `${stay} ${stay === 1 ? "dia" : "dias"}`])]),
       h("td", { "data-label": "Estado" }, [h("span", { class: `badge ${stateClass(state)}` }, [state])]),
@@ -622,7 +676,7 @@
     const activeRows = ui.censusService === "Todos" ? rows : rows.filter(censusServiceMatch);
     return h("section", { class: "service-atlas" }, [
       h("button", { class: ui.censusService === "Todos" ? "active service-all" : "service-all", onclick: () => { ui.censusService = "Todos"; renderIaas(); } }, [
-        h("img", { src: `${PRO_ASSET}/icons/icon-dashboard.webp`, alt: "", loading: "lazy" }),
+        h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_medical_dashboard_with_hospital_bed.webp`, alt: "", loading: "lazy" }),
         h("strong", {}, ["Vista general"]),
         h("span", {}, [`${rows.length} pacientes`])
       ]),
@@ -632,7 +686,7 @@
           class: `${ui.censusService === service ? "active" : ""} ${total ? "" : "empty"}`,
           onclick: () => { ui.censusService = service; renderIaas(); }
         }, [
-          h("img", { src: serviceIconAsset(service), alt: "", loading: "lazy" }),
+          h("img", { src: serviceArtAsset(service), alt: "", loading: "lazy" }),
           h("strong", {}, [service]),
           h("span", {}, [`${total} paciente${total === 1 ? "" : "s"}`])
         ]);
@@ -673,6 +727,19 @@
 
   function activeServiceCount(rows) {
     return new Set(rows.map(({ row, patient }) => normalizeService(row.service || patient.currentService || "")).filter(Boolean)).size;
+  }
+
+  function censusEpiCounts(rows) {
+    return rows.reduce((out, { row, patient }) => {
+      const value = patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "";
+      const cls = epiClass(value);
+      if (cls === "epi-iaas") out.iaas += 1;
+      if (cls === "epi-riesgo-iaas") out.riesgo += 1;
+      if (cls === "epi-vig") out.vig += 1;
+      if (cls === "epi-no-iaas") out.noIaas += 1;
+      if (cls === "epi-covid") out.covid += 1;
+      return out;
+    }, { iaas: 0, riesgo: 0, vig: 0, noIaas: 0, covid: 0 });
   }
 
   function renderImportPage() {
@@ -943,7 +1010,7 @@
     return h("div", { class: "iaas-page follow-page" }, [
       h("section", { class: "iaas-panel follow-hero" }, [
         h("div", {}, [
-          h("h1", {}, [`Seguimiento · ${patient.displayCode}`]),
+          h("h1", {}, [`Seguimiento · ${patientLabel(patient)}`]),
           h("p", {}, [`${patient.currentService} · Cama ${patient.currentBed} · Ingreso ${patient.admissionDate || "NA"}`])
         ]),
         h("button", { class: "iaas-button ghost", onclick: () => printPatientFollowUp(patientId) }, ["Imprimir seguimiento"])
@@ -1132,7 +1199,7 @@
       h("table", { class: "iaas-table" }, [
         h("thead", {}, [h("tr", {}, ["Paciente", "Servicio", "Cama", "Motivo"].map(label => h("th", {}, [label])))]),
         h("tbody", {}, rows.map(row => h("tr", {}, [
-          h("td", {}, [row.displayCode]),
+          h("td", {}, [patientLabel(row)]),
           h("td", {}, [row.currentService]),
           h("td", {}, [row.currentBed]),
           h("td", {}, [row.reason || row.latestRoundStatus || "Alerta IAAS"])
@@ -1149,7 +1216,7 @@
     return h("div", { class: "reconciliation-list" }, rows.map(patient =>
       h("article", { class: "reconciliation-card" }, [
         h("div", {}, [
-          h("strong", {}, [patient.displayCode]),
+          h("strong", {}, [patientLabel(patient)]),
           h("span", {}, [`${patient.currentService} · Cama ${patient.currentBed}`]),
           h("small", {}, ["No encontrado en censo de hoy"])
         ]),
@@ -1750,9 +1817,10 @@
     const round = store.dailyRounds[date];
     const entries = Object.values(round?.entries || {});
     entries.forEach(entry => {
-      if (entry.status === "pendiente") issues.push(`Paciente ${store.patients[entry.patientId]?.displayCode || entry.patientId} sigue pendiente.`);
-      if (entry.syncStatus === "local_pending") issues.push(`Paciente ${store.patients[entry.patientId]?.displayCode || entry.patientId} pendiente de sincronizar.`);
-      if (entry.syncStatus === "error") issues.push(`Paciente ${store.patients[entry.patientId]?.displayCode || entry.patientId} con error de guardado.`);
+      const patientName = patientLabel(store.patients[entry.patientId], { patientId: entry.patientId });
+      if (entry.status === "pendiente") issues.push(`${patientName} sigue pendiente.`);
+      if (entry.syncStatus === "local_pending") issues.push(`${patientName} pendiente de sincronizar.`);
+      if (entry.syncStatus === "error") issues.push(`${patientName} con error de guardado.`);
     });
     pendingQueue().forEach(() => issues.push("Existen escrituras pendientes de sincronizar."));
     Object.values(store.deviceEpisodes).forEach(ep => {
@@ -2716,7 +2784,8 @@
   }
 
   function patientLabel(patient, row = {}) {
-    return patient?.patientName || row.patientName || patient?.displayCode || row.patientId || "Paciente";
+    const bed = patient?.currentBed || row.bed || row.currentBed;
+    return patient?.patientName || row.patientName || (bed ? `Paciente cama ${bed}` : "Paciente en seguimiento");
   }
 
   function serviceIconAsset(service) {
@@ -2724,6 +2793,24 @@
     const file = SERVICE_ICONS[normalized] || "icon-pacientes";
     const folder = file.startsWith("servicio-") ? "icons" : "icons";
     return `${PRO_ASSET}/${folder}/${file}.webp`;
+  }
+
+  function serviceArtAsset(service) {
+    const normalized = normalizeService(service);
+    const file = SERVICE_ICONS[normalized];
+    if (!file || !file.startsWith("servicio-")) return `${PRO_ASSET}/icons/extras/futuristic_healthcare_network_hub_icon.webp`;
+    return `${PRO_ASSET}/services/${file}-hero.webp`;
+  }
+
+  function patientCensusMeta(patient = {}, row = {}) {
+    const sector = sectorLabel(patient.sector || row.sector);
+    const bed = patient.currentBed || row.bed || "S/C";
+    return sector ? `Ficha epidemiológica · ${sector}` : `Ficha epidemiológica · Cama ${bed}`;
+  }
+
+  function sectorLabel(value) {
+    const key = normalizeText(value).replace(/\s+/g, "");
+    return SECTOR_LABELS[key] || "";
   }
 
   function displayState(value) {
