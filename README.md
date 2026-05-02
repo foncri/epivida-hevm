@@ -53,10 +53,10 @@ Los usuarios no pueden modificarse su propio rol. Los borrados destructivos esta
 Desde la carpeta del repo:
 
 ```powershell
-python -m http.server 5177
+python -m http.server 5188
 ```
 
-Abrir `http://127.0.0.1:5177/`.
+Abrir `http://localhost:5188/`. No uses `127.0.0.1` para probar Google Auth; Firebase Auth puede rechazarlo como dominio no autorizado.
 
 ## Respaldo operativo
 

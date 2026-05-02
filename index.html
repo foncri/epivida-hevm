@@ -19,6 +19,9 @@
     </noscript>
     <div id="app"></div>
     <script>
+      if (location.hostname === "127.0.0.1") {
+        location.replace(`${location.protocol}//localhost:${location.port}${location.pathname}${location.search}${location.hash}`);
+      }
       window.EPIVIDA_REQUIRE_AUTH = true;
       window.EPIVIDA_AUTH_PROVIDER = "google";
       window.EPIVIDA_ALLOWED_EMAILS = ["todofoncri@gmail.com"];

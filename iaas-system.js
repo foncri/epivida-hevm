@@ -2470,6 +2470,9 @@
 
   function friendlyError(error) {
     const text = error?.message || String(error);
+    if (/unauthorized-domain/i.test(text)) {
+      return `Dominio no autorizado en Firebase Auth. Usa http://localhost:${location.port || "5188"} o agrega ${location.hostname} en Firebase Console > Authentication > Settings > Authorized domains.`;
+    }
     if (/permission/i.test(text)) return "Permiso denegado por reglas de seguridad.";
     if (/network|offline/i.test(text)) return "Sin conexión.";
     return text;
