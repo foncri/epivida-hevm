@@ -12,8 +12,37 @@
       color: white;
       font-family: Arial, sans-serif;
       display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #0f172a;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid rgba(45, 212, 191, 0.35);
+    }
+
+    nav {
+      margin-top: 10px;
+    }
+
+    nav a {
+      color: #14b8a6;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+
+    nav a:hover {
+      text-decoration: underline;
+    }
+
+    .hero {
+      flex: 1;
+      display: flex;
       align-items: center;
       justify-content: center;
+      padding: 40px 20px;
     }
 
     .card {
@@ -46,13 +75,78 @@
       color: #021014;
       font-weight: bold;
     }
+
+    .sections {
+      padding: 40px 20px;
+      background: #020817;
+    }
+
+    .section {
+      max-width: 800px;
+      margin: 0 auto 40px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #0f172a;
+      border: 1px solid rgba(45, 212, 191, 0.2);
+    }
+
+    .section h2 {
+      color: #14b8a6;
+      margin-top: 0;
+    }
+
+    footer {
+      background: #0f172a;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid rgba(45, 212, 191, 0.35);
+      color: #cbd5e1;
+    }
   </style>
 </head>
 <body>
-  <main class="card">
+  <header>
     <h1>EpiVida HEVM</h1>
-    <p>Censo hospitalario integral de vigilancia epidemiológica.</p>
-    <div class="badge">GitHub Pages funcionando</div>
-  </main>
+    <nav>
+      <a href="#acerca">Acerca de</a>
+      <a href="#caracteristicas">Características</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <main class="card">
+      <h1>Bienvenido a EpiVida HEVM</h1>
+      <p>Censo hospitalario integral de vigilancia epidemiológica.</p>
+      <div class="badge">GitHub Pages funcionando</div>
+    </main>
+  </section>
+
+  <div class="sections">
+    <section id="acerca" class="section">
+      <h2>Acerca de</h2>
+      <p>EpiVida HEVM es un sistema diseñado para el censo hospitalario y la vigilancia epidemiológica integral. Proporciona herramientas para monitorear y analizar datos de salud en entornos hospitalarios.</p>
+    </section>
+
+    <section id="caracteristicas" class="section">
+      <h2>Características</h2>
+      <ul>
+        <li>Monitoreo en tiempo real de datos epidemiológicos</li>
+        <li>Interfaz intuitiva para censos hospitalarios</li>
+        <li>Reportes automatizados y análisis de datos</li>
+        <li>Integración con sistemas de salud existentes</li>
+      </ul>
+    </section>
+
+    <section id="contacto" class="section">
+      <h2>Contacto</h2>
+      <p>Para más información, visite nuestro repositorio en GitHub o contacte al equipo de desarrollo.</p>
+      <p><a href="https://github.com/foncri/epivida-hevm" style="color: #14b8a6;">Repositorio en GitHub</a></p>
+    </section>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 EpiVida HEVM. Todos los derechos reservados.</p>
+  </footer>
 </body>
 </html>
