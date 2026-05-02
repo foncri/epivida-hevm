@@ -46,6 +46,7 @@
 
   const COLUMN_ALIASES = {
     patient_id: ["patient_id", "paciente_id", "id_paciente", "expediente", "id", "folio"],
+    patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre", "nombre_completo"],
     fecha_censo: ["fecha_censo", "fecha", "censo_fecha"],
     servicio: ["servicio", "area", "área", "departamento"],
     cama: ["cama", "cama_actual", "numero_cama", "número_cama"],
@@ -117,7 +118,19 @@
 
   function loadStore() {
     const current = loadJson(STORE_KEY, null);
-    if (current?.version === 1) return current;
+    if (current?.version === 1) {
+      const seedRows = (window.CENSO_SEED?.rows || []).filter(row => row.type === "patient");
+      const currentCount = Object.keys(current.patients || {}).length;
+      if (seedRows.length && currentCount === 0 && location.hostname === "localhost") {
+        const restored = seedFromCurrentCensus();
+        restored.writeQueue = current.writeQueue || [];
+        restored.auditLogs = current.auditLogs || [];
+        restored.lastSavedAt = nowIso();
+        saveStore(restored);
+        return restored;
+      }
+      return current;
+    }
     const seeded = seedFromCurrentCensus();
     saveStore(seeded);
     return seeded;
@@ -144,14 +157,19 @@
       patients[patientId] = {
         patientId,
         displayCode: makeDisplayCode(patientId),
+        patientName: row.paciente || null,
         hospitalInternalId: row.id || null,
         pseudonymizedId: patientId,
         currentService: service,
         currentBed: normalizeBed(row.cama),
+        sector: row.sector || null,
         sex: normalizeSex(row.sexo),
         age: parseAge(row.edad),
         admissionDate: normalizeDate(row.ingreso) || null,
+        currentState: row.estado || null,
         currentDiagnosis: row.dxHospitalarios || null,
+        epidemiologicalDiagnosis: row.dxEpidemiologicos || null,
+        observations: row.observaciones || null,
         diagnosisHistory: [{ date, value: row.dxHospitalarios || "", source: "seed" }],
         activePendingIssues: pending,
         currentRiskLevel: riskFromRow(row),
@@ -169,6 +187,15 @@
         patientId,
         service,
         bed: normalizeBed(row.cama),
+        patientName: row.paciente || null,
+        sector: row.sector || null,
+        age: row.edad || null,
+        sex: row.sexo || null,
+        admissionDate: normalizeDate(row.ingreso) || null,
+        state: row.estado || null,
+        diagnosis: row.dxHospitalarios || null,
+        epidemiologicalDiagnosis: row.dxEpidemiologicos || null,
+        observations: row.observaciones || null,
         present: true,
         importedFromFile: true,
         importBatchId: `seed-${date}`,
@@ -327,6 +354,7 @@
   function renderSidebar(active) {
     const nav = [
       ["dashboard", "Panel IAAS", "Invasivos, alertas y estadísticas"],
+      ["censo-hospitalario", "Censo hospitalario", "Vista institucional del censo"],
       ["importar-censo", "Importar censo", "Carga matutina Excel/CSV"],
       ["ronda", "Ronda IAAS", "Revisión móvil por cama"],
       ["reporte-diario", "Reportes", "Diario, semanal y mensual"]
@@ -383,6 +411,7 @@
 
   function renderRoute() {
     const { page, parts } = ui.route;
+    if (page === "censo-hospitalario") return renderHospitalCensusPage();
     if (page === "importar-censo") return renderImportPage();
     if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || isoToday(), parts[3]);
     if (page === "ronda") return renderRoundPage(parts[1] || isoToday());
@@ -401,6 +430,7 @@
           h("h1", {}, ["Centro de mando IAAS"]),
           h("p", {}, ["Importa el censo matutino, ejecuta la ronda por cama, captura invasivos como episodios y deja que el sistema calcule indicadores automáticamente."]),
           h("div", { class: "iaas-hero-actions" }, [
+            h("a", { class: "iaas-button", href: "#/censo-hospitalario" }, ["Ver censo hospitalario"]),
             h("a", { class: "iaas-button primary", href: "#/importar-censo" }, ["Importar censo"]),
             h("a", { class: "iaas-button", href: `#/ronda/${date}` }, ["Iniciar ronda"])
           ])
@@ -446,6 +476,69 @@
         ]),
         renderReconciliationPanel()
       ])
+    ]);
+  }
+
+  function renderHospitalCensusPage() {
+    const date = isoToday();
+    const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
+    const stats = computeStats(date);
+    return h("div", { class: "iaas-page hospital-census-page" }, [
+      h("section", { class: "iaas-panel census-hero-panel" }, [
+        h("div", {}, [
+          h("h1", {}, ["Censo hospitalario"]),
+          h("p", {}, ["Vista institucional del censo actual con servicio, cama, paciente, estancia, diagnostico hospitalario, diagnostico epidemiologico y observaciones."])
+        ]),
+        h("div", { class: "report-actions" }, [
+          hasPrivateCensusSeed() ? h("button", { class: "iaas-button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : "",
+          h("a", { class: "iaas-button", href: "#/importar-censo" }, ["Importar censo"]),
+          h("button", { class: "iaas-button primary", onclick: () => window.print() }, ["Imprimir censo"])
+        ])
+      ]),
+      renderMetricGrid([
+        ["Pacientes", rows.length, "censo visible"],
+        ["IAAS", stats.alertPatients.length, "alertas"],
+        ["Pendientes", stats.pendingPatients, "ronda"],
+        ["Invasivos", stats.activeDevices, "activos"]
+      ], "compact"),
+      rows.length ? h("section", { class: "iaas-panel census-table-panel" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Listado operativo"]),
+          h("span", { class: "badge neutral" }, [`${rows.length} registro(s)`])
+        ]),
+        h("div", { class: "table-wrap census-scroll" }, [
+          h("table", { class: "iaas-table hospital-census-table" }, [
+            h("thead", {}, [h("tr", {}, ["Servicio / cama", "Paciente", "Edad / sexo", "Ingreso / estancia", "Estado", "Dx hospitalarios", "Dx epidemiologico", "Observaciones"].map(label => h("th", {}, [label])))]),
+            h("tbody", {}, rows.map(renderHospitalCensusRow))
+          ])
+        ])
+      ]) : h("section", { class: "iaas-panel empty-census-panel" }, [
+        h("h2", {}, ["Aun no hay censo cargado"]),
+        h("p", {}, ["Importa el censo de la manana o carga el respaldo privado local para restaurar el trabajo anterior sin publicar datos clinicos en GitHub."]),
+        hasPrivateCensusSeed() ? h("button", { class: "iaas-button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : "",
+        h("a", { class: "iaas-button primary", href: "#/importar-censo" }, ["Importar censo"])
+      ])
+    ]);
+  }
+
+  function hospitalCensusRows(date) {
+    return getCensusRows(date).map(row => ({ row, patient: store.patients[row.patientId] || {} }));
+  }
+
+  function renderHospitalCensusRow(item) {
+    const { row, patient } = item;
+    const admission = patient.admissionDate || row.admissionDate || null;
+    const stay = daysBetween(admission, row.roundDate || isoToday());
+    const state = patient.currentState || row.state || patient.currentRiskLevel || "Sin estado";
+    return h("tr", {}, [
+      h("td", {}, [h("strong", {}, [row.service || patient.currentService || "Sin servicio"]), h("small", {}, [`Cama ${row.bed || patient.currentBed || "S/C"}`])]),
+      h("td", {}, [h("strong", {}, [patientLabel(patient, row)]), h("small", {}, [patient.hospitalInternalId || patient.displayCode || row.patientId])]),
+      h("td", {}, [`${patient.age ?? row.age ?? "S/E"} / ${patient.sex || row.sex || "S/S"}`]),
+      h("td", {}, [h("strong", {}, [admission || "AMB"]), h("small", {}, [stay === null || stay === undefined ? "Ambulatorio" : `${stay} ${stay === 1 ? "dia" : "dias"}`])]),
+      h("td", {}, [h("span", { class: "badge neutral" }, [state])]),
+      h("td", {}, [truncateText(patient.currentDiagnosis || row.diagnosis || "Sin diagnostico", 170)]),
+      h("td", {}, [h("span", { class: "badge device" }, [truncateText(patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "Sin clasificar", 70)])]),
+      h("td", {}, [truncateText(patient.observations || row.observations || row.notes || "", 130)])
     ]);
   }
 
@@ -583,7 +676,7 @@
       h("div", { class: "round-card-main" }, [
         h("div", { class: "bed-badge" }, [row.bed || "S/C"]),
         h("div", {}, [
-          h("strong", {}, [patient?.displayCode || row.patientId]),
+          h("strong", {}, [patientLabel(patient, row)]),
           h("span", {}, [row.service]),
           h("small", {}, [truncateText(patient?.currentDiagnosis || "Sin diagnóstico registrado", 110)])
         ])
@@ -610,7 +703,7 @@
       h("section", { class: "iaas-panel patient-sticky-summary" }, [
         h("div", {}, [
           h("a", { href: `#/ronda/${date}`, class: "back-link" }, ["Volver al servicio"]),
-          h("h1", {}, [`Cama ${patient.currentBed} · ${patient.displayCode}`]),
+          h("h1", {}, [`Cama ${patient.currentBed} · ${patientLabel(patient)}`]),
           h("p", {}, [`${patient.currentService} · Estancia: ${daysBetween(patient.admissionDate, date) ?? "NA"} días`])
         ]),
         h("span", { class: `risk ${riskClass(patient.currentRiskLevel)}` }, [patient.currentRiskLevel || "Sin riesgo"])
@@ -1074,6 +1167,7 @@
     });
     const row = {
       patient_id: cleanCell(mapped.patient_id || mapped.hospital_internal_id || ""),
+      patient_name: cleanCell(mapped.patient_name),
       fecha_censo: normalizeDate(mapped.fecha_censo) || fallbackDate,
       servicio: normalizeService(mapped.servicio),
       cama: normalizeBed(mapped.cama),
@@ -1188,6 +1282,7 @@
         store.patients[row.patientId] = {
           patientId: row.patientId,
           displayCode: makeDisplayCode(row.patientId),
+          patientName: row.patient_name || null,
           hospitalInternalId: row.hospital_internal_id || row.patient_id || null,
           pseudonymizedId: row.patientId,
           currentService: row.servicio,
@@ -1215,6 +1310,7 @@
         const diagnosisChanged = cleanCell(previous.currentDiagnosis) !== cleanCell(row.diagnostico_actual);
         previous.currentService = row.servicio;
         previous.currentBed = row.cama;
+        previous.patientName = row.patient_name || previous.patientName || null;
         previous.sex = row.sexo || previous.sex;
         previous.age = row.edad ?? previous.age;
         previous.admissionDate = row.fecha_ingreso || previous.admissionDate;
@@ -1236,6 +1332,12 @@
         patientId: row.patientId,
         service: row.servicio,
         bed: row.cama,
+        patientName: row.patient_name || store.patients[row.patientId]?.patientName || null,
+        age: row.edad ?? null,
+        sex: row.sexo || null,
+        admissionDate: row.fecha_ingreso || null,
+        diagnosis: row.diagnostico_actual || null,
+        observations: row.observaciones || row.pendientes || null,
         present: true,
         importedFromFile: true,
         importBatchId: plan.importBatchId,
@@ -1997,6 +2099,26 @@
     return Object.entries(COLUMN_ALIASES).find(([, aliases]) => aliases.some(alias => normalizeText(alias).replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "").toLowerCase() === key))?.[0] || null;
   }
 
+  function hasPrivateCensusSeed() {
+    return location.hostname === "localhost" && (window.CENSO_SEED?.rows || []).some(row => row.type === "patient");
+  }
+
+  function restorePrivateCensus() {
+    if (!hasPrivateCensusSeed()) {
+      flashIaas("No hay respaldo privado local cargado.");
+      return;
+    }
+    if (Object.keys(store.patients || {}).length && !confirm("Esto reemplazara el censo local actual con el respaldo privado. Firestore no se borra. Continuar?")) {
+      return;
+    }
+    store = seedFromCurrentCensus();
+    saveStore();
+    ui.selectedService = "Todos";
+    location.hash = "#/censo-hospitalario";
+    flashIaas("Censo local restaurado desde el respaldo privado.");
+    renderIaas();
+  }
+
   function loadSampleImport() {
     const date = isoToday();
     ui.importText = [
@@ -2223,6 +2345,7 @@
   function routeTitle(page) {
     return {
       dashboard: "Panel IAAS",
+      "censo-hospitalario": "Censo hospitalario",
       "importar-censo": "Importar censo",
       ronda: "Ronda IAAS",
       pacientes: "Seguimiento de paciente",
@@ -2454,6 +2577,10 @@
 
   function currentUserName() {
     return ui.firebase.user?.displayName || ui.firebase.user?.email || "Usuario local";
+  }
+
+  function patientLabel(patient, row = {}) {
+    return patient?.patientName || row.patientName || patient?.displayCode || row.patientId || "Paciente";
   }
 
   function omitPatients(census) {

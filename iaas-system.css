@@ -970,6 +970,34 @@
   margin: 80px auto;
 }
 
+.census-hero-panel,
+.follow-hero,
+.report-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.hospital-census-table {
+  min-width: 1180px;
+}
+
+.hospital-census-table td {
+  vertical-align: top;
+  line-height: 1.35;
+}
+
+.hospital-census-table td small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7897;
+}
+
+.empty-census-panel {
+  text-align: center;
+}
+
 .blocked-panel {
   border-color: rgba(217, 20, 69, .26);
   background:
@@ -1079,6 +1107,7 @@
 
   .import-controls,
   .round-header,
+  .census-hero-panel,
   .follow-hero,
   .report-hero,
   .device-card,

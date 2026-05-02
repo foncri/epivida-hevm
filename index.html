@@ -34,7 +34,23 @@
         appId: "1:721538111286:web:d99ecc9fa13874600d4597"
       };
     </script>
-    <script src="./data/censo-data.js"></script>
-    <script src="./iaas-system.js"></script>
+    <script>
+      const epividaScripts = ["./data/censo-data.js"];
+      if (location.hostname === "localhost") {
+        epividaScripts.push("./data/censo-data.private.js");
+      }
+      epividaScripts.push("./iaas-system.js");
+      (async () => {
+        for (const src of epividaScripts) {
+          await new Promise(resolve => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = resolve;
+            document.body.append(script);
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
