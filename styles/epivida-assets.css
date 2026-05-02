@@ -11,19 +11,19 @@
 }
 
 .ev-page-bg {
-  background-image: url("/assets/epivida/backgrounds/dashboard-mesh-light.svg");
+  background-image: url("../assets/epivida-pro/backgrounds/extra-holographic-dashboard-light.webp");
   background-size: cover;
   background-position: center;
 }
 
 .ev-sidebar-bg {
-  background-image: url("/assets/epivida/backgrounds/sidebar-aurora.svg");
+  background-image: url("../assets/epivida-pro/backgrounds/sidebar-bg-dark-medical.webp");
   background-size: cover;
   background-position: center;
 }
 
 .ev-hero-asset {
-  background-image: url("/assets/epivida/illustrations/hero-epidemiology-orb.svg");
+  background-image: url("../assets/epivida-pro/backgrounds/hero-holographic-epidemiology-dashboard.webp");
   background-size: cover;
   background-position: center;
   border-radius: var(--ev-radius-xl);
@@ -67,6 +67,6 @@
   }
 
   .ev-logo {
-    content: url("/assets/epivida/logos/epivida-mark-print.svg");
+    content: url("../assets/epivida/logos/epivida-mark-print.svg");
   }
 }
