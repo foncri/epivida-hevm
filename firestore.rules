@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function bootstrapAdmin() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email in ["todofoncri@gmail.com"];
+    }
+
+    function activeUser() {
+      return bootstrapAdmin()
+        || signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().data.active == true;
+    }
+
+    function role() {
+      return bootstrapAdmin() ? "admin" : activeUser() ? userDoc().data.role : "none";
+    }
+
+    function isAdmin() {
+      return role() == "admin";
+    }
+
+    function canReadClinical() {
+      return activeUser()
+        && role() in ["admin", "epidemiologia", "enfermeria", "lectura"];
+    }
+
+    function canWriteClinical() {
+      return activeUser()
+        && role() in ["admin", "epidemiologia", "enfermeria"];
+    }
+
+    function canImportOrClose() {
+      return activeUser()
+        && role() in ["admin", "epidemiologia"];
+    }
+
+    function isNursingRoundWrite() {
+      return activeUser()
+        && role() in ["admin", "epidemiologia", "enfermeria"];
+    }
+
+    match /users/{uid} {
+      allow read: if activeUser() && (isAdmin() || request.auth.uid == uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          request.auth.uid == uid
+          && !("role" in request.resource.data.diff(resource.data).changedKeys())
+          && !("active" in request.resource.data.diff(resource.data).changedKeys())
+        );
+      allow delete: if false;
+    }
+
+    match /patients/{patientId} {
+      allow read: if canReadClinical();
+      allow create, update: if canWriteClinical();
+      allow delete: if false;
+
+      match /deviceEpisodes/{episodeId} {
+        allow read: if canReadClinical();
+        allow create, update: if canWriteClinical();
+        allow delete: if false;
+      }
+    }
+
+    match /dailyCensus/{date} {
+      allow read: if canReadClinical();
+      allow create, update: if canImportOrClose();
+      allow delete: if false;
+
+      match /patients/{patientId} {
+        allow read: if canReadClinical();
+        allow create, update: if canImportOrClose() || isNursingRoundWrite();
+        allow delete: if false;
+      }
+    }
+
+    match /dailyRounds/{date} {
+      allow read: if canReadClinical();
+      allow create, update: if canWriteClinical();
+      allow delete: if false;
+
+      match /entries/{entryId} {
+        allow read: if canReadClinical();
+        allow create, update: if isNursingRoundWrite();
+        allow delete: if false;
+      }
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if activeUser() && role() in ["admin", "epidemiologia"];
+      allow create: if canWriteClinical();
+      allow update, delete: if false;
+    }
+  }
+}

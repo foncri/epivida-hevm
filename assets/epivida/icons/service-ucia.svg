@@ -1,0 +1,13 @@
+<svg width="180" height="72" viewBox="0 0 180 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="180" y2="72">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="64" height="64" rx="20" fill="url(#g)"/>
+  <text x="36" y="44" text-anchor="middle" font-family="Inter,Arial" font-size="21" font-weight="900" fill="white">IA</text>
+  <text x="82" y="31" font-family="Inter,Arial" font-size="11" font-weight="900" fill="#172554">UCIA</text>
+  <path d="M82 44h76" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round"/>
+  <path d="M82 54h48" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round"/>
+</svg>

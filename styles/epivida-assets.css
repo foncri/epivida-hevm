@@ -1,0 +1,72 @@
+:root {
+  --ev-primary: #5B5CF6;
+  --ev-violet: #7C3AED;
+  --ev-cyan: #06B6D4;
+  --ev-teal: #14B8A6;
+  --ev-ink: #07111F;
+  --ev-card: rgba(255,255,255,.84);
+  --ev-border: rgba(148,163,184,.32);
+  --ev-shadow: 0 22px 60px rgba(15, 23, 42, .14);
+  --ev-radius-xl: 28px;
+}
+
+.ev-page-bg {
+  background-image: url("/assets/epivida/backgrounds/dashboard-mesh-light.svg");
+  background-size: cover;
+  background-position: center;
+}
+
+.ev-sidebar-bg {
+  background-image: url("/assets/epivida/backgrounds/sidebar-aurora.svg");
+  background-size: cover;
+  background-position: center;
+}
+
+.ev-hero-asset {
+  background-image: url("/assets/epivida/illustrations/hero-epidemiology-orb.svg");
+  background-size: cover;
+  background-position: center;
+  border-radius: var(--ev-radius-xl);
+  box-shadow: var(--ev-shadow);
+}
+
+.ev-glass-card {
+  background: var(--ev-card);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--ev-border);
+  border-radius: var(--ev-radius-xl);
+  box-shadow: var(--ev-shadow);
+}
+
+.ev-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.ev-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+@media print {
+  .ev-page-bg,
+  .ev-sidebar-bg,
+  .ev-hero-asset {
+    background-image: none !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  .ev-glass-card {
+    background: white !important;
+    border: 1px solid #111827 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .ev-logo {
+    content: url("/assets/epivida/logos/epivida-mark-print.svg");
+  }
+}

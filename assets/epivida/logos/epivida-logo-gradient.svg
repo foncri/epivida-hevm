@@ -1,0 +1,32 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <linearGradient id="gPrimary" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#5B5CF6"/>
+    <stop offset="52%" stop-color="#7C3AED"/>
+    <stop offset="100%" stop-color="#2DD4BF"/>
+  </linearGradient>
+  <linearGradient id="gInk" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#10143A"/>
+    <stop offset="100%" stop-color="#2B1A75"/>
+  </linearGradient>
+  <radialGradient id="gGlow" cx="50%" cy="45%" r="60%">
+    <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".95"/>
+    <stop offset="30%" stop-color="#8B5CF6" stop-opacity=".92"/>
+    <stop offset="70%" stop-color="#4F46E5" stop-opacity=".78"/>
+    <stop offset="100%" stop-color="#06B6D4" stop-opacity=".25"/>
+  </radialGradient>
+  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+    <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#2B1A75" flood-opacity=".25"/>
+  </filter>
+  <filter id="iconShadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#312E81" flood-opacity=".20"/>
+  </filter>
+</defs>
+
+<rect x="38" y="38" width="436" height="436" rx="112" fill="url(#gPrimary)" filter="url(#softShadow)"/>
+<path d="M150 148v216h132v-43h-82v-46h72v-41h-72v-43h82v-43H150Z" fill="white"/>
+<path d="M325 148h50l-66 216h-57l-65-216h53l42 160 43-160Z" fill="white" fill-opacity=".92"/>
+<path d="M311 142v227" stroke="#E0F2FE" stroke-width="10" stroke-linecap="round" opacity=".55"/>
+<circle cx="378" cy="122" r="20" fill="#67E8F9"/>
+</svg>

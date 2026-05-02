@@ -1,0 +1,41 @@
+<svg width="720" height="480" viewBox="0 0 720 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+  <linearGradient id="gPrimary" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#5B5CF6"/>
+    <stop offset="52%" stop-color="#7C3AED"/>
+    <stop offset="100%" stop-color="#2DD4BF"/>
+  </linearGradient>
+  <linearGradient id="gInk" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#10143A"/>
+    <stop offset="100%" stop-color="#2B1A75"/>
+  </linearGradient>
+  <radialGradient id="gGlow" cx="50%" cy="45%" r="60%">
+    <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".95"/>
+    <stop offset="30%" stop-color="#8B5CF6" stop-opacity=".92"/>
+    <stop offset="70%" stop-color="#4F46E5" stop-opacity=".78"/>
+    <stop offset="100%" stop-color="#06B6D4" stop-opacity=".25"/>
+  </radialGradient>
+  <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+    <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#2B1A75" flood-opacity=".25"/>
+  </filter>
+  <filter id="iconShadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#312E81" flood-opacity=".20"/>
+  </filter>
+</defs>
+
+<rect width="720" height="480" rx="36" fill="#F8FAFC"/>
+<circle cx="548" cy="128" r="112" fill="#E0F2FE"/>
+<circle cx="164" cy="380" r="120" fill="#EDE9FE"/>
+<g filter="url(#softShadow)">
+  <rect x="185" y="95" width="350" height="278" rx="28" fill="white" stroke="#CBD5E1" stroke-width="2"/>
+  <rect x="218" y="132" width="178" height="18" rx="9" fill="#CBD5E1"/>
+  <rect x="218" y="172" width="244" height="14" rx="7" fill="#E2E8F0"/>
+  <rect x="218" y="202" width="210" height="14" rx="7" fill="#E2E8F0"/>
+  <rect x="218" y="232" width="254" height="14" rx="7" fill="#E2E8F0"/>
+  <rect x="218" y="284" width="104" height="44" rx="16" fill="url(#gPrimary)"/>
+  <path d="M251 306h38" stroke="white" stroke-width="7" stroke-linecap="round"/>
+  <path d="M270 287v38" stroke="white" stroke-width="7" stroke-linecap="round"/>
+</g>
+<path d="M472 304h74l-32 58 12 34h-56l12-34-32-58h22Z" fill="#4F46E5" opacity=".88"/>
+</svg>
