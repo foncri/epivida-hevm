@@ -39,6 +39,7 @@
         enabled: true,
         spreadsheetId: "1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM",
         spreadsheetUrl: "https://docs.google.com/spreadsheets/d/1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM/edit",
+        googleClientId: "721538111286-r5keghg78q9gf5cc3bafpq632hiekros.apps.googleusercontent.com",
         appAuthoritative: true,
         schemaVersion: "1",
         tabs: {
@@ -56,7 +57,7 @@
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
       }
-      epividaScripts.push("./iaas-system.js?v=2026-05-03-sheets05");
+      epividaScripts.push("./iaas-system.js?v=2026-05-03-sheets11");
       (async () => {
         for (const src of epividaScripts) {
           await new Promise(resolve => {

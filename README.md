@@ -73,7 +73,7 @@ python -m http.server 5188
 
 Abrir `http://localhost:5188/`. No uses `127.0.0.1` para probar Google Auth; Firebase Auth puede rechazarlo como dominio no autorizado.
 
-Para autorizar Firebase y Google Sheets, usar Google Chrome. Algunos navegadores embebidos bloquean popups o almacenamiento de terceros y pueden impedir el OAuth de Firebase.
+Para autorizar Firebase, usar Google Chrome. La conexión de Google Sheets usa Google Identity Services con `EPIVIDA_SHEETS_CONFIG.googleClientId`, separado del login Firebase, para evitar que el flujo de Sheets quede atrapado en ventanas `about:blank` del handler OAuth de Firebase.
 
 ## Respaldo operativo
 

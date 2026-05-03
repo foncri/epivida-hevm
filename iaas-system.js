@@ -8,10 +8,12 @@
   const PRO_ASSET = "./assets/epivida-pro";
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
   const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+  const OAUTH_POPUP_TIMEOUT_MS = Number(window.EPIVIDA_OAUTH_POPUP_TIMEOUT_MS || 90000);
   const SHEETS_CONFIG = {
     enabled: false,
     spreadsheetId: "",
     spreadsheetUrl: "",
+    googleClientId: "",
     appAuthoritative: true,
     schemaVersion: "1",
     maxRows: 1000,
@@ -34,6 +36,7 @@
     catalogos: "CATALOGOS",
     ...((window.EPIVIDA_SHEETS_CONFIG || {}).tabs || {})
   };
+  const GOOGLE_OAUTH_CLIENT_ID = window.EPIVIDA_GOOGLE_CLIENT_ID || SHEETS_CONFIG.googleClientId || "";
   const BASE_SHEET_HEADERS = [
     "ID",
     "Fecha_censo",
@@ -232,12 +235,14 @@
       connected: false,
       accessToken: "",
       error: "",
+      errorDetail: "",
       lastWriteId: "",
       lastSyncAt: null,
       activeDate: "",
       lastSyncedAuditCount: 0,
       spreadsheetUrl: SHEETS_CONFIG.spreadsheetUrl || (SHEETS_CONFIG.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/edit` : ""),
-      isSyncing: false
+      isSyncing: false,
+      connectAttemptId: 0
     },
     requireAuth: window.EPIVIDA_REQUIRE_AUTH !== false,
     allowedEmails: (window.EPIVIDA_ALLOWED_EMAILS || []).map(email => String(email).toLowerCase())
@@ -501,6 +506,7 @@
       renderSidebar(route),
       h("main", { class: "iaas-main" }, [
         renderTopbar(),
+        renderSheetsNotice(),
         content
       ])
     ]);
@@ -615,13 +621,41 @@
   function renderSheetsControl() {
     if (!ui.sheets.enabled || !ui.firebase.user || ui.firebase.denied) return "";
     if (ui.sheets.status === "connecting" || (ui.sheets.status === "sync_pending" && ui.sheets.connected)) {
-      return h("button", { class: "iaas-button ghost", disabled: true }, [commandIcon("cloud"), "Sheets..."]);
+      return h("button", { class: "iaas-button ghost", onclick: cancelSheetsConnection, title: "Cancelar autorizacion de Google Sheets" }, [commandIcon("alert"), "Cancelar Sheets"]);
     }
     if (ui.sheets.connected) {
       const label = pendingQueue().length ? "Sincronizar Sheets" : "Recargar Sheets";
       return h("button", { class: "iaas-button ghost", onclick: () => syncOrReloadSheets() }, [commandIcon("cloud"), label]);
     }
     return h("button", { class: "iaas-button primary", onclick: connectSheets }, [commandIcon("cloud"), "Conectar Sheets"]);
+  }
+
+  function renderSheetsNotice() {
+    if (!ui.sheets.enabled || !ui.firebase.user || ui.firebase.denied) return "";
+    if (!["connecting", "error", "sync_conflict"].includes(ui.sheets.status)) return "";
+    const isError = ui.sheets.status === "error" || ui.sheets.status === "sync_conflict";
+    const title = ui.sheets.status === "sync_conflict"
+      ? "Conflicto de Google Sheets"
+      : isError
+        ? "No se pudo conectar Google Sheets"
+        : "Autorizando Google Sheets";
+    const message = ui.sheets.errorDetail || ui.sheets.error || (isError
+      ? "Reintenta la autorizacion y copia el detalle si vuelve a fallar."
+      : "Completa la ventana de Google. Si no aparece, cancela y reintenta en Chrome.");
+    const actions = ui.sheets.status === "connecting"
+      ? [h("button", { class: "iaas-button ghost compact", type: "button", onclick: cancelSheetsConnection }, ["Cancelar"])]
+      : [
+          h("button", { class: "iaas-button primary compact", type: "button", onclick: connectSheets }, ["Reintentar"]),
+          h("button", { class: "iaas-button ghost compact", type: "button", onclick: copySheetsError }, ["Copiar error"]),
+          h("a", { class: "iaas-button ghost compact", href: ui.sheets.spreadsheetUrl, target: "_blank", rel: "noopener" }, ["Abrir hoja"])
+        ];
+    return h("section", { class: `sheets-notice ${isError ? "error" : "warn"}` }, [
+      h("div", {}, [
+        h("strong", {}, [title]),
+        h("span", {}, [message])
+      ]),
+      h("div", { class: "sheets-notice-actions" }, actions)
+    ]);
   }
 
   function sheetsSyncLabel(pending = pendingQueue().length) {
@@ -2728,6 +2762,7 @@
     if (!ui.sheets.enabled || !ui.sheets.accessToken) return;
     ui.sheets.status = "sync_pending";
     ui.sheets.error = "";
+    ui.sheets.errorDetail = "";
     renderIaas();
     try {
       const ranges = [
@@ -2768,6 +2803,7 @@
     } catch (error) {
       ui.sheets.status = "error";
       ui.sheets.error = friendlyError(error);
+      ui.sheets.errorDetail = detailedError(error);
       flashIaas(`Error al leer Sheets: ${ui.sheets.error}`);
       renderIaas();
     }
@@ -2847,10 +2883,33 @@
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(text || `Sheets API ${response.status}`);
+      throw sheetsApiError(response.status, text);
     }
     if (response.status === 204) return {};
     return response.json();
+  }
+
+  function sheetsApiError(status, bodyText) {
+    const parsed = parseJsonSafe(bodyText);
+    const apiError = parsed?.error || {};
+    const message = apiError.message || bodyText || `Sheets API ${status}`;
+    const details = Array.isArray(apiError.details)
+      ? apiError.details.map(detail => detail.reason || detail.errorType || detail.domain || "").filter(Boolean).join(", ")
+      : "";
+    const error = new Error(details ? `${message} (${details})` : message);
+    error.status = status;
+    error.code = apiError.status || apiError.code || status;
+    error.raw = bodyText;
+    return error;
+  }
+
+  function parseJsonSafe(text) {
+    if (!text || typeof text !== "string") return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
   }
 
   function sheetRange(sheetName, range) {
@@ -3406,7 +3465,10 @@
         const provider = new firebaseRuntime.authMod.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
         try {
-          await firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider);
+          await withTimeout(
+            firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider),
+            "Google no respondio a tiempo. Revisa si la ventana emergente quedo abierta o bloqueada y vuelve a intentar en Chrome."
+          );
         } catch (error) {
           if (isPopupBlockedError(error) && shouldUseRedirectFallback()) {
             setAuthRedirectFlow("firebase");
@@ -3429,35 +3491,123 @@
 
   async function connectSheets() {
     if (!firebaseRuntime || !ui.firebase.user || !ui.sheets.enabled) return;
+    const attemptId = ui.sheets.connectAttemptId + 1;
+    ui.sheets.connectAttemptId = attemptId;
     ui.sheets.status = "connecting";
-    ui.sheets.error = "";
-    renderIaas();
+    ui.sheets.error = "Esperando autorizacion de Google Sheets. Si no aparece la ventana de Google, cancela y vuelve a intentar en Chrome.";
+    ui.sheets.errorDetail = "";
     try {
-      const provider = new firebaseRuntime.authMod.GoogleAuthProvider();
-      provider.addScope(SHEETS_SCOPE);
-      provider.setCustomParameters({ prompt: "consent select_account" });
-      let result;
+      let accessToken;
       try {
-        result = await firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider);
+        const resultPromise = requestSheetsAccessToken();
+        renderIaas();
+        accessToken = await resultPromise;
       } catch (error) {
-        if (isPopupBlockedError(error) && shouldUseRedirectFallback()) {
-          setAuthRedirectFlow("sheets");
-          await firebaseRuntime.authMod.signInWithRedirect(firebaseRuntime.auth, provider);
-          return;
-        }
+        if (attemptId !== ui.sheets.connectAttemptId) return;
         if (isPopupBlockedError(error)) throw new Error(oauthPopupHelpText());
         throw error;
       }
-      const credential = firebaseRuntime.authMod.GoogleAuthProvider.credentialFromResult(result);
-      if (!credential?.accessToken) throw new Error("Google no devolvio token de Sheets.");
-      await finishSheetsConnection(credential.accessToken);
+      if (attemptId !== ui.sheets.connectAttemptId) return;
+      await finishSheetsConnection(accessToken);
     } catch (error) {
+      if (attemptId !== ui.sheets.connectAttemptId) return;
       ui.sheets.connected = false;
       ui.sheets.accessToken = "";
       ui.sheets.status = "error";
       ui.sheets.error = friendlyError(error);
+      ui.sheets.errorDetail = detailedError(error);
       flashIaas(`No se pudo conectar Sheets: ${ui.sheets.error}`);
       renderIaas();
+    }
+  }
+
+  function cancelSheetsConnection() {
+    ui.sheets.connectAttemptId += 1;
+    ui.sheets.connected = false;
+    ui.sheets.accessToken = "";
+    ui.sheets.status = "error";
+    ui.sheets.error = "Conexion de Sheets cancelada. Presiona Conectar Sheets para intentarlo de nuevo.";
+    ui.sheets.errorDetail = ui.sheets.error;
+    flashIaas(ui.sheets.error);
+    renderIaas();
+  }
+
+  async function copySheetsError() {
+    const text = [
+      `status=${ui.sheets.status}`,
+      `message=${ui.sheets.error || ""}`,
+      `detail=${ui.sheets.errorDetail || ""}`,
+      `url=${location.href}`,
+      `sheet=${SHEETS_CONFIG.spreadsheetId}`
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      flashIaas("Detalle de error Sheets copiado.");
+    } catch {
+      window.prompt("Copia este error de Sheets:", text);
+    }
+  }
+
+  async function requestSheetsAccessToken() {
+    if (!GOOGLE_OAUTH_CLIENT_ID) {
+      throw new Error("Falta configurar EPIVIDA_SHEETS_CONFIG.googleClientId para autorizar Google Sheets.");
+    }
+    await loadGoogleIdentityServices();
+    const email = ui.firebase.user?.email || firebaseRuntime?.auth?.currentUser?.email || "";
+    return withTimeout(new Promise((resolve, reject) => {
+      try {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_OAUTH_CLIENT_ID,
+          scope: SHEETS_SCOPE,
+          hint: email || undefined,
+          include_granted_scopes: true,
+          prompt: "consent",
+          callback: response => {
+            if (response?.error) {
+              reject(new Error(response.error_description || response.error));
+              return;
+            }
+            if (!response?.access_token) {
+              reject(new Error("Google no devolvio token de Sheets."));
+              return;
+            }
+            resolve(response.access_token);
+          },
+          error_callback: error => {
+            reject(new Error(error?.message || error?.type || "No se pudo abrir la autorizacion de Google Sheets."));
+          }
+        });
+        tokenClient.requestAccessToken({ prompt: "consent" });
+      } catch (error) {
+        reject(error);
+      }
+    }), "La autorizacion directa de Google Sheets no respondio a tiempo. Revisa si la ventana de Google quedo abierta, bloqueada o en segundo plano; cierra esa ventana y presiona Reintentar.");
+  }
+
+  async function loadGoogleIdentityServices() {
+    if (window.google?.accounts?.oauth2) return;
+    const existing = document.querySelector('script[data-epivida-gis="true"]');
+    await new Promise((resolve, reject) => {
+      const script = existing || document.createElement("script");
+      const timeoutId = window.setTimeout(() => reject(new Error("No se pudo cargar Google Identity Services.")), 15000);
+      script.onload = () => {
+        window.clearTimeout(timeoutId);
+        resolve();
+      };
+      script.onerror = () => {
+        window.clearTimeout(timeoutId);
+        reject(new Error("No se pudo cargar Google Identity Services."));
+      };
+      if (!existing) {
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.dataset.epividaGis = "true";
+        document.head.append(script);
+      }
+    });
+    if (!window.google?.accounts?.oauth2) {
+      throw new Error("Google Identity Services no quedo disponible en el navegador.");
     }
   }
 
@@ -3496,11 +3646,14 @@
     ui.sheets.accessToken = accessToken;
     ui.sheets.connected = true;
     ui.sheets.status = "connected";
+    ui.sheets.error = "";
+    ui.sheets.errorDetail = "";
     const hadPendingWrites = pendingQueue().length > 0;
     await hydrateFromSheets();
     if (hadPendingWrites) {
       ui.sheets.status = "sync_conflict";
       ui.sheets.error = "Se detectaron cambios locales previos. Recarga Sheets y repite la accion ya conectado antes de escribir en la base clinica.";
+      ui.sheets.errorDetail = ui.sheets.error;
       store.writeQueue = store.writeQueue.map(item => ({ ...item, status: "error", error: ui.sheets.error }));
       saveStore();
       flashIaas(ui.sheets.error);
@@ -3522,6 +3675,20 @@
 
   function oauthPopupHelpText() {
     return "Este navegador bloqueo la ventana de Google. Abre la app en Google Chrome o permite ventanas emergentes para localhost:5188; Chrome ya es el navegador recomendado para autorizar Firebase y Sheets.";
+  }
+
+  function withTimeout(promise, message, timeoutMs = OAUTH_POPUP_TIMEOUT_MS) {
+    let timeoutId = 0;
+    const guarded = Promise.resolve(promise);
+    guarded.catch(() => {});
+    return Promise.race([
+      guarded,
+      new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]).finally(() => {
+      window.clearTimeout(timeoutId);
+    });
   }
 
   function setAuthRedirectFlow(flow) {
@@ -3550,6 +3717,8 @@
     ui.sheets.connected = false;
     ui.sheets.accessToken = "";
     ui.sheets.status = ui.sheets.enabled ? "disconnected" : ui.sheets.status;
+    ui.sheets.error = "";
+    ui.sheets.errorDetail = "";
     ui.firebase.denied = false;
     await firebaseRuntime.authMod.signOut(firebaseRuntime.auth);
   }
@@ -4432,12 +4601,31 @@
 
   function friendlyError(error) {
     const text = error?.message || String(error);
+    if (/insufficient authentication scopes/i.test(text)) {
+      return "Google no concedio el permiso de Sheets. Reintenta y acepta el acceso a hojas de calculo.";
+    }
+    if (/Google Sheets API has not been used|disabled/i.test(text)) {
+      return "La API de Google Sheets no esta habilitada en el proyecto de Google Cloud/Firebase.";
+    }
+    if (/caller does not have permission|The caller does not have permission/i.test(text)) {
+      return "La cuenta autenticada no tiene permiso para leer esta hoja de Google Sheets.";
+    }
+    if (/access.*denied|popup-closed-by-user|cancelled-popup-request/i.test(text)) {
+      return "La autorizacion de Google fue cancelada o bloqueada.";
+    }
     if (/unauthorized-domain/i.test(text)) {
       return `Dominio no autorizado en Firebase Auth. Usa http://localhost:${location.port || "5188"} o agrega ${location.hostname} en Firebase Console > Authentication > Settings > Authorized domains.`;
     }
-    if (/permission/i.test(text)) return "Permiso denegado por reglas de seguridad.";
+    if (/permission/i.test(text)) return text;
     if (/network|offline/i.test(text)) return "Sin conexión.";
     return text;
+  }
+
+  function detailedError(error) {
+    const code = error?.code ? `[${error.code}] ` : "";
+    const status = error?.status ? `HTTP ${error.status}: ` : "";
+    const message = error?.message || String(error);
+    return `${status}${code}${message}`.trim();
   }
 
   function clone(value) {
