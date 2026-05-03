@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="EpiVida HEVM: sistema gratuito con Firebase para censo, ronda IAAS, invasivos, reportes y respaldo epidemiologico."
+      content="EpiVida IAAS HEVM: centro de vigilancia epidemiologica para censo hospitalario, paquetes preventivos, seguimiento IAAS, analitica y respaldo institucional."
     />
-    <title>EpiVida HEVM | Ronda IAAS</title>
+    <title>EpiVida IAAS | Centro de Vigilancia</title>
     <link rel="icon" href="./assets/epivida/logos/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="./assets/epivida/logos/epivida-logo-gradient.svg" as="image" />
     <link rel="stylesheet" href="./styles/epivida-assets.css" />
-    <link rel="stylesheet" href="./iaas-system.css" />
+    <link rel="stylesheet" href="./iaas-system.css?v=2026-05-03-sheets01" />
   </head>
   <body>
     <noscript>
-      EpiVida HEVM requiere JavaScript para operar el censo, la ronda IAAS y la sincronizacion.
+      EpiVida IAAS requiere JavaScript para operar el centro de vigilancia, el censo y la sincronizacion.
     </noscript>
     <div id="app"></div>
     <script>
@@ -33,13 +33,30 @@
         messagingSenderId: "721538111286",
         appId: "1:721538111286:web:d99ecc9fa13874600d4597"
       };
+      window.EPIVIDA_DATA_PROVIDER = "google_sheets";
+      window.EPIVIDA_FIRESTORE_SYNC = false;
+      window.EPIVIDA_SHEETS_CONFIG = {
+        enabled: true,
+        spreadsheetId: "1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM",
+        spreadsheetUrl: "https://docs.google.com/spreadsheets/d/1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM/edit",
+        appAuthoritative: true,
+        schemaVersion: "1",
+        tabs: {
+          appConfig: "APP_CONFIG",
+          baseDatos: "BASE_DATOS",
+          rondas: "RONDAS_IAAS",
+          dispositivos: "DISPOSITIVOS",
+          auditoria: "AUDITORIA",
+          catalogos: "CATALOGOS"
+        }
+      };
     </script>
     <script>
       const epividaScripts = ["./data/censo-data.js"];
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
       }
-      epividaScripts.push("./iaas-system.js");
+      epividaScripts.push("./iaas-system.js?v=2026-05-03-sheets05");
       (async () => {
         for (const src of epividaScripts) {
           await new Promise(resolve => {

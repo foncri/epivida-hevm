@@ -8,12 +8,27 @@ Sitio publicado: https://foncri.github.io/epivida-hevm/
 
 - GitHub Pages para hosting estatico.
 - Firebase Auth con Google como acceso clinico.
-- Cloud Firestore para censo, rondas, invasivos, auditoria y usuarios.
-- Persistencia offline de Firestore cuando el navegador la soporte.
+- Google Sheets nativo como base clinica primaria.
+- Cloud Firestore queda desactivado por defecto y solo como fallback tecnico.
 - Importacion CSV/XLSX y calculos en navegador.
 - Exportacion local CSV/JSON para respaldo diario.
 
 No usa Cloud Functions, BigQuery, Firebase App Hosting, Cloud Storage clinico, APIs pagadas ni backend propio.
+
+## Google Sheets DB
+
+La app usa una copia nativa de Google Sheets configurada en `window.EPIVIDA_SHEETS_CONFIG`.
+
+Pestanas canonicas:
+
+- `BASE_DATOS`: censo y pacientes.
+- `RONDAS_IAAS`: revision diaria de paquetes preventivos.
+- `DISPOSITIVOS`: episodios de dispositivos invasivos.
+- `AUDITORIA`: acciones append-only de la app.
+- `CATALOGOS`: listas para seleccion.
+- `APP_CONFIG`: version de esquema, fecha activa, `last_write_id` y metadatos.
+
+La app es la superficie segura de edicion. Las ediciones manuales en la hoja no son el flujo normal y pueden sobrescribirse en la siguiente sincronizacion de la app.
 
 ## Flujo principal
 
@@ -24,7 +39,7 @@ No usa Cloud Functions, BigQuery, Firebase App Hosting, Cloud Storage clinico, A
 5. Capturar invasivos como episodios historicos, retiros, reinstalaciones, curacion, cuidado y signos de infeccion.
 6. Consultar dashboard, seguimiento de paciente, reporte diario y exportaciones.
 
-## Modelo Firestore
+## Modelo Firestore fallback
 
 - `patients/{patientId}`
 - `patients/{patientId}/deviceEpisodes/{episodeId}`
@@ -58,9 +73,11 @@ python -m http.server 5188
 
 Abrir `http://localhost:5188/`. No uses `127.0.0.1` para probar Google Auth; Firebase Auth puede rechazarlo como dominio no autorizado.
 
+Para autorizar Firebase y Google Sheets, usar Google Chrome. Algunos navegadores embebidos bloquean popups o almacenamiento de terceros y pueden impedir el OAuth de Firebase.
+
 ## Respaldo operativo
 
-Aunque Firestore este activo, generar diariamente:
+Aunque Google Sheets este activo, generar diariamente:
 
 - respaldo JSON
 - censo CSV

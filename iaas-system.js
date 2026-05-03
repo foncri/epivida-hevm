@@ -3,13 +3,119 @@
 
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
+  const AUTH_FLOW_KEY = "epivida-auth-redirect-flow";
   const FIREBASE_VERSION = "10.12.4";
   const PRO_ASSET = "./assets/epivida-pro";
+  const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+  const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+  const SHEETS_CONFIG = {
+    enabled: false,
+    spreadsheetId: "",
+    spreadsheetUrl: "",
+    appAuthoritative: true,
+    schemaVersion: "1",
+    maxRows: 1000,
+    tabs: {
+      appConfig: "APP_CONFIG",
+      baseDatos: "BASE_DATOS",
+      rondas: "RONDAS_IAAS",
+      dispositivos: "DISPOSITIVOS",
+      auditoria: "AUDITORIA",
+      catalogos: "CATALOGOS"
+    },
+    ...(window.EPIVIDA_SHEETS_CONFIG || {})
+  };
+  SHEETS_CONFIG.tabs = {
+    appConfig: "APP_CONFIG",
+    baseDatos: "BASE_DATOS",
+    rondas: "RONDAS_IAAS",
+    dispositivos: "DISPOSITIVOS",
+    auditoria: "AUDITORIA",
+    catalogos: "CATALOGOS",
+    ...((window.EPIVIDA_SHEETS_CONFIG || {}).tabs || {})
+  };
+  const BASE_SHEET_HEADERS = [
+    "ID",
+    "Fecha_censo",
+    "Servicio",
+    "Cama",
+    "Paciente",
+    "Edad",
+    "Sexo",
+    "Fecha_ingreso",
+    "Días_estancia",
+    "Dx_epidemiológico",
+    "Tipo_IAAS",
+    "Cultivo",
+    "Aislamiento",
+    "Estado",
+    "Dx_hospitalario",
+    "Observaciones",
+    "Updated_at",
+    "Updated_by"
+  ];
+  const ROUND_SHEET_HEADERS = [
+    "entry_id",
+    "round_date",
+    "patient_id",
+    "service",
+    "bed",
+    "status",
+    "reviewed_by",
+    "reviewed_at",
+    "has_invasives",
+    "no_invasives_confirmed",
+    "reviewed_devices",
+    "pending_issues_added",
+    "alerts_generated",
+    "notes",
+    "sync_status",
+    "local_saved_at",
+    "server_confirmed_at",
+    "created_at",
+    "updated_at",
+    "updated_by",
+    "payload_json"
+  ];
+  const DEVICE_SHEET_HEADERS = [
+    "episode_id",
+    "patient_id",
+    "device_type",
+    "device_subtype",
+    "anatomical_site",
+    "installation_date",
+    "removal_date",
+    "is_reinstallation",
+    "dressing_current",
+    "dressing_date",
+    "care_status",
+    "infection_signs",
+    "notes",
+    "created_during_round_date",
+    "source",
+    "sync_status",
+    "created_at",
+    "updated_at",
+    "updated_by",
+    "removed_by",
+    "payload_json"
+  ];
+  const AUDIT_SHEET_HEADERS = [
+    "log_id",
+    "created_at",
+    "user_id",
+    "action_type",
+    "patient_id",
+    "round_date",
+    "metadata_json",
+    "server_confirmed_at"
+  ];
   const NAV_ICONS = {
     dashboard: "icon-dashboard",
+    "seguimiento-iaas": "icon-iaas",
     "censo-hospitalario": "icon-censo-operativo",
-    "importar-censo": "icon-anadir-paciente",
-    ronda: "icon-vigilancia",
+    "importar-censo": "icon-cloud-sync",
+    ronda: "icon-seguridad",
     "reporte-diario": "icon-reporte"
   };
   const SERVICE_ICONS = {
@@ -104,6 +210,8 @@
     selectedService: "Todos",
     censusService: "Todos",
     censusQuery: "",
+    dashboardSlide: 0,
+    dashboardSlidePausedUntil: 0,
     focusTarget: "",
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
@@ -117,6 +225,19 @@
       offlinePersistence: "No configurada",
       remoteHydrated: false,
       realtimeStatus: "Sin escucha colaborativa"
+    },
+    sheets: {
+      enabled: Boolean(SHEETS_CONFIG.enabled && SHEETS_CONFIG.spreadsheetId),
+      status: "disconnected",
+      connected: false,
+      accessToken: "",
+      error: "",
+      lastWriteId: "",
+      lastSyncAt: null,
+      activeDate: "",
+      lastSyncedAuditCount: 0,
+      spreadsheetUrl: SHEETS_CONFIG.spreadsheetUrl || (SHEETS_CONFIG.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/edit` : ""),
+      isSyncing: false
     },
     requireAuth: window.EPIVIDA_REQUIRE_AUTH !== false,
     allowedEmails: (window.EPIVIDA_ALLOWED_EMAILS || []).map(email => String(email).toLowerCase())
@@ -360,7 +481,7 @@
   function renderIaas() {
     const app = document.querySelector("#app");
     if (!app) return;
-    recalculateRound(isoToday());
+    recalculateRound(activeDate());
     app.replaceChildren(renderShell());
     restoreFocusedControl();
   }
@@ -376,7 +497,7 @@
     if (authOnly) {
       return h("div", { class: "iaas-auth-shell ev-page-bg" }, [content]);
     }
-    return h("div", { class: "iaas-shell ev-page-bg" }, [
+    return h("div", { class: "iaas-shell ev-page-bg command-shell" }, [
       renderSidebar(route),
       h("main", { class: "iaas-main" }, [
         renderTopbar(),
@@ -387,38 +508,34 @@
 
   function renderSidebar(active) {
     const nav = [
-      ["dashboard", "Panel IAAS", "Invasivos, alertas y estadísticas"],
-      ["censo-hospitalario", "Censo hospitalario", "Vista institucional del censo"],
-      ["importar-censo", "Importar censo", "Carga matutina Excel/CSV"],
-      ["ronda", "Ronda IAAS", "Revisión móvil por cama"],
-      ["reporte-diario", "Reportes", "Diario, semanal y mensual"]
+      ["dashboard", "Centro de Vigilancia"],
+      ["ronda", "Paquetes Preventivos"],
+      ["seguimiento-iaas", "Seguimiento IAAS"],
+      ["censo-hospitalario", "Vigilancia Hospitalaria"],
+      ["reporte-diario", "Analítica Epidemiológica"],
+      ["importar-censo", "Base de Datos"]
     ];
     return h("aside", { class: "iaas-sidebar ev-sidebar-bg" }, [
       h("div", { class: "iaas-brand" }, [
         h("img", { class: "ev-logo sidebar-logo", src: `${PRO_ASSET}/logos/epivida-icon-square.webp`, alt: "EpiVida HEVM" }),
         h("div", {}, [
-          h("strong", {}, ["EpiVida IAAS"]),
-          h("span", {}, ["Sistema diario de rondas"])
+          h("strong", {}, ["EpiVida IAAS"])
         ])
       ]),
-      h("nav", { class: "iaas-nav" }, nav.map(([page, label, caption]) =>
+      h("nav", { class: "iaas-nav" }, nav.map(([page, label]) =>
         h("a", { href: `#/${page}`, class: active === page ? "active" : "" }, [
           h("img", { src: `${PRO_ASSET}/icons/${NAV_ICONS[page] || "icon-dashboard"}.webp`, alt: "", loading: "lazy" }),
           h("span", {}, [
-            h("strong", {}, [label]),
-            h("small", {}, [caption])
+            h("strong", {}, [label])
           ])
         ])
       )),
-      h("section", { class: "iaas-sidebar-card" }, [
-        h("strong", {}, ["Arquitectura $0"]),
-        h("p", {}, ["Firebase Auth + Firestore opcional. Sin Cloud Functions, sin BigQuery, sin APIs pagadas."]),
-        h("small", {}, [ui.firebase.ready ? "Firebase sincronizado" : "Modo local con respaldo/exportación"])
-      ])
+      renderSidebarSyncCard()
     ]);
   }
 
   function renderTopbar() {
+    if (ui.route.page === "dashboard") return renderCommandTopbar();
     return h("header", { class: "iaas-topbar" }, [
       h("div", {}, [
         h("strong", {}, [routeTitle(ui.route.page)]),
@@ -426,15 +543,64 @@
       ]),
       h("div", { class: "iaas-topbar-actions" }, [
         renderSyncState(),
-        ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, ["Cerrar sesion"]) : "",
-        h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(isoToday()) }, ["Exportar respaldo JSON"]),
-        h("button", { class: "iaas-button ghost", onclick: () => window.print() }, ["Imprimir reporte"])
+        renderSheetsControl(),
+        h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
+        h("button", { class: "iaas-button ghost", onclick: () => window.print() }, [commandIcon("print"), "Imprimir"]),
+        ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
+      ])
+    ]);
+  }
+
+  function renderSidebarSyncCard() {
+    const pending = pendingQueue().length;
+    const online = navigator.onLine;
+    const label = ui.sheets.enabled
+      ? sheetsSyncLabel(pending)
+      : !online
+      ? "Pendiente de sincronizar"
+      : pending
+        ? `${pending} pendiente(s)`
+        : ui.firebase.ready
+          ? "Sistema sincronizado"
+          : "Guardado localmente";
+    return h("section", { class: `command-sidebar-sync ${online && !pending ? "ok" : "warn"}` }, [
+      h("span", { class: "sync-shield" }, [commandIcon("shield")]),
+      h("strong", {}, [label]),
+      h("i", {}, [])
+    ]);
+  }
+
+  function renderCommandTopbar() {
+    return h("header", { class: "iaas-topbar command-topbar" }, [
+      h("div", { class: "command-date-cluster" }, [
+        h("span", { class: "command-today" }, [commandIcon("calendar"), "Hoy"]),
+        h("strong", {}, [dayLabel(new Date())])
+      ]),
+      h("div", { class: "iaas-topbar-actions command-actions" }, [
+        renderSyncState(),
+        renderSheetsControl(),
+        h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
+        h("button", { class: "iaas-button ghost", onclick: () => window.print() }, [commandIcon("print"), "Imprimir"]),
+        ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
       ])
     ]);
   }
 
   function renderSyncState() {
     const pending = pendingQueue().length;
+    if (ui.sheets.enabled) {
+      const status = ui.sheets.status;
+      const className = !navigator.onLine
+        ? "sync offline"
+        : status === "sync_conflict" || status === "error"
+          ? "sync error"
+          : pending || status === "sync_pending" || status === "connecting"
+            ? "sync pending"
+            : ui.sheets.connected
+              ? "sync ok"
+              : "sync local";
+      return h("span", { class: className, title: sheetsSyncTitle() }, [sheetsSyncLabel(pending)]);
+    }
     const className = !navigator.onLine ? "sync offline" : pending ? "sync pending" : ui.firebase.ready ? "sync ok" : "sync local";
     const text = !navigator.onLine
       ? "Pendiente de sincronizar"
@@ -446,80 +612,637 @@
     return h("span", { class: className, title: ui.firebase.offlinePersistence }, [text]);
   }
 
+  function renderSheetsControl() {
+    if (!ui.sheets.enabled || !ui.firebase.user || ui.firebase.denied) return "";
+    if (ui.sheets.status === "connecting" || (ui.sheets.status === "sync_pending" && ui.sheets.connected)) {
+      return h("button", { class: "iaas-button ghost", disabled: true }, [commandIcon("cloud"), "Sheets..."]);
+    }
+    if (ui.sheets.connected) {
+      const label = pendingQueue().length ? "Sincronizar Sheets" : "Recargar Sheets";
+      return h("button", { class: "iaas-button ghost", onclick: () => syncOrReloadSheets() }, [commandIcon("cloud"), label]);
+    }
+    return h("button", { class: "iaas-button primary", onclick: connectSheets }, [commandIcon("cloud"), "Conectar Sheets"]);
+  }
+
+  function sheetsSyncLabel(pending = pendingQueue().length) {
+    if (!navigator.onLine) return "Sheets sin conexion";
+    if (ui.sheets.status === "sync_conflict") return "Conflicto Sheets";
+    if (ui.sheets.status === "error") return "Error Sheets";
+    if (ui.sheets.status === "connecting") return "Conectando Sheets";
+    if (ui.sheets.status === "sync_pending") return pending ? `${pending} pendiente(s)` : "Sincronizando Sheets";
+    if (pending) return `${pending} pendiente(s)`;
+    if (ui.sheets.connected) return "Sheets conectado";
+    return "Sheets desconectado";
+  }
+
+  function sheetsSyncTitle() {
+    const details = [ui.sheets.spreadsheetUrl || "Google Sheets"];
+    if (ui.sheets.lastSyncAt) details.push(`Ultima sincronizacion: ${ui.sheets.lastSyncAt}`);
+    if (ui.sheets.error) details.push(ui.sheets.error);
+    return details.join(" | ");
+  }
+
+  async function syncOrReloadSheets() {
+    if (!ui.sheets.connected) return connectSheets();
+    if (pendingQueue().length) return flushSyncQueue();
+    return hydrateFromSheets();
+  }
+
   function renderRoute() {
     const { page, parts } = ui.route;
     if (page === "censo-hospitalario") return renderHospitalCensusPage();
     if (page === "importar-censo") return renderImportPage();
-    if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || isoToday(), parts[3]);
-    if (page === "ronda") return renderRoundPage(parts[1] || isoToday());
+    if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3]);
+    if (page === "ronda") return renderRoundPage(parts[1] || activeDate());
+    if (page === "seguimiento-iaas") return renderIaasFollowUpHub();
     if (page === "pacientes" && parts[2] === "seguimiento") return renderPatientFollowUp(parts[1]);
     if (page === "reporte-diario") return renderReportsPage();
     return renderDashboard();
   }
 
   function renderDashboard() {
-    const date = isoToday();
+    const date = activeDate();
     const stats = computeStats(date);
-    return h("div", { class: "iaas-page" }, [
-      h("section", { class: "iaas-hero" }, [
-        h("div", { class: "iaas-hero-art ev-hero-asset" }, [
-          h("img", { src: `${PRO_ASSET}/logos/epivida-logo-white.webp`, alt: "EpiVida Vigilancia Epidemiologica" })
-        ]),
+    return h("div", { class: "command-dashboard" }, [
+      h("section", { class: "command-heading" }, [
         h("div", {}, [
-          h("h1", {}, ["Centro de mando IAAS"]),
-          h("p", {}, ["Importa el censo matutino, ejecuta la ronda por cama, captura invasivos como episodios y deja que el sistema calcule indicadores automáticamente."]),
-          h("div", { class: "iaas-hero-actions" }, [
-            h("a", { class: "iaas-button", href: "#/censo-hospitalario" }, ["Ver censo hospitalario"]),
-            h("a", { class: "iaas-button primary", href: "#/importar-censo" }, ["Importar censo"]),
-            h("a", { class: "iaas-button", href: `#/ronda/${date}` }, ["Iniciar ronda"])
-          ])
+          h("h1", {}, ["Centro de Vigilancia"]),
+          h("p", {}, ["Calendario, notificaciones y eventos epidemiológicos"])
         ])
+      ]),
+      renderCommandFeatureRail(stats, date),
+      renderCommandMetrics(stats, date),
+      h("section", { class: "command-bottom-grid" }, [
+        renderCommandCalendar(date),
+        renderCommandNotifications(stats, date),
+        renderCommandQuickActions(date)
+      ])
+    ]);
+  }
+
+  function renderCommandFeatureRail(stats, date) {
+    const modules = dashboardModules(stats, date);
+    const activeIndex = ((ui.dashboardSlide % modules.length) + modules.length) % modules.length;
+    return h("section", {
+      class: "command-module-carousel",
+      "aria-label": "Módulos principales del sistema",
+      onmouseenter: () => { ui.dashboardSlidePausedUntil = Date.now() + 10000; },
+      ontouchstart: () => { ui.dashboardSlidePausedUntil = Date.now() + 10000; }
+    }, [
+      h("button", { class: "command-arrow module-prev", type: "button", onclick: () => setDashboardSlide(ui.dashboardSlide - 1), "aria-label": "Panel anterior" }, [commandIcon("chevron-left")]),
+      h("div", { class: "command-module-viewport" }, [
+        h("div", { class: "command-module-track", style: `--feature-index:${activeIndex}` }, modules.map(module =>
+          h("a", { class: `command-module-card ${module.tone}`, href: module.href, style: `--module-bg:url('${module.backdrop}')` }, [
+            h("div", { class: "command-module-copy" }, [
+              h("div", { class: "command-module-meta" }, module.meta.map(item => h("span", {}, [item]))),
+              h("strong", {}, [module.title]),
+              h("p", {}, [module.text]),
+              h("em", {}, [module.action, commandIcon("chevron-right")])
+            ]),
+            h("div", { class: "command-module-art" }, [
+              h("img", { src: module.image, alt: "", loading: "lazy" })
+            ])
+          ])
+        ))
+      ]),
+      h("button", { class: "command-arrow module-next", type: "button", onclick: () => setDashboardSlide(ui.dashboardSlide + 1), "aria-label": "Panel siguiente" }, [commandIcon("chevron-right")]),
+      h("div", { class: "command-dots module-dots" }, modules.map((_, index) =>
+        h("button", { class: index === activeIndex ? "active" : "", type: "button", "aria-label": `Ver módulo ${index + 1}`, onclick: () => setDashboardSlide(index) }, [])
+      ))
+    ]);
+  }
+
+  function commandFeatureCards(stats, date) {
+    const briefing = salaBriefingData(stats, date);
+    const pendingServices = Object.values(stats.byService).filter(service => service.reviewed < service.total).length;
+    return [
+      {
+        title: "Agenda del día",
+        detail: `${commandCalendarEvents(date).length + 2} actividades programadas`,
+        href: "#/dashboard",
+        tone: "agenda",
+        image: `${PRO_ASSET}/icons/extras/futuristic_medical_dashboard_icon.webp`
+      },
+      {
+        title: "Alertas críticas",
+        detail: `${stats.activeAlerts} alerta(s) activa(s) requieren atención`,
+        href: "#/seguimiento-iaas",
+        tone: "critical",
+        image: `${PRO_ASSET}/icons/extras/futuristic_security_notification_interface_design.webp`
+      },
+      {
+        title: "Cultivos pendientes",
+        detail: `${briefing.cultureEvents.length} evento(s) sin cerrar`,
+        href: "#/seguimiento-iaas",
+        tone: "cultures",
+        image: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`
+      },
+      {
+        title: "Rondas por completar",
+        detail: `${pendingServices} servicio(s) con revisión pendiente`,
+        href: `#/ronda/${date}`,
+        tone: "rounds",
+        image: `${PRO_ASSET}/icons/extras/futuristic_medical_dashboard_with_hospital_bed.webp`
+      },
+      {
+        title: "CODECIN / RHOVE",
+        detail: "Notificación y vigilancia nacional",
+        href: "#/reporte-diario",
+        tone: "rhove",
+        image: `${PRO_ASSET}/icons/extras/futuristic_healthcare_network_hub_icon.webp`
+      }
+    ];
+  }
+
+  function renderCommandMetrics(stats, date) {
+    const epi = commandEpiCounts(date);
+    const compliance = stats.totalPatients ? Math.round((stats.reviewedPatients / stats.totalPatients) * 100) : 0;
+    const metrics = [
+      { label: "Pacientes en vigilancia", value: stats.totalPatients, note: `${stats.installedToday} alta(s) operativas hoy`, tone: "blue" },
+      { label: "IAAS activas", value: epi.iaas, note: `${epi.riesgo} en riesgo`, tone: "pink" },
+      { label: "Pendientes críticos", value: stats.activeAlerts + stats.incompletePatients, note: "Requieren atención", tone: "rose" },
+      { label: "Días dispositivo hoy", value: stats.totalDeviceDays, note: "Total", tone: "cyan" },
+      { label: "Cumplimiento paquetes", value: `${compliance}%`, note: "Global", tone: "violet", ring: compliance }
+    ];
+    return h("section", { class: "command-metric-row" }, metrics.map(metric =>
+      h("article", { class: `command-metric-card ${metric.tone}` }, [
+        metric.ring !== undefined ? h("span", { class: "command-ring", style: `--score:${metric.ring}%` }, [h("b", {}, [String(metric.value)])]) : h("i", {}, []),
+        h("div", {}, [
+          h("span", {}, [metric.label]),
+          metric.ring === undefined ? h("strong", {}, [String(metric.value)]) : "",
+          h("small", {}, [metric.note])
+        ])
+      ])
+    ));
+  }
+
+  function renderCommandCalendar(date) {
+    const days = commandCalendarDays(date);
+    const events = commandCalendarEvents(date);
+    return h("article", { class: "command-panel command-calendar" }, [
+      h("div", { class: "command-panel-head" }, [
+        h("h2", {}, ["Calendario epidemiológico"]),
+        h("div", { class: "command-calendar-controls" }, [
+          h("button", {}, [commandIcon("chevron-left")]),
+          h("button", {}, [commandIcon("chevron-right")]),
+          h("button", {}, ["Hoy"]),
+          h("span", {}, [new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(new Date(`${date}T00:00:00`))]),
+          h("button", { class: "active" }, ["Semana"])
+        ])
+      ]),
+      h("div", { class: "command-calendar-grid" }, [
+        h("span", { class: "time-col" }, [""]),
+        ...days.map(day => h("strong", { class: day.today ? "today" : "" }, [day.label])),
+        ...["08:00", "10:00", "12:00"].flatMap(time => [
+          h("span", { class: "time-col" }, [time]),
+          ...days.map((day, index) => {
+            const event = events.find(item => item.day === index && item.time === time);
+            return h("div", { class: "calendar-slot" }, event ? [
+              h("span", { class: `calendar-event ${event.tone}` }, [event.label, h("small", {}, [event.time])])
+            ] : []);
+          })
+        ])
+      ])
+    ]);
+  }
+
+  function renderCommandNotifications(stats, date) {
+    const items = commandNotifications(stats, date);
+    return h("article", { class: "command-panel command-notifications" }, [
+      h("div", { class: "command-panel-head" }, [
+        h("h2", {}, ["Notificaciones recientes"]),
+        h("a", { href: "#/seguimiento-iaas" }, ["Ver todas"])
+      ]),
+      h("div", { class: "notification-list" }, items.map(item =>
+        h("a", { class: `notification-row ${item.tone}`, href: item.href }, [
+          h("i", {}, [commandIcon(item.icon)]),
+          h("div", {}, [
+            h("strong", {}, [item.title]),
+            h("span", {}, [item.detail])
+          ]),
+          h("time", {}, [item.time])
+        ])
+      ))
+    ]);
+  }
+
+  function renderCommandQuickActions(date) {
+    const actions = [
+      ["Iniciar ronda", `#/ronda/${date}`],
+      ["Registrar IAAS", "#/seguimiento-iaas"],
+      ["Registrar cultivo", "#/seguimiento-iaas"],
+      ["Buscar paciente", "#/censo-hospitalario"],
+      ["Generar reporte", "#/reporte-diario"]
+    ];
+    return h("article", { class: "command-panel command-quick" }, [
+      h("div", { class: "command-panel-head" }, [h("h2", {}, ["Acciones rápidas"])]),
+      h("div", { class: "quick-action-list" }, actions.map(([label, href]) =>
+        h("a", { href }, [h("span", {}, [label]), h("b", {}, [commandIcon("chevron-right")])])
+      ))
+    ]);
+  }
+
+  function commandEpiCounts(date) {
+    return getCensusRows(date).reduce((out, row) => {
+      const patient = store.patients[row.patientId] || {};
+      const cls = epiClass([patient.epidemiologicalDiagnosis, patient.currentEpidemiologicalDiagnosis, row.epidemiologicalDiagnosis].filter(Boolean).join(" "));
+      if (cls === "epi-iaas") out.iaas += 1;
+      if (cls === "epi-riesgo-iaas") out.riesgo += 1;
+      if (cls === "epi-vig") out.vig += 1;
+      return out;
+    }, { iaas: 0, riesgo: 0, vig: 0 });
+  }
+
+  function commandNotifications(stats, date) {
+    const briefing = salaBriefingData(stats, date);
+    return [
+      {
+        title: stats.alertPatients[0] ? `${stats.alertPatients[0].reason} en ${stats.alertPatients[0].currentService || "servicio"}` : "Sin alertas críticas nuevas",
+        detail: stats.alertPatients[0] ? patientLabel(stats.alertPatients[0]) : "Vigilancia sin casos críticos activos",
+        time: "08:24",
+        icon: "alert",
+        tone: "critical",
+        href: "#/seguimiento-iaas"
+      },
+      {
+        title: briefing.cultureEvents[0] ? "Cultivo o PCR pendiente" : "Cultivos sin pendientes visibles",
+        detail: briefing.cultureEvents[0]?.meta || "Sin eventos microbiológicos detectados",
+        time: "07:58",
+        icon: "flask",
+        tone: "culture",
+        href: "#/seguimiento-iaas"
+      },
+      {
+        title: "Ronda por completar",
+        detail: `${stats.pendingPatients} paciente(s) pendientes`,
+        time: "07:12",
+        icon: "check",
+        tone: "round",
+        href: `#/ronda/${date}`
+      },
+      {
+        title: "Reporte RHOVE pendiente",
+        detail: "Semana epidemiológica en revisión",
+        time: "06:45",
+        icon: "info",
+        tone: "rhove",
+        href: "#/reporte-diario"
+      }
+    ];
+  }
+
+  function commandCalendarDays(date) {
+    const selected = new Date(`${date}T00:00:00`);
+    const day = selected.getDay() || 7;
+    const monday = new Date(selected);
+    monday.setDate(selected.getDate() - day + 1);
+    const fmt = new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric" });
+    return Array.from({ length: 7 }, (_, index) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + index);
+      return {
+        label: fmt.format(d).replace(".", ""),
+        today: toIsoDate(d) === date
+      };
+    });
+  }
+
+  function commandCalendarEvents(date) {
+    return [
+      { day: 0, time: "08:00", label: "Ronda UCI A", tone: "blue" },
+      { day: 1, time: "10:00", label: "Vigilancia", tone: "violet" },
+      { day: 2, time: "11:00", label: "Comité IAAS", tone: "pink" },
+      { day: 4, time: "12:00", label: "Reporte RHOVE", tone: "pink" },
+      { day: 5, time: "09:00", label: "Ronda UCI C", tone: "violet" },
+      { day: 5, time: "11:00", label: "Revisión cultivos", tone: "cyan" }
+    ];
+  }
+
+  function commandIcon(name) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("class", "command-svg");
+    const paths = {
+      calendar: ['<path d="M8 2v4M16 2v4"/><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/>'],
+      cloud: ['<path d="M17 18a4 4 0 0 0 .4-8A6 6 0 0 0 6.2 8.5 4.5 4.5 0 0 0 7 18h10Z"/><path d="M12 12v7M8.5 15.5 12 12l3.5 3.5"/>'],
+      print: ['<path d="M7 8V3h10v5"/><path d="M7 17H5a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-2"/><path d="M7 14h10v7H7z"/>'],
+      logout: ['<path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 3v18h-7"/>'],
+      "chevron-left": ['<path d="m15 18-6-6 6-6"/>'],
+      "chevron-right": ['<path d="m9 18 6-6-6-6"/>'],
+      shield: ['<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>'],
+      alert: ['<path d="m10.3 3.4-8.2 14A2 2 0 0 0 3.8 20h16.4a2 2 0 0 0 1.7-2.6l-8.2-14a2 2 0 0 0-3.4 0Z"/><path d="M12 8v5M12 17h.01"/>'],
+      flask: ['<path d="M9 2h6"/><path d="M10 2v6L5 19a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 19L14 8V2"/><path d="M7 16h10"/>'],
+      check: ['<path d="M20 6 9 17l-5-5"/>'],
+      info: ['<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>']
+    };
+    svg.innerHTML = paths[name]?.join("") || paths.info[0];
+    return svg;
+  }
+
+  function dashboardModules(stats, date) {
+    const pendingSync = pendingQueue().length;
+    return [
+      {
+        title: "Centro de Vigilancia",
+        text: `${dayLabel(new Date())}. ${stats.pendingPatients} pendientes, ${stats.activeAlerts} alertas y ${pendingSync} escritura(s) por sincronizar.`,
+        href: "#/dashboard",
+        action: "Ver sala",
+        image: `${PRO_ASSET}/icons/extras/neon_glassy_ui_notification_panel.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/hero-holographic-epidemiology-dashboard.webp`,
+        tone: "vigilancia",
+        meta: ["Calendario", "Notificaciones", "Eventos"]
+      },
+      {
+        title: "Paquetes Preventivos",
+        text: "Vigilancia activa cotidiana para CVC, catéter urinario, ventilación mecánica e ISQ.",
+        href: `#/ronda/${date}`,
+        action: "Iniciar revisión",
+        image: `${PRO_ASSET}/icons/icon-seguridad.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extra-biomedical-holographic-interface.webp`,
+        tone: "paquetes",
+        meta: ["CVC", "CU", "NAV", "ISQ"]
+      },
+      {
+        title: "Seguimiento IAAS",
+        text: `${stats.activeAlerts} paciente(s) con alerta o invasivo relevante para seguimiento dirigido.`,
+        href: "#/seguimiento-iaas",
+        action: "Abrir seguimiento",
+        image: `${PRO_ASSET}/icons/icon-iaas.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extra-network-interface-concept.webp`,
+        tone: "seguimiento",
+        meta: ["Casos", "Cultivos", "Cierre"]
+      },
+      {
+        title: "Vigilancia Hospitalaria",
+        text: `${stats.totalPatients} paciente(s) en censo de hoy y ${Object.keys(stats.byService).length} servicio(s) activos.`,
+        href: "#/censo-hospitalario",
+        action: "Ver censo",
+        image: `${PRO_ASSET}/icons/icon-censo-operativo.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extra-medical-hud-dashboard.webp`,
+        tone: "hospitalaria",
+        meta: ["Servicios", "Camas", "Estados"]
+      },
+      {
+        title: "Analítica Epidemiológica",
+        text: `${stats.patientDays} paciente-día y ${stats.totalDeviceDays} dispositivo-día listos para análisis.`,
+        href: "#/reporte-diario",
+        action: "Ver indicadores",
+        image: `${PRO_ASSET}/icons/icon-reporte.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extra-holographic-dashboard-light.webp`,
+        tone: "analitica",
+        meta: ["Gráficos", "Tasas", "Tendencias"]
+      },
+      {
+        title: "Base de Datos",
+        text: "Importación masiva de censo matutino, respaldo JSON y conciliación sin duplicados.",
+        href: "#/importar-censo",
+        action: "Importar censo",
+        image: `${PRO_ASSET}/icons/icon-cloud-sync.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extras-futuristic_tech_interface_with_glow_elements.webp`,
+        tone: "base",
+        meta: ["Excel", "CSV", "Firestore"]
+      }
+    ];
+  }
+
+  function renderDashboardCarousel(slides, activeSlide) {
+    const slide = slides[activeSlide];
+    return h("section", {
+      class: "sala-carousel",
+      "aria-label": "Módulos principales de EpiVida IAAS",
+      onmouseenter: () => { ui.dashboardSlidePausedUntil = Date.now() + 10000; },
+      ontouchstart: () => { ui.dashboardSlidePausedUntil = Date.now() + 10000; }
+    }, [
+      h("button", { class: "carousel-arrow prev", type: "button", onclick: () => setDashboardSlide(activeSlide - 1) }, ["‹"]),
+      h("article", { class: "sala-slide" }, [
+        h("div", { class: "sala-slide-media" }, [
+          h("img", { src: slide.image, alt: "", loading: "lazy" })
+        ]),
+        h("div", { class: "sala-slide-copy" }, [
+          h("div", { class: "sala-slide-meta" }, slide.meta.map(item => h("span", {}, [item]))),
+          h("h2", {}, [slide.title]),
+          h("p", {}, [slide.text]),
+          h("a", { class: "iaas-button primary", href: slide.href }, [slide.action])
+        ])
+      ]),
+      h("button", { class: "carousel-arrow next", type: "button", onclick: () => setDashboardSlide(activeSlide + 1) }, ["›"]),
+      h("div", { class: "carousel-dots" }, slides.map((_, index) =>
+        h("button", {
+          class: index === activeSlide ? "active" : "",
+          type: "button",
+          "aria-label": `Ver módulo ${index + 1}`,
+          onclick: () => setDashboardSlide(index)
+        }, [])
+      ))
+    ]);
+  }
+
+  function setDashboardSlide(index) {
+    ui.dashboardSlide = index;
+    ui.dashboardSlidePausedUntil = Date.now() + 10000;
+    renderIaas();
+  }
+
+  function renderSalaBriefing(stats, date) {
+    const briefing = salaBriefingData(stats, date);
+    return h("section", { class: "sala-briefing-grid" }, [
+      h("article", { class: "iaas-panel sala-info-card" }, [
+        h("span", { class: "sala-kicker" }, ["Información relevante"]),
+        h("h2", {}, ["Pulso epidemiológico del día"]),
+        h("p", {}, [`${briefing.day}. Censo con ${stats.totalPatients} pacientes, ${stats.activeDevices} invasivos activos y ${stats.activeAlerts} alerta(s) para seguimiento dirigido.`]),
+        h("div", { class: "sala-info-strip" }, [
+          h("span", {}, ["Sincronización"]),
+          renderSyncState(),
+          h("span", {}, [`${pendingQueue().length} pendiente(s)`])
+        ]),
+        h("div", { class: "sala-action-row" }, [
+          h("a", { class: "iaas-button primary", href: `#/ronda/${date}` }, ["Iniciar paquetes preventivos"]),
+          h("a", { class: "iaas-button", href: "#/seguimiento-iaas" }, ["Abrir seguimiento"])
+        ])
+      ]),
+      h("article", { class: "iaas-panel sala-priority-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Pendientes prioritarios"]),
+          h("span", { class: "badge pendiente" }, [`${stats.pendingPatients} pendiente(s)`])
+        ]),
+        renderSalaSignalList(briefing.pendingPatients, "Sin pacientes pendientes en la ronda.")
+      ]),
+      h("article", { class: "iaas-panel sala-events-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Cultivos, PCR y eventos"]),
+          h("span", { class: "badge neutral" }, [`${briefing.cultureEvents.length} evento(s)`])
+        ]),
+        renderSalaSignalList(briefing.cultureEvents, "Sin cultivos, PCR o eventos detectados en el censo visible.")
+      ]),
+      h("article", { class: "iaas-panel sala-prevention-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Paquetes preventivos"]),
+          h("a", { href: `#/ronda/${date}` }, ["Revisar por cama"])
+        ]),
+        h("div", { class: "sala-package-grid" }, [
+          salaPackage("CVC", stats.deviceDaysByType.CVC || 0, "Curación, antisepsia y fecha"),
+          salaPackage("Catéter urinario", stats.deviceDaysByType["Sonda Foley"] || 0, "Necesidad diaria y bolsa"),
+          salaPackage("Ventilación mecánica", stats.deviceDaysByType["Ventilación mecánica"] || 0, "NAV, higiene y destete"),
+          salaPackage("ISQ", briefing.surgicalSignals, "Herida, profilaxis y datos clínicos")
+        ])
+      ]),
+      h("article", { class: "iaas-panel sala-map-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Mapa operativo"]),
+          h("a", { href: "#/censo-hospitalario" }, ["Ver servicios"])
+        ]),
+        renderServicePulse(briefing.servicePulse)
+      ]),
+      h("article", { class: "iaas-panel sala-device-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Invasivos activos"]),
+          h("a", { href: "#/reporte-diario" }, ["Ver indicadores"])
+        ]),
+        renderBars(stats.activeByType)
+      ]),
+      h("article", { class: "iaas-panel sala-close-card" }, [
+        h("div", { class: "iaas-panel-head" }, [
+          h("h2", {}, ["Cierre de ronda"]),
+          h("button", { class: "iaas-button compact", onclick: () => closeRound(date) }, ["Cerrar ronda"])
+        ]),
+        renderRoundCloseChecklist(date)
+      ])
+    ]);
+  }
+
+  function salaBriefingData(stats, date) {
+    const round = store.dailyRounds[date] || {};
+    const rows = getCensusRows(date);
+    const joinedRows = rows.map(row => ({ row, patient: store.patients[row.patientId] || {}, entry: round.entries?.[row.patientId] || {} }));
+    const pendingPatients = joinedRows
+      .filter(item => (item.entry.status || "pendiente") === "pendiente")
+      .slice(0, 5)
+      .map(item => ({
+        title: patientLabel(item.patient, item.row),
+        meta: `${item.row.service || item.patient.currentService || "Sin servicio"} · Cama ${item.row.bed || item.patient.currentBed || "S/C"}`,
+        detail: truncateText(item.patient.currentDiagnosis || item.row.currentDiagnosis || "Pendiente de valoración", 96),
+        href: `#/ronda/${date}/paciente/${item.row.patientId}`,
+        tone: "pending"
+      }));
+    const culturePattern = /cultivo|hemocultivo|pcr|secreci[oó]n|bacter|bacillus|pseudomona|staph|candida|resultado|laboratorio/i;
+    const cultureEvents = joinedRows
+      .filter(item => culturePattern.test([
+        item.patient.currentDiagnosis,
+        item.patient.currentEpidemiologicalDiagnosis,
+        item.patient.activePendingIssues?.join(" "),
+        item.row.notes,
+        item.row.pendingIssues
+      ].filter(Boolean).join(" ")))
+      .slice(0, 5)
+      .map(item => ({
+        title: patientLabel(item.patient, item.row),
+        meta: `${item.row.service || "Sin servicio"} · Cama ${item.row.bed || "S/C"}`,
+        detail: truncateText([item.patient.currentDiagnosis, item.patient.activePendingIssues?.join(" / "), item.row.notes].filter(Boolean).join(" / "), 110),
+        href: `#/pacientes/${item.row.patientId}/seguimiento`,
+        tone: "event"
+      }));
+    const surgicalSignals = joinedRows.filter(item => /quir[uú]rg|cirug|herida|isq|post ?op|lape|colec|fractura|tumor/i.test([
+      item.patient.currentService,
+      item.patient.currentDiagnosis,
+      item.patient.activePendingIssues?.join(" ")
+    ].filter(Boolean).join(" "))).length;
+    const servicePulse = Object.entries(stats.byService)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 7)
+      .map(([service, value]) => ({
+        service,
+        total: value.total,
+        reviewed: value.reviewed,
+        devices: value.devices,
+        progress: value.total ? Math.round((value.reviewed / value.total) * 100) : 0
+      }));
+    return {
+      day: dayLabel(new Date()),
+      pendingPatients,
+      cultureEvents,
+      surgicalSignals,
+      servicePulse
+    };
+  }
+
+  function renderSalaSignalList(items, empty) {
+    if (!items.length) return h("p", { class: "muted" }, [empty]);
+    return h("div", { class: "sala-signal-list" }, items.map(item =>
+      h("a", { class: `sala-signal ${item.tone || ""}`, href: item.href || "#/dashboard" }, [
+        h("strong", {}, [item.title]),
+        h("span", {}, [item.meta]),
+        h("small", {}, [item.detail])
+      ])
+    ));
+  }
+
+  function salaPackage(label, value, detail) {
+    return h("div", { class: "sala-package" }, [
+      h("strong", {}, [String(value)]),
+      h("span", {}, [label]),
+      h("small", {}, [detail])
+    ]);
+  }
+
+  function renderServicePulse(rows) {
+    if (!rows.length) return h("p", { class: "muted" }, ["Sin servicios activos."]);
+    return h("div", { class: "service-pulse-list" }, rows.map(item =>
+      h("div", { class: "service-pulse" }, [
+        h("div", {}, [
+          h("strong", {}, [item.service]),
+          h("span", {}, [`${item.total} paciente(s) · ${item.devices} invasivo(s)`])
+        ]),
+        h("div", { class: "service-pulse-track" }, [
+          h("i", { style: `width:${Math.max(4, item.progress)}%` })
+        ]),
+        h("small", {}, [`${item.progress}% revisado`])
+      ])
+    ));
+  }
+
+  function renderIaasFollowUpHub() {
+    const date = activeDate();
+    const stats = computeStats(date);
+    const patients = Object.values(store.patients)
+      .filter(patient =>
+        patient.latestRoundStatus === "alerta" ||
+        patient.hospitalizationStatus === "requiere_conciliación" ||
+        activeEpisodes(patient.patientId, date).length
+      )
+      .slice(0, 12);
+    return h("div", { class: "iaas-page follow-up-hub" }, [
+      h("section", { class: "iaas-panel follow-hero" }, [
+        h("div", {}, [
+          h("h1", {}, ["Seguimiento IAAS"]),
+          h("p", {}, ["Vista puente para pacientes con invasivos, alertas, cultivos o conciliación pendiente. En esta fase conserva la lógica actual y prepara el terreno para vigilancia activa diaria."])
+        ]),
+        h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" })
       ]),
       renderMetricGrid([
-        ["Censo de hoy", stats.totalPatients, "Pacientes importados"],
-        ["Revisados", stats.reviewedPatients, "Ronda IAAS"],
-        ["Pendientes", stats.pendingPatients, "Pacientes pendientes"],
-        ["Requiere conciliación", stats.reconciliationPatients, "No encontrado en censo de hoy"],
-        ["Invasivos activos", stats.activeDevices, "Dispositivos"],
-        ["Reinstalaciones", stats.reinstallationsToday, "Hoy"],
-        ["Paciente-día", stats.patientDays, "Cálculo automático"],
-        ["Dispositivo-día", stats.totalDeviceDays, "Cálculo automático"]
-      ]),
-      h("section", { class: "iaas-grid two" }, [
-        h("article", { class: "iaas-panel" }, [
-          h("div", { class: "iaas-panel-head" }, [
-            h("h2", {}, ["Invasivos activos por tipo"]),
-            h("a", { href: "#/reporte-diario" }, ["Ver reporte"])
-          ]),
-          renderBars(stats.activeByType)
-        ]),
-        h("article", { class: "iaas-panel" }, [
-          h("div", { class: "iaas-panel-head" }, [
-            h("h2", {}, ["Avance de ronda"]),
-            h("button", { class: "iaas-button compact", onclick: () => closeRound(date) }, ["Cerrar ronda"])
-          ]),
-          renderRoundCloseChecklist(date)
-        ])
-      ]),
+        ["Alertas IAAS", stats.activeAlerts, "Seguimiento dirigido"],
+        ["Invasivos activos", stats.activeDevices, "Episodios vigentes"],
+        ["Pendientes", stats.pendingPatients, "Ronda del día"],
+        ["Conciliación", stats.reconciliationPatients, "Censo hospitalario"]
+      ], "compact"),
       h("section", { class: "iaas-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
-          h("h2", {}, ["Pacientes con alerta IAAS"]),
-          h("span", { class: "badge alert" }, [`${stats.alertPatients.length} alerta(s)`])
+          h("div", {}, [
+            h("h2", {}, ["Pacientes para seguimiento"]),
+            h("p", {}, ["Prioriza invasivos activos, alertas y registros que requieren conciliación."])
+          ]),
+          h("a", { href: "#/censo-hospitalario" }, ["Ver vigilancia hospitalaria"])
         ]),
-        renderPatientMiniTable(stats.alertPatients.slice(0, 8), "Sin alertas IAAS activas.")
-      ]),
-      h("section", { class: "iaas-panel" }, [
-        h("div", { class: "iaas-panel-head" }, [
-          h("h2", {}, ["Conciliación de censo"]),
-          h("span", { class: "badge pendiente" }, [`${stats.reconciliationPatients} pendiente(s)`])
-        ]),
-        renderReconciliationPanel()
+        patients.length
+          ? renderPatientMiniTable(patients, "Sin pacientes priorizados.")
+          : h("p", { class: "muted" }, ["Sin pacientes priorizados para seguimiento IAAS en este momento."])
       ])
     ]);
   }
 
   function renderHospitalCensusPage() {
-    const date = isoToday();
+    const date = activeDate();
     const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
     const visibleRows = rows.filter(censusServiceMatch).filter(censusSearchMatch);
     const stats = computeStats(date);
@@ -529,7 +1252,7 @@
         h("div", { class: "census-hero-copy" }, [
           h("img", { src: `${PRO_ASSET}/icons/icon-censo-operativo.webp`, alt: "", loading: "lazy" }),
           h("div", {}, [
-            h("h1", {}, ["Censo Hospitalario Integral"]),
+            h("h1", {}, ["Vigilancia Hospitalaria"]),
             h("p", {}, ["Mesa visual de vigilancia epidemiológica: servicios, camas, estado clínico, diagnóstico hospitalario y clasificación epidemiológica en una sola lectura operativa."])
           ])
         ]),
@@ -748,7 +1471,7 @@
       h("section", { class: "iaas-panel import-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
-            h("h1", {}, ["Importar censo"]),
+            h("h1", {}, ["Base de Datos"]),
             h("p", {}, ["Pega desde Excel/Google Sheets o carga CSV/XLSX. La importación es determinística: valida, deduplica, concilia y luego guarda."])
           ]),
           h("span", { class: "badge" }, ["Sin IA pagada"])
@@ -845,14 +1568,15 @@
     return h("div", { class: "iaas-page round-page" }, [
       h("section", { class: "iaas-panel round-header" }, [
         h("div", {}, [
-          h("h1", {}, ["Ronda IAAS"]),
-          h("p", {}, ["Lista móvil por servicio y cama. Cada paciente se guarda inmediatamente; no existe un guardado final gigante."])
+          h("h1", {}, ["Paquetes Preventivos"]),
+          h("p", {}, ["Ronda móvil por cama orientada a paquetes preventivos: CVC, catéter urinario, ventilación mecánica e infección de sitio quirúrgico."])
         ]),
         h("div", { class: "round-actions" }, [
           h("button", { class: "iaas-button primary", onclick: () => startRound(date) }, [round.status === "not_started" ? "Iniciar ronda" : "Ronda en curso"]),
           h("button", { class: "iaas-button", onclick: () => closeRound(date) }, ["Cerrar ronda"])
         ])
       ]),
+      renderPreventivePackagePanel(stats, rows, date),
       renderMetricGrid([
         ["Total", stats.totalPatients, "Pacientes"],
         ["Revisados", stats.reviewedPatients, "Sincronizados/locales"],
@@ -864,7 +1588,85 @@
       h("section", { class: "service-filter" }, services.map(service =>
         h("button", { class: ui.selectedService === service ? "active" : "", onclick: () => { ui.selectedService = service; renderIaas(); } }, [service])
       )),
+      renderRoundWorklistSummary(rows, filtered, stats, date),
       h("section", { class: "round-list" }, filtered.map(row => renderRoundCard(row, date)))
+    ]);
+  }
+
+  function renderPreventivePackagePanel(stats, rows, date) {
+    const packages = preventivePackageData(stats, rows, date);
+    return h("section", { class: "preventive-command" }, [
+      h("article", { class: "preventive-command-hero" }, [
+        h("span", {}, ["Guía de revisión"]),
+        h("h2", {}, ["Ronda enfocada, menos escritura repetida"]),
+        h("p", {}, ["Selecciona un servicio, revisa cama por cama y captura solo eventos clínico-operativos: invasivos activos, reinstalaciones, retiro, curación, cuidado y signos de infección."])
+      ]),
+      h("div", { class: "preventive-package-grid" }, packages.map(item =>
+        h("article", { class: `preventive-package ${item.tone}` }, [
+          h("img", { src: item.icon, alt: "", loading: "lazy" }),
+          h("div", {}, [
+            h("strong", {}, [String(item.count)]),
+            h("span", {}, [item.title]),
+            h("small", {}, [item.detail])
+          ]),
+          h("em", {}, [item.action])
+        ])
+      ))
+    ]);
+  }
+
+  function preventivePackageData(stats, rows, date) {
+    const vmCount = (stats.deviceDaysByType["Ventilación mecánica"] || 0) + (stats.deviceDaysByType["Tubo endotraqueal"] || 0) + (stats.deviceDaysByType.Traqueostomía || 0);
+    const surgicalCount = rows.filter(row => isSurgicalSignal(store.patients[row.patientId] || {}, row)).length;
+    return [
+      {
+        title: "CVC",
+        count: stats.deviceDaysByType.CVC || 0,
+        detail: "Fecha, sitio, curación y datos locales de infección.",
+        action: "Prioridad si >48 h",
+        tone: "cvc",
+        icon: `${PRO_ASSET}/icons/extras/futuristic_security_and_medical_protection_icon.webp`
+      },
+      {
+        title: "Catéter urinario",
+        count: stats.deviceDaysByType["Sonda Foley"] || 0,
+        detail: "Necesidad diaria, fijación, circuito y bolsa colectora.",
+        action: "Retirar si no amerita",
+        tone: "foley",
+        icon: `${PRO_ASSET}/icons/extras/futuristic_healthcare_security_concept_design.webp`
+      },
+      {
+        title: "Ventilación mecánica",
+        count: vmCount,
+        detail: "NAV: higiene oral, cabecera, sedación, aspiración y destete.",
+        action: "Vigilar NAV",
+        tone: "nav",
+        icon: `${PRO_ASSET}/icons/extras/neon_lungs_with_virus_and_heartbeat.webp`
+      },
+      {
+        title: "ISQ",
+        count: surgicalCount,
+        detail: "Herida, profilaxis, fiebre, cultivo y datos de infección.",
+        action: "Seguimiento quirúrgico",
+        tone: "isq",
+        icon: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`
+      }
+    ];
+  }
+
+  function renderRoundWorklistSummary(rows, filtered, stats, date) {
+    const selected = ui.selectedService;
+    const reviewed = filtered.filter(row => ["revisado", "alerta"].includes(store.dailyRounds[date]?.entries[row.patientId]?.status)).length;
+    const devices = filtered.reduce((sum, row) => sum + activeEpisodes(row.patientId, date).length, 0);
+    return h("section", { class: "round-worklist-summary" }, [
+      h("div", {}, [
+        h("span", {}, ["Lista de trabajo"]),
+        h("strong", {}, [selected === "Todos" ? "Todos los servicios" : selected]),
+        h("small", {}, [`${filtered.length} de ${rows.length} cama(s) visibles · ${reviewed} revisada(s) · ${devices} invasivo(s)`])
+      ]),
+      h("div", { class: "round-worklist-progress" }, [
+        h("i", { style: `width:${Math.max(4, stats.totalPatients ? (stats.reviewedPatients / stats.totalPatients) * 100 : 4)}%` })
+      ])
     ]);
   }
 
@@ -872,6 +1674,7 @@
     const patient = store.patients[row.patientId];
     const entry = store.dailyRounds[date]?.entries[row.patientId] || {};
     const devices = activeEpisodes(row.patientId, date);
+    const packageSignals = packageSignalsForPatient(patient || {}, row, devices);
     return h("article", { class: `round-card status-${entry.status || "pendiente"}` }, [
       h("div", { class: "round-card-main" }, [
         h("div", { class: "bed-badge" }, [row.bed || "S/C"]),
@@ -886,11 +1689,36 @@
         h("span", { class: `badge sync-${entry.syncStatus || "local"}` }, [syncLabel(entry.syncStatus)]),
         devices.length ? h("span", { class: "badge device" }, [`${devices.length} invasivo(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos activos"])
       ]),
+      h("div", { class: "round-card-packages" }, packageSignals.map(signal =>
+        h("span", { class: signal.tone }, [signal.label])
+      )),
       h("div", { class: "round-card-actions" }, [
         h("a", { class: "iaas-button primary", href: `#/ronda/${date}/paciente/${row.patientId}` }, ["Revisar"]),
         h("a", { class: "iaas-button ghost", href: `#/pacientes/${row.patientId}/seguimiento` }, ["Seguimiento"])
       ])
     ]);
+  }
+
+  function packageSignalsForPatient(patient, row, devices) {
+    const signals = [];
+    if (devices.some(device => device.deviceType === "CVC")) signals.push({ label: "CVC", tone: "cvc" });
+    if (devices.some(device => device.deviceType === "Sonda Foley")) signals.push({ label: "Catéter urinario", tone: "foley" });
+    if (devices.some(device => ["Ventilación mecánica", "Tubo endotraqueal", "Traqueostomía"].includes(device.deviceType))) signals.push({ label: "NAV", tone: "nav" });
+    if (isSurgicalSignal(patient, row)) signals.push({ label: "ISQ", tone: "isq" });
+    if (!signals.length) signals.push({ label: "Valoración rápida", tone: "neutral" });
+    return signals;
+  }
+
+  function isSurgicalSignal(patient, row = {}) {
+    return /quir[uú]rg|cirug|traumatolog|herida|isq|post ?op|pop|lape|colec|fractura|tumor|colostom/i.test([
+      patient.currentService,
+      row.service,
+      patient.currentDiagnosis,
+      row.diagnosis,
+      patient.activePendingIssues?.join(" "),
+      row.pendingIssues,
+      row.notes
+    ].filter(Boolean).join(" "));
   }
 
   function renderPatientRound(date, patientId) {
@@ -1055,13 +1883,13 @@
   }
 
   function renderReportsPage() {
-    const date = isoToday();
+    const date = activeDate();
     const stats = computeStats(date);
     const range = computeRangeStats(30);
     return h("div", { class: "iaas-page reports-page" }, [
       h("section", { class: "iaas-panel report-hero" }, [
         h("div", {}, [
-          h("h1", {}, ["Reporte diario"]),
+          h("h1", {}, ["Analítica Epidemiológica"]),
           h("p", {}, ["Indicadores calculados desde censo, rondas y episodios invasivos. Sin captura manual de totales."])
         ]),
         h("div", { class: "report-actions" }, [
@@ -1092,7 +1920,7 @@
         ])
       ]),
       h("section", { class: "print-report iaas-panel" }, [
-        h("h2", {}, ["Reporte imprimible IAAS"]),
+        h("h2", {}, ["Reporte imprimible epidemiológico"]),
         h("p", {}, [`Fecha: ${date}. Pacientes importados: ${stats.totalPatients}. Revisados: ${stats.reviewedPatients}. Pendientes: ${stats.pendingPatients}. Invasivos activos: ${stats.activeDevices}.`]),
         renderRoundCloseChecklist(date)
       ])
@@ -1637,7 +2465,7 @@
       saveStore();
       enqueueWrite({ type: "roundUpdate", date, round: omitEntries(round), census: omitPatients(store.dailyCensus[date]) });
     }
-    flashIaas("Ronda IAAS iniciada.");
+    flashIaas("Paquetes preventivos iniciados.");
     renderIaas();
   }
 
@@ -1885,7 +2713,7 @@
 
   function computeRangeStats(days) {
     const out = [];
-    const today = new Date(`${isoToday()}T00:00:00`);
+    const today = new Date(`${activeDate()}T00:00:00`);
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
@@ -1896,8 +2724,569 @@
     return out;
   }
 
+  async function hydrateFromSheets() {
+    if (!ui.sheets.enabled || !ui.sheets.accessToken) return;
+    ui.sheets.status = "sync_pending";
+    ui.sheets.error = "";
+    renderIaas();
+    try {
+      const ranges = [
+        sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100"),
+        sheetRange(SHEETS_CONFIG.tabs.baseDatos, "A1:R1000"),
+        sheetRange(SHEETS_CONFIG.tabs.rondas, "A1:U1000"),
+        sheetRange(SHEETS_CONFIG.tabs.dispositivos, "A1:U1000"),
+        sheetRange(SHEETS_CONFIG.tabs.auditoria, "A1:H1000")
+      ];
+      const params = new URLSearchParams({
+        valueRenderOption: "UNFORMATTED_VALUE",
+        dateTimeRenderOption: "SERIAL_NUMBER"
+      });
+      ranges.forEach(range => params.append("ranges", range));
+      const response = await sheetsRequest(`/values:batchGet?${params.toString()}`);
+      const [configValues = {}, baseValues = {}, roundValues = {}, deviceValues = {}, auditValues = {}] = response.valueRanges || [];
+      const config = keyValueRows(configValues.values || []);
+      const derivedDate = sheetDateToIso(config.active_date) || deriveActiveDate(baseValues.values || []) || isoToday();
+      const nextStore = buildStoreFromSheets({
+        baseValues: baseValues.values || [],
+        roundValues: roundValues.values || [],
+        deviceValues: deviceValues.values || [],
+        auditValues: auditValues.values || [],
+        activeDate: derivedDate
+      });
+      nextStore.writeQueue = store.writeQueue || [];
+      nextStore.users = store.users || {};
+      store = nextStore;
+      ui.sheets.lastWriteId = cleanCell(config.last_write_id);
+      ui.sheets.activeDate = derivedDate;
+      ui.sheets.lastSyncAt = nowIso();
+      ui.sheets.connected = true;
+      ui.sheets.status = "connected";
+      saveStore();
+      recalculateRound(derivedDate);
+      flashIaas("Base Google Sheets cargada.");
+      renderIaas();
+    } catch (error) {
+      ui.sheets.status = "error";
+      ui.sheets.error = friendlyError(error);
+      flashIaas(`Error al leer Sheets: ${ui.sheets.error}`);
+      renderIaas();
+    }
+  }
+
+  async function writeOperationToSheets() {
+    if (!ui.sheets.enabled || !ui.sheets.connected || !ui.sheets.accessToken) {
+      throw new Error("Google Sheets no conectado.");
+    }
+    ui.sheets.status = "sync_pending";
+    ui.sheets.error = "";
+    const remoteConfig = await fetchSheetsConfig();
+    const remoteWriteId = cleanCell(remoteConfig.last_write_id);
+    if (remoteWriteId && ui.sheets.lastWriteId && remoteWriteId !== ui.sheets.lastWriteId) {
+      ui.sheets.status = "sync_conflict";
+      ui.sheets.error = "La hoja tiene cambios posteriores. Recarga Sheets antes de sincronizar.";
+      throw new Error(ui.sheets.error);
+    }
+
+    const writeId = `sheets-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const confirmedAt = nowIso();
+    const pendingAuditLogs = store.auditLogs.filter(log => !log.serverConfirmedAt);
+    const clearRanges = [
+      sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:R${SHEETS_CONFIG.maxRows}`),
+      sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${SHEETS_CONFIG.maxRows}`),
+      sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${SHEETS_CONFIG.maxRows}`),
+      sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100")
+    ];
+    await sheetsRequest("/values:batchClear", {
+      method: "POST",
+      body: JSON.stringify({ ranges: clearRanges })
+    });
+    await sheetsRequest("/values:batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({
+        valueInputOption: "USER_ENTERED",
+        data: [
+          { range: sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B9"), values: appConfigRows(writeId, confirmedAt) },
+          { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:R${baseRowsForSheets().length}`), values: baseRowsForSheets() },
+          { range: sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${roundRowsForSheets().length}`), values: roundRowsForSheets() },
+          { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRowsForSheets().length}`), values: deviceRowsForSheets() }
+        ]
+      })
+    });
+    if (pendingAuditLogs.length) {
+      await sheetsRequest(`/values/${encodeURIComponent(sheetRange(SHEETS_CONFIG.tabs.auditoria, "A:H"))}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+        method: "POST",
+        body: JSON.stringify({ values: pendingAuditLogs.map(log => auditRowForSheets(log, confirmedAt)) })
+      });
+      pendingAuditLogs.forEach(log => { log.serverConfirmedAt = confirmedAt; });
+    }
+    ui.sheets.lastWriteId = writeId;
+    ui.sheets.lastSyncAt = confirmedAt;
+    ui.sheets.status = "connected";
+    saveStore();
+  }
+
+  async function fetchSheetsConfig() {
+    const range = encodeURIComponent(sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100"));
+    const response = await sheetsRequest(`/values/${range}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`);
+    return keyValueRows(response.values || []);
+  }
+
+  async function sheetsRequest(path, options = {}) {
+    const response = await fetch(`${SHEETS_API_BASE}/${encodeURIComponent(SHEETS_CONFIG.spreadsheetId)}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${ui.sheets.accessToken}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    if (response.status === 401 || response.status === 403) {
+      ui.sheets.connected = false;
+      ui.sheets.accessToken = "";
+      ui.sheets.status = "disconnected";
+    }
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(text || `Sheets API ${response.status}`);
+    }
+    if (response.status === 204) return {};
+    return response.json();
+  }
+
+  function sheetRange(sheetName, range) {
+    return `'${String(sheetName).replace(/'/g, "''")}'!${range}`;
+  }
+
+  function keyValueRows(values) {
+    return values.slice(1).reduce((out, row) => {
+      const key = cleanCell(row[0]).toLowerCase();
+      if (key) out[key] = row[1] ?? "";
+      return out;
+    }, {});
+  }
+
+  function buildStoreFromSheets({ baseValues, roundValues, deviceValues, auditValues, activeDate: sheetActiveDate }) {
+    const patients = {};
+    const censusPatients = {};
+    rowsToObjects(baseValues).forEach(row => {
+      const patientId = cleanCell(row.ID);
+      if (!patientId) return;
+      const date = sheetDateToIso(row.FECHA_CENSO) || sheetActiveDate;
+      const admissionDate = sheetDateToIso(row.FECHA_INGRESO);
+      const service = normalizeService(row.SERVICIO);
+      const bed = normalizeSheetBed(row.CAMA);
+      const patient = {
+        patientId,
+        displayCode: patientId,
+        patientName: cleanCell(row.PACIENTE) || null,
+        hospitalInternalId: patientId,
+        pseudonymizedId: patientId,
+        currentService: service,
+        currentBed: bed,
+        sex: normalizeSex(row.SEXO),
+        age: parseAge(row.EDAD),
+        admissionDate: admissionDate || null,
+        currentDiagnosis: cleanCell(row.DX_HOSPITALARIO) || null,
+        epidemiologicalDiagnosis: cleanCell(row.DX_EPIDEMIOLOGICO) || null,
+        currentEpidemiologicalDiagnosis: cleanCell(row.DX_EPIDEMIOLOGICO) || null,
+        currentState: cleanCell(row.ESTADO) || null,
+        observations: cleanCell(row.OBSERVACIONES) || null,
+        isolation: cleanCell(row.AISLAMIENTO) || null,
+        cultureStatus: cleanCell(row.CULTIVO) || null,
+        diagnosisHistory: [{ date, value: cleanCell(row.DX_HOSPITALARIO), source: "sheets" }],
+        activePendingIssues: splitPending(row.OBSERVACIONES),
+        currentRiskLevel: riskFromRow({ estado: row.ESTADO, dxEpidemiologicos: row.DX_EPIDEMIOLOGICO }),
+        hospitalizationStatus: "hospitalizado",
+        presentInLatestCensus: true,
+        latestCensusDate: date,
+        latestRoundDate: null,
+        latestRoundStatus: "pendiente",
+        createdAt: nowIso(),
+        updatedAt: sheetDateToIso(row.UPDATED_AT) || nowIso(),
+        createdBy: "sheets",
+        updatedBy: cleanCell(row.UPDATED_BY) || "sheets"
+      };
+      patients[patientId] = patient;
+      censusPatients[patientId] = {
+        patientId,
+        service,
+        bed,
+        patientName: patient.patientName,
+        age: patient.age,
+        sex: patient.sex,
+        admissionDate,
+        diagnosis: patient.currentDiagnosis,
+        epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis,
+        state: patient.currentState,
+        observations: patient.observations,
+        cultureStatus: patient.cultureStatus,
+        isolation: patient.isolation,
+        present: true,
+        importedFromFile: false,
+        importBatchId: `sheets-${date}`,
+        rowHash: hashText(JSON.stringify(row)),
+        reviewedByNursing: false,
+        reviewStatus: "pendiente",
+        reviewedAt: null,
+        syncStatus: "server_synced",
+        notes: patient.observations || "",
+        roundDate: date
+      };
+    });
+
+    const deviceEpisodes = {};
+    rowsToObjects(deviceValues).forEach(row => {
+      const episodeId = cleanCell(row.EPISODE_ID);
+      const patientId = cleanCell(row.PATIENT_ID);
+      if (!episodeId || !patientId) return;
+      const payload = parseJsonCell(row.PAYLOAD_JSON);
+      deviceEpisodes[episodeId] = {
+        ...payload,
+        episodeId,
+        patientId,
+        deviceType: cleanCell(row.DEVICE_TYPE) || payload.deviceType || "Otro",
+        deviceSubtype: cleanCell(row.DEVICE_SUBTYPE) || payload.deviceSubtype || null,
+        anatomicalSite: cleanCell(row.ANATOMICAL_SITE) || payload.anatomicalSite || null,
+        installationDate: sheetDateToIso(row.INSTALLATION_DATE) || payload.installationDate || null,
+        removalDate: sheetDateToIso(row.REMOVAL_DATE) || payload.removalDate || null,
+        isReinstallation: parseBool(row.IS_REINSTALLATION),
+        dressingCurrent: nullable(row.DRESSING_CURRENT),
+        dressingDate: sheetDateToIso(row.DRESSING_DATE) || payload.dressingDate || null,
+        careStatus: cleanCell(row.CARE_STATUS) || payload.careStatus || "no_valorado",
+        infectionSigns: parseBool(row.INFECTION_SIGNS),
+        notes: cleanCell(row.NOTES) || payload.notes || null,
+        createdDuringRoundDate: sheetDateToIso(row.CREATED_DURING_ROUND_DATE) || payload.createdDuringRoundDate || null,
+        source: cleanCell(row.SOURCE) || payload.source || "sheets",
+        syncStatus: cleanCell(row.SYNC_STATUS) || "server_synced",
+        createdAt: sheetDateToIso(row.CREATED_AT) || payload.createdAt || nowIso(),
+        updatedAt: sheetDateToIso(row.UPDATED_AT) || payload.updatedAt || nowIso(),
+        updatedBy: cleanCell(row.UPDATED_BY) || payload.updatedBy || "sheets"
+      };
+    });
+
+    const entries = {};
+    Object.values(censusPatients).forEach(row => {
+      entries[row.patientId] = defaultRoundEntry(row, sheetActiveDate, deviceEpisodes);
+    });
+    rowsToObjects(roundValues).forEach(row => {
+      const patientId = cleanCell(row.PATIENT_ID);
+      if (!patientId) return;
+      const payload = parseJsonCell(row.PAYLOAD_JSON);
+      entries[patientId] = {
+        ...defaultRoundEntry(censusPatients[patientId] || { patientId }, sheetActiveDate, deviceEpisodes),
+        ...payload,
+        entryId: cleanCell(row.ENTRY_ID) || patientId,
+        patientId,
+        service: cleanCell(row.SERVICE) || payload.service || censusPatients[patientId]?.service || "",
+        bed: cleanCell(row.BED) || payload.bed || censusPatients[patientId]?.bed || "",
+        status: cleanCell(row.STATUS) || payload.status || "pendiente",
+        reviewedBy: cleanCell(row.REVIEWED_BY) || payload.reviewedBy || null,
+        reviewedAt: cleanCell(row.REVIEWED_AT) || payload.reviewedAt || null,
+        roundDate: sheetDateToIso(row.ROUND_DATE) || payload.roundDate || sheetActiveDate,
+        hasInvasives: parseBool(row.HAS_INVASIVES),
+        noInvasivesConfirmed: parseBool(row.NO_INVASIVES_CONFIRMED),
+        reviewedDevices: splitListCell(row.REVIEWED_DEVICES),
+        pendingIssuesAdded: splitListCell(row.PENDING_ISSUES_ADDED),
+        alertsGenerated: splitListCell(row.ALERTS_GENERATED),
+        notes: cleanCell(row.NOTES) || payload.notes || "",
+        syncStatus: cleanCell(row.SYNC_STATUS) || "server_synced",
+        localSavedAt: cleanCell(row.LOCAL_SAVED_AT) || payload.localSavedAt || null,
+        serverConfirmedAt: cleanCell(row.SERVER_CONFIRMED_AT) || payload.serverConfirmedAt || null
+      };
+    });
+
+    const auditLogs = rowsToObjects(auditValues).map(row => ({
+      logId: cleanCell(row.LOG_ID),
+      createdAt: cleanCell(row.CREATED_AT),
+      userId: cleanCell(row.USER_ID),
+      actionType: cleanCell(row.ACTION_TYPE),
+      patientId: cleanCell(row.PATIENT_ID) || null,
+      roundDate: sheetDateToIso(row.ROUND_DATE) || cleanCell(row.ROUND_DATE) || null,
+      metadata: parseJsonCell(row.METADATA_JSON),
+      serverConfirmedAt: cleanCell(row.SERVER_CONFIRMED_AT) || null
+    })).filter(log => log.logId);
+
+    const date = sheetActiveDate;
+    const dailyRounds = {
+      [date]: {
+        date,
+        status: Object.values(entries).some(entry => entry.status !== "pendiente") ? "in_progress" : "not_started",
+        startedAt: null,
+        startedBy: null,
+        closedAt: null,
+        closedBy: null,
+        entries,
+        totalPatients: Object.keys(entries).length,
+        reviewedPatients: 0,
+        pendingPatients: 0,
+        incompletePatients: 0,
+        reconciliationPatients: 0,
+        activeAlerts: 0,
+        localPendingWritesCount: 0,
+        serverSyncedWritesCount: 0,
+        errorWritesCount: 0
+      }
+    };
+
+    return {
+      version: 1,
+      activeDate: date,
+      patients,
+      dailyCensus: {
+        [date]: {
+          date,
+          importBatchId: `sheets-${date}`,
+          importedAt: nowIso(),
+          importedBy: "google-sheets",
+          totalRows: Object.keys(censusPatients).length,
+          totalPatientsDetected: Object.keys(censusPatients).length,
+          totalNewPatients: Object.keys(censusPatients).length,
+          totalUpdatedPatients: 0,
+          totalDuplicatesSkipped: 0,
+          totalErrors: 0,
+          status: "imported",
+          closedAt: null,
+          closedBy: null,
+          patients: censusPatients,
+          conflicts: []
+        }
+      },
+      dailyRounds,
+      deviceEpisodes,
+      auditLogs,
+      writeQueue: [],
+      users: {},
+      lastSavedAt: nowIso()
+    };
+  }
+
+  function rowsToObjects(values) {
+    if (!values.length) return [];
+    const headers = values[0].map(normalizeSheetHeader);
+    return values.slice(1).filter(row => row.some(value => cleanCell(value))).map(row => {
+      const out = {};
+      headers.forEach((header, index) => { if (header) out[header] = row[index] ?? ""; });
+      return out;
+    });
+  }
+
+  function normalizeSheetHeader(value) {
+    return normalizeText(value).replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  }
+
+  function defaultRoundEntry(row, date, episodes = store.deviceEpisodes) {
+    return {
+      entryId: row.patientId,
+      patientId: row.patientId,
+      service: row.service || "",
+      bed: row.bed || "",
+      reviewedBy: null,
+      reviewedAt: null,
+      roundDate: date,
+      hasInvasives: Object.values(episodes).some(ep => ep.patientId === row.patientId && isEpisodeActiveOn(ep, date)),
+      noInvasivesConfirmed: false,
+      reviewedDevices: [],
+      pendingIssuesAdded: [],
+      alertsGenerated: [],
+      status: "pendiente",
+      syncStatus: "server_synced",
+      localSavedAt: null,
+      serverConfirmedAt: null,
+      notes: ""
+    };
+  }
+
+  function baseRowsForSheets() {
+    const rows = getCensusRows(activeDate()).map(row => {
+      const patient = store.patients[row.patientId] || {};
+      const admission = patient.admissionDate || row.admissionDate || "";
+      return [
+        row.patientId,
+        row.roundDate || activeDate(),
+        row.service || patient.currentService || "",
+        row.bed || patient.currentBed || "",
+        patient.patientName || row.patientName || "",
+        patient.age ?? row.age ?? "",
+        patient.sex || row.sex || "",
+        admission,
+        daysBetween(admission, row.roundDate || activeDate()) ?? "",
+        patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "",
+        patient.iaasType || "",
+        row.cultureStatus || patient.cultureStatus || "",
+        row.isolation || patient.isolation || "",
+        patient.currentState || row.state || "",
+        patient.currentDiagnosis || row.diagnosis || "",
+        patient.observations || row.observations || row.notes || "",
+        nowIso(),
+        currentUserName()
+      ];
+    });
+    return [BASE_SHEET_HEADERS, ...rows];
+  }
+
+  function roundRowsForSheets() {
+    const rows = Object.values(store.dailyRounds).flatMap(round => Object.values(round.entries || {})).map(entry => [
+      entry.entryId || entry.patientId,
+      entry.roundDate || "",
+      entry.patientId || "",
+      entry.service || "",
+      entry.bed || "",
+      entry.status || "",
+      entry.reviewedBy || "",
+      entry.reviewedAt || "",
+      boolCell(entry.hasInvasives),
+      boolCell(entry.noInvasivesConfirmed),
+      listCell(entry.reviewedDevices),
+      listCell(entry.pendingIssuesAdded),
+      listCell(entry.alertsGenerated),
+      entry.notes || "",
+      entry.syncStatus || "",
+      entry.localSavedAt || "",
+      entry.serverConfirmedAt || "",
+      entry.createdAt || "",
+      entry.updatedAt || "",
+      entry.updatedBy || "",
+      jsonCell(entry)
+    ]);
+    return [ROUND_SHEET_HEADERS, ...rows];
+  }
+
+  function deviceRowsForSheets() {
+    const rows = Object.values(store.deviceEpisodes).map(ep => [
+      ep.episodeId || "",
+      ep.patientId || "",
+      ep.deviceType || "",
+      ep.deviceSubtype || "",
+      ep.anatomicalSite || "",
+      ep.installationDate || "",
+      ep.removalDate || "",
+      boolCell(ep.isReinstallation),
+      boolCell(ep.dressingCurrent),
+      ep.dressingDate || "",
+      ep.careStatus || "",
+      boolCell(ep.infectionSigns),
+      ep.notes || "",
+      ep.createdDuringRoundDate || "",
+      ep.source || "",
+      ep.syncStatus || "",
+      ep.createdAt || "",
+      ep.updatedAt || "",
+      ep.updatedBy || "",
+      ep.removedBy || "",
+      jsonCell(ep)
+    ]);
+    return [DEVICE_SHEET_HEADERS, ...rows];
+  }
+
+  function appConfigRows(writeId, updatedAt) {
+    return [
+      ["key", "value"],
+      ["schema_version", SHEETS_CONFIG.schemaVersion],
+      ["active_date", activeDate()],
+      ["last_write_id", writeId],
+      ["last_updated_at", updatedAt],
+      ["last_updated_by", currentUserName()],
+      ["source_mode", SHEETS_CONFIG.appAuthoritative ? "app_authoritative" : "sheets_read"],
+      ["base_sheet", SHEETS_CONFIG.tabs.baseDatos],
+      ["notes", "EpiVida app is the authoritative editor. Manual sheet edits can be overwritten."]
+    ];
+  }
+
+  function auditRowForSheets(log, confirmedAt) {
+    return [
+      log.logId,
+      log.createdAt,
+      log.userId,
+      log.actionType,
+      log.patientId || "",
+      log.roundDate || "",
+      jsonCell({
+        deviceEpisodeId: log.deviceEpisodeId || null,
+        importBatchId: log.importBatchId || null,
+        before: log.before || null,
+        after: log.after || null,
+        metadata: log.metadata || null
+      }),
+      confirmedAt
+    ];
+  }
+
+  function deriveActiveDate(baseValues) {
+    const rows = rowsToObjects(baseValues);
+    const dates = rows.map(row => sheetDateToIso(row.FECHA_CENSO)).filter(Boolean).sort();
+    return dates[dates.length - 1] || "";
+  }
+
+  function sheetDateToIso(value) {
+    if (value === null || value === undefined || value === "") return "";
+    if (typeof value === "number" || /^\d+(\.\d+)?$/.test(String(value).trim())) {
+      const n = Number(value);
+      if (Number.isFinite(n) && n > 20000) {
+        const d = new Date(Math.round((n - 25569) * 86400000));
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      }
+    }
+    return normalizeDate(value);
+  }
+
+  function normalizeSheetBed(value) {
+    return cleanCell(value).replace(/^cama\s+/i, "");
+  }
+
+  function parseJsonCell(value) {
+    const text = cleanCell(value);
+    if (!text) return {};
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function jsonCell(value) {
+    return JSON.stringify(value ?? {});
+  }
+
+  function parseBool(value) {
+    const text = normalizeText(value);
+    return ["TRUE", "VERDADERO", "SI", "S", "1", "YES"].includes(text);
+  }
+
+  function boolCell(value) {
+    return value ? "TRUE" : "FALSE";
+  }
+
+  function listCell(value) {
+    return Array.isArray(value) ? value.join(" | ") : cleanCell(value);
+  }
+
+  function splitListCell(value) {
+    return cleanCell(value).split("|").map(item => item.trim()).filter(Boolean);
+  }
+
   async function enqueueWrite(operation) {
     const item = { id: `write-${Date.now()}-${Math.random().toString(16).slice(2)}`, status: "local_pending", createdAt: nowIso(), operation };
+    if (ui.sheets.enabled) {
+      if (!ui.sheets.connected || !navigator.onLine) {
+        store.writeQueue.push(item);
+        ui.sheets.status = "sync_pending";
+        saveStore();
+        return;
+      }
+      try {
+        await writeOperationToSheets(operation);
+        item.status = "server_synced";
+      } catch (error) {
+        item.status = "error";
+        item.error = friendlyError(error);
+        store.writeQueue.push(item);
+        addAudit("SYNC_ERROR", { metadata: { error: item.error, operationType: operation.type, provider: "google_sheets" } });
+      }
+      saveStore();
+      renderIaas();
+      return;
+    }
     if (!ui.firebase.ready || !navigator.onLine) {
       store.writeQueue.push(item);
       saveStore();
@@ -1916,6 +3305,29 @@
   }
 
   async function flushSyncQueue() {
+    if (ui.sheets.enabled) {
+      if (!ui.sheets.connected || !navigator.onLine) return;
+      const queue = [...store.writeQueue];
+      if (!queue.length) return;
+      try {
+        await writeOperationToSheets({ type: "queuedSnapshot" });
+        queue.forEach(item => {
+          item.status = "server_synced";
+          item.serverConfirmedAt = nowIso();
+        });
+      } catch (error) {
+        queue.forEach(item => {
+          if (item.status !== "server_synced") {
+            item.status = "error";
+            item.error = friendlyError(error);
+          }
+        });
+      }
+      store.writeQueue = queue.filter(item => item.status !== "server_synced");
+      saveStore();
+      renderIaas();
+      return;
+    }
     if (!ui.firebase.ready || !navigator.onLine) return;
     const queue = [...store.writeQueue];
     for (const item of queue) {
@@ -1946,6 +3358,7 @@
       ]);
       const app = appMod.initializeApp(config);
       const auth = authMod.getAuth(app);
+      await authMod.setPersistence(auth, authMod.browserLocalPersistence);
       let db;
       try {
         db = fsMod.initializeFirestore(app, {
@@ -1957,17 +3370,27 @@
         ui.firebase.offlinePersistence = "Persistencia offline no disponible en este navegador";
       }
       firebaseRuntime = { appMod, authMod, fsMod, app, auth, db };
+      await consumeAuthRedirectResult();
       authMod.onAuthStateChanged(auth, async user => {
         ui.firebase.user = user;
         ui.firebase.denied = Boolean(user && !isEmailAllowed(user.email));
         ui.firebase.ready = Boolean(user && !ui.firebase.denied);
         renderIaas();
         if (ui.firebase.ready) {
-          await hydrateCurrentFirestore();
-          startRealtimeSync(isoToday());
-          flushSyncQueue();
+          if (ui.sheets.enabled) {
+            stopRealtimeSync();
+            ui.firebase.realtimeStatus = "Firebase Auth activo. Base de datos en Google Sheets.";
+            ui.sheets.status = ui.sheets.connected ? "connected" : "disconnected";
+          } else {
+            await hydrateCurrentFirestore();
+            startRealtimeSync(activeDate());
+            flushSyncQueue();
+          }
         } else {
           stopRealtimeSync();
+          ui.sheets.connected = false;
+          ui.sheets.accessToken = "";
+          ui.sheets.status = ui.sheets.enabled ? "disconnected" : ui.sheets.status;
         }
       });
     } catch (error) {
@@ -1982,7 +3405,17 @@
       if (ui.firebase.authProvider === "google") {
         const provider = new firebaseRuntime.authMod.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
-        await firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider);
+        try {
+          await firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider);
+        } catch (error) {
+          if (isPopupBlockedError(error) && shouldUseRedirectFallback()) {
+            setAuthRedirectFlow("firebase");
+            await firebaseRuntime.authMod.signInWithRedirect(firebaseRuntime.auth, provider);
+            return;
+          }
+          if (isPopupBlockedError(error)) throw new Error(oauthPopupHelpText());
+          throw error;
+        }
       } else {
         const email = document.querySelector("#login-email")?.value || "";
         const password = document.querySelector("#login-password")?.value || "";
@@ -1994,9 +3427,129 @@
     }
   }
 
+  async function connectSheets() {
+    if (!firebaseRuntime || !ui.firebase.user || !ui.sheets.enabled) return;
+    ui.sheets.status = "connecting";
+    ui.sheets.error = "";
+    renderIaas();
+    try {
+      const provider = new firebaseRuntime.authMod.GoogleAuthProvider();
+      provider.addScope(SHEETS_SCOPE);
+      provider.setCustomParameters({ prompt: "consent select_account" });
+      let result;
+      try {
+        result = await firebaseRuntime.authMod.signInWithPopup(firebaseRuntime.auth, provider);
+      } catch (error) {
+        if (isPopupBlockedError(error) && shouldUseRedirectFallback()) {
+          setAuthRedirectFlow("sheets");
+          await firebaseRuntime.authMod.signInWithRedirect(firebaseRuntime.auth, provider);
+          return;
+        }
+        if (isPopupBlockedError(error)) throw new Error(oauthPopupHelpText());
+        throw error;
+      }
+      const credential = firebaseRuntime.authMod.GoogleAuthProvider.credentialFromResult(result);
+      if (!credential?.accessToken) throw new Error("Google no devolvio token de Sheets.");
+      await finishSheetsConnection(credential.accessToken);
+    } catch (error) {
+      ui.sheets.connected = false;
+      ui.sheets.accessToken = "";
+      ui.sheets.status = "error";
+      ui.sheets.error = friendlyError(error);
+      flashIaas(`No se pudo conectar Sheets: ${ui.sheets.error}`);
+      renderIaas();
+    }
+  }
+
+  async function consumeAuthRedirectResult() {
+    const flow = getAuthRedirectFlow();
+    if (!flow || !firebaseRuntime) return;
+    try {
+      const result = await firebaseRuntime.authMod.getRedirectResult(firebaseRuntime.auth);
+      clearAuthRedirectFlow();
+      if (!result?.user) {
+        ui.firebase.error = "Google regreso sin una sesion activa. Intenta de nuevo y confirma que usas una cuenta autorizada.";
+        return;
+      }
+      ui.firebase.user = result.user;
+      ui.firebase.denied = Boolean(result.user && !isEmailAllowed(result.user.email));
+      ui.firebase.ready = Boolean(result.user && !ui.firebase.denied);
+      if (flow === "sheets" && ui.firebase.ready && ui.sheets.enabled) {
+        const credential = firebaseRuntime.authMod.GoogleAuthProvider.credentialFromResult(result);
+        if (!credential?.accessToken) throw new Error("Google no devolvio token de Sheets.");
+        await finishSheetsConnection(credential.accessToken);
+      }
+    } catch (error) {
+      clearAuthRedirectFlow();
+      if (flow === "sheets") {
+        ui.sheets.connected = false;
+        ui.sheets.accessToken = "";
+        ui.sheets.status = "error";
+        ui.sheets.error = friendlyError(error);
+      } else {
+        ui.firebase.error = friendlyError(error);
+      }
+    }
+  }
+
+  async function finishSheetsConnection(accessToken) {
+    ui.sheets.accessToken = accessToken;
+    ui.sheets.connected = true;
+    ui.sheets.status = "connected";
+    const hadPendingWrites = pendingQueue().length > 0;
+    await hydrateFromSheets();
+    if (hadPendingWrites) {
+      ui.sheets.status = "sync_conflict";
+      ui.sheets.error = "Se detectaron cambios locales previos. Recarga Sheets y repite la accion ya conectado antes de escribir en la base clinica.";
+      store.writeQueue = store.writeQueue.map(item => ({ ...item, status: "error", error: ui.sheets.error }));
+      saveStore();
+      flashIaas(ui.sheets.error);
+      renderIaas();
+      return;
+    }
+    await flushSyncQueue();
+  }
+
+  function isPopupBlockedError(error) {
+    const code = String(error?.code || "");
+    const message = String(error?.message || "");
+    return code.includes("popup-blocked") || /popup.*block/i.test(message);
+  }
+
+  function shouldUseRedirectFallback() {
+    return window.EPIVIDA_AUTH_REDIRECT_FALLBACK === true;
+  }
+
+  function oauthPopupHelpText() {
+    return "Este navegador bloqueo la ventana de Google. Abre la app en Google Chrome o permite ventanas emergentes para localhost:5188; Chrome ya es el navegador recomendado para autorizar Firebase y Sheets.";
+  }
+
+  function setAuthRedirectFlow(flow) {
+    try {
+      localStorage.setItem(AUTH_FLOW_KEY, flow);
+    } catch {}
+  }
+
+  function getAuthRedirectFlow() {
+    try {
+      return localStorage.getItem(AUTH_FLOW_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function clearAuthRedirectFlow() {
+    try {
+      localStorage.removeItem(AUTH_FLOW_KEY);
+    } catch {}
+  }
+
   async function signOutFirebase() {
     if (!firebaseRuntime) return;
     stopRealtimeSync();
+    ui.sheets.connected = false;
+    ui.sheets.accessToken = "";
+    ui.sheets.status = ui.sheets.enabled ? "disconnected" : ui.sheets.status;
     ui.firebase.denied = false;
     await firebaseRuntime.authMod.signOut(firebaseRuntime.auth);
   }
@@ -2548,13 +4101,14 @@
 
   function routeTitle(page) {
     return {
-      dashboard: "Panel IAAS",
-      "censo-hospitalario": "Censo hospitalario",
-      "importar-censo": "Importar censo",
-      ronda: "Ronda IAAS",
+      dashboard: "Centro de Vigilancia",
+      "censo-hospitalario": "Vigilancia Hospitalaria",
+      "importar-censo": "Base de Datos",
+      ronda: "Paquetes Preventivos",
+      "seguimiento-iaas": "Seguimiento IAAS",
       pacientes: "Seguimiento de paciente",
-      "reporte-diario": "Reportes"
-    }[page] || "Panel IAAS";
+      "reporte-diario": "Analítica Epidemiológica"
+    }[page] || "Centro de Vigilancia";
   }
 
   function h(tag, attrs = {}, children = []) {
@@ -2667,6 +4221,10 @@
     return toIsoDate(new Date());
   }
 
+  function activeDate() {
+    return ui.sheets.activeDate || store.activeDate || isoToday();
+  }
+
   function nowIso() {
     return new Date().toISOString();
   }
@@ -2742,6 +4300,7 @@
 
   function syncStatusForNewWrite() {
     if (!navigator.onLine) return "local_pending";
+    if (ui.sheets.enabled) return ui.sheets.connected ? "server_synced" : "local_pending";
     if (!ui.firebase.enabled) return "server_synced";
     return ui.firebase.ready ? "server_synced" : "local_pending";
   }
