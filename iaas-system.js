@@ -4,6 +4,7 @@
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
   const AUTH_FLOW_KEY = "epivida-auth-redirect-flow";
+  const SHEETS_SESSION_KEY = "epivida-sheets-session-v1";
   const FIREBASE_VERSION = "10.12.4";
   const PRO_ASSET = "./assets/epivida-pro";
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -43,6 +44,9 @@
     "Servicio",
     "Cama",
     "Paciente",
+    "RFC",
+    "Fecha_nacimiento",
+    "Sector",
     "Edad",
     "Sexo",
     "Fecha_ingreso",
@@ -115,6 +119,7 @@
   ];
   const NAV_ICONS = {
     dashboard: "icon-dashboard",
+    "monitoreo-epidemiologico": "icon-vigilancia",
     "seguimiento-iaas": "icon-iaas",
     "censo-hospitalario": "icon-censo-operativo",
     "importar-censo": "icon-cloud-sync",
@@ -128,11 +133,26 @@
     CUNEROS: "servicio-cuneros",
     "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES": "servicio-ucin-neonatales",
     "HEMODIÁLISIS": "servicio-hemodialisis",
-    URGENCIAS: "servicio-urgencias",
-    "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS": "servicio-uci-adultos",
-    "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS": "servicio-uci-pediatricos",
+    "ONCOLOGÍA": "icon-pacientes",
     "GINECOLOGÍA Y OBSTETRICIA": "servicio-ginecologia-obstetricia",
+    "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS": "servicio-uci-pediatricos",
+    "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS": "servicio-uci-adultos",
+    URGENCIAS: "servicio-urgencias",
     AMBULATORIO: "icon-pacientes"
+  };
+  const SERVICE_COLORS = {
+    "MEDICINA INTERNA": "#c9e7ff",
+    "CIRUGÍA Y TRAUMATOLOGÍA": "#ffd7de",
+    "PEDIATRÍA": "#d7f7df",
+    CUNEROS: "#fff1b8",
+    "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES": "#dce2ff",
+    "HEMODIÁLISIS": "#d5f3f2",
+    "ONCOLOGÍA": "#ead7ff",
+    "GINECOLOGÍA Y OBSTETRICIA": "#ffdce9",
+    "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS": "#d8f0ff",
+    "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS": "#e8e2d2",
+    URGENCIAS: "#ffe0c2",
+    AMBULATORIO: "#e2eed8"
   };
   const SECTOR_LABELS = {
     MAG: "Magisterio",
@@ -144,6 +164,17 @@
     PRIVADO: "Privado"
   };
 
+  const EPIDEMIOLOGICAL_TAGS = [
+    { key: "iaas", label: "IAAS", tone: "epi-iaas" },
+    { key: "noIaas", label: "NO IAAS", tone: "epi-no-iaas" },
+    { key: "riesgoIaas", label: "RIESGO IAAS", tone: "epi-riesgo-iaas" },
+    { key: "vigTransmisible", label: "VIG TRANSMISIBLE", tone: "epi-vig" },
+    { key: "vigNoTransmisible", label: "VIG NO TRANSMISIBLE", tone: "epi-vig-no" },
+    { key: "esavi", label: "ESAVI", tone: "epi-esavis" },
+    { key: "covidInfluenza", label: "COVID/INFLUENZA", tone: "epi-covid" },
+    { key: "morbimortalidad", label: "MORBIMORTALIDAD MATERNA/PERINATAL", tone: "epi-materna" }
+  ];
+
   const SERVICES = [
     "MEDICINA INTERNA",
     "CIRUGÍA Y TRAUMATOLOGÍA",
@@ -151,11 +182,77 @@
     "CUNEROS",
     "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES",
     "HEMODIÁLISIS",
-    "URGENCIAS",
-    "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS",
-    "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS",
+    "ONCOLOGÍA",
     "GINECOLOGÍA Y OBSTETRICIA",
+    "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS",
+    "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS",
+    "URGENCIAS",
     "AMBULATORIO"
+  ];
+  const SECTOR_OPTIONS = [
+    { value: "MAG", label: "MAGISTERIO", short: "MAG" },
+    { value: "BUR", label: "BUROCRACIA", short: "BUR" },
+    { value: "PIM", label: "PENSIONADO ISSTECH MAGISTERIO", short: "PIM" },
+    { value: "PIB", label: "PENSIONADO ISSTECH BUROCRACIA", short: "PIB" },
+    { value: "ISSTECH", label: "ISSTECH", short: "ISSTECH" },
+    { value: "PRIVADO", label: "PRIVADO", short: "PRIVADO" }
+  ];
+  const SEX_OPTIONS = ["MASCULINO", "FEMENINO"];
+  const STATE_OPTIONS = [
+    "ESTABLE",
+    "DELICADO",
+    "GRAVE",
+    "GRAVE INTUBADO",
+    "MUY GRAVE",
+    "MUY GRAVE INTUBADO",
+    "CRÍTICO",
+    "CRÍTICO INTUBADO"
+  ];
+  const AGE_RANGES = [
+    { value: "0-9", label: "0 a 9 años", min: 0, max: 9 },
+    { value: "10-19", label: "10 a 19 años", min: 10, max: 19 },
+    { value: "20-29", label: "20 a 29 años", min: 20, max: 29 },
+    { value: "30-39", label: "30 a 39 años", min: 30, max: 39 },
+    { value: "40-49", label: "40 a 49 años", min: 40, max: 49 },
+    { value: "50-59", label: "50 a 59 años", min: 50, max: 59 },
+    { value: "60-69", label: "60 a 69 años", min: 60, max: 69 },
+    { value: "70-79", label: "70 a 79 años", min: 70, max: 79 },
+    { value: "80-89", label: "80 a 89 años", min: 80, max: 89 },
+    { value: "90+", label: "90 años o más", min: 90, max: Infinity }
+  ];
+  const MONITOR_SORTS = [
+    { value: "service", label: "Orden por servicio" },
+    { value: "deih-desc", label: "DEIH mayor a menor" },
+    { value: "deih-asc", label: "DEIH menor a mayor" },
+    { value: "state-asc", label: "Estado estable a crítico" },
+    { value: "state-desc", label: "Estado crítico a estable" }
+  ];
+  const EPIDEMIOLOGICAL_COMBOS = [
+    "1 IAAS",
+    "VIG TRANSMISIBLE / 1 IAAS",
+    "VIG NO TRANSMISIBLE / 1 IAAS",
+    "1 IAAS IMPORTADA",
+    "VIG TRANSMISIBLE",
+    "VIG NO TRANSMISIBLE",
+    "COVID/INFLUENZA",
+    "NO IAAS",
+    "RIESGO IAAS",
+    "2 IAAS",
+    "3 IAAS",
+    "VIG TRANSMISIBLE / RIESGO IAAS",
+    "VIG NO TRANSMISIBLE / RIESGO IAAS",
+    "ESAVI",
+    "MORBIMORTALIDAD MATERNA/PERINATAL",
+    "VIG TRANSMISIBLE / 2 IAAS",
+    "VIG NO TRANSMISIBLE / 2 IAAS",
+    "VIG TRANSMISIBLE / 3 IAAS",
+    "VIG NO TRANSMISIBLE / 3 IAAS",
+    "VIG TRANSMISIBLE / NO IAAS",
+    "VIG NO TRANSMISIBLE / NO IAAS",
+    "2 IAAS IMPORTADAS",
+    "3 IAAS IMPORTADAS",
+    "4 IAAS IMPORTADAS",
+    "4 IAAS"
   ];
 
   const DEVICE_TYPES = [
@@ -171,28 +268,158 @@
     "Otro"
   ];
 
+  const IAAS_VITAL_FIELDS = [
+    ["temperature", "Temperatura"],
+    ["bloodPressure", "Presión arterial"],
+    ["heartRate", "Frecuencia cardiaca"],
+    ["respiratoryRate", "Frecuencia respiratoria"],
+    ["oxygenSaturation", "Saturación de oxígeno"]
+  ];
+  const IAAS_VENTILATION_FIELDS = [
+    ["fio2", "FiO2"],
+    ["peep", "PEEP"]
+  ];
+  const IAAS_CBC_FIELDS = [
+    ["hemoglobin", "Hemoglobina"],
+    ["hematocrit", "Hematocrito"],
+    ["platelets", "Plaquetas"],
+    ["leukocytes", "Leucocitos"],
+    ["neutrophils", "Neutrófilos"],
+    ["bands", "Bandas"],
+    ["eosinophils", "Eosinófilos"],
+    ["monocytes", "Monocitos"],
+    ["lymphocytes", "Linfocitos"]
+  ];
+  const IAAS_URINALYSIS_SELECTS = [
+    ["appearance", "Aspecto", ["", "Transparente", "Ligeramente turbio", "Turbio"]],
+    ["nitrites", "Nitritos", ["", "Positivo", "Negativo"]],
+    ["leukocyteEsterase", "Esterasa leucocitaria", ["", "Positivo", "Negativo"]],
+    ["epithelialCells", "Células epiteliales", ["", "No se encontraron", "Escasas", "Moderadas", "Abundantes"]],
+    ["bacteria", "Bacterias", ["", "Sin desarrollo", "Escasas", "Moderadas", "Abundantes"]],
+    ["yeast", "Levaduras", ["", "Sin desarrollo", "Escasas", "Moderadas", "Abundantes"]]
+  ];
+  const IAAS_OTHER_STUDY_FIELDS = [
+    ["procalcitonin", "Procalcitonina"],
+    ["pcr", "PCR"],
+    ["vsg", "VSG"],
+    ["glucose", "Glucosa"]
+  ];
+  const IAAS_INFECTION_TRACKING_FIELDS = [
+    ["assessmentDate", "Fecha de revisión"],
+    ["patchIntegrity", "Parche"],
+    ["patchMoisture", "Humedad del parche"],
+    ["externalGauze", "Gasas externas"],
+    ["internalGauze", "Gasas internas"],
+    ["secretionPresence", "Secreción"],
+    ["secretionType", "Tipo de secreción"],
+    ["secretionAmount", "Cantidad"],
+    ["insertionSite", "Sitio de inserción"],
+    ["probableOrigin", "Origen probable"],
+    ["carePlan", "Plan de cuidado"]
+  ];
+  const IAAS_PATCH_STATUS_OPTIONS = ["", "Íntegro", "No íntegro", "Despegado", "Semidespegado", "Bien fijado"];
+  const IAAS_MOISTURE_OPTIONS = ["", "Seco", "Mojado", "Húmedo"];
+  const IAAS_GAUZE_OPTIONS = ["", "Secas", "Mojadas", "Húmedas", "No aplica"];
+  const IAAS_SECRETION_PRESENCE_OPTIONS = ["", "Sin secreción", "Con secreción", "No valorado"];
+  const IAAS_SECRETION_TYPE_OPTIONS = ["", "Serosa", "Serohemática", "Purulenta", "Verdosa", "Amarillenta", "Hemática", "Otra"];
+  const IAAS_ORIGIN_OPTIONS = ["", "Probable casa", "Probable hemodiálisis", "Indeterminado", "Requiere cultivo"];
+  const IAAS_VIRAL_PANEL_TESTS = ["VIH", "Hepatitis B", "Hepatitis C", "VDRL"];
+  const IAAS_LIMITED_VIRAL_PANEL_TESTS = ["VIH", "Hepatitis B", "Hepatitis C"];
+  const IAAS_CULTURE_TYPES = [
+    "Hemocultivo central y periférico",
+    "Hemocultivo central",
+    "Hemocultivo periférico",
+    "Hemocultivo periférico ambos brazos",
+    "Hemocultivo central y periférico de ambos brazos",
+    "Cultivo de punta de CVC",
+    "Cultivo de secreción orificio de salida CVC",
+    "Cultivo de secreción de inserción CVC",
+    "Urocultivo",
+    "Cultivo de secreción bronquial",
+    "Cultivo de expectoración",
+    "Cultivo de esputo",
+    "Cultivo de herida"
+  ];
+  const IAAS_ANTIMICROBIALS = [
+    "Amikacina",
+    "Ampicilina",
+    "Ampicilina-sulbactam",
+    "Anfotericina B",
+    "Anidulafungina",
+    "Aztreonam",
+    "Caspofungina",
+    "Cefazolina",
+    "Cefepime",
+    "Cefotaxima",
+    "Cefotetan",
+    "Cefotixina",
+    "Ceftarolina",
+    "Ceftazidima",
+    "Ceftazidima-avibactam",
+    "Ceftolozane-tazobactam",
+    "Ceftriaxona",
+    "Ciprofloxacino",
+    "Clindamicina",
+    "Colistina",
+    "Daptomicina",
+    "Eritromicina",
+    "Ertapenem",
+    "Fluconazol",
+    "Fosfomicina",
+    "Gentamicina",
+    "Imipenem",
+    "Itraconazol",
+    "Levofloxacino",
+    "Linezolid",
+    "Meropenem",
+    "Metronidazol",
+    "Micafungina",
+    "Miconazol",
+    "Nitrofurantoína",
+    "Oxacilina",
+    "Penicilina",
+    "Piperacilina-tazobactam",
+    "Posaconazol",
+    "Rifampicina",
+    "Tetraciclina",
+    "Tigeciclina",
+    "Trimetoprim-sulfametoxazol",
+    "Voriconazol",
+    "Vancomicina",
+    "Cefalotina",
+    "Norfloxacino",
+    "Otro"
+  ];
+
   const REQUIRED_COLUMNS = [
-    "patient_id",
+    "patient_id o paciente",
     "fecha_censo",
-    "servicio",
-    "cama",
+    "servicio/cama o servicio + cama",
     "edad",
     "sexo",
     "fecha_ingreso",
+    "estado",
     "diagnostico_actual",
-    "pendientes"
+    "dx_epidemiologico",
+    "observaciones"
   ];
 
   const COLUMN_ALIASES = {
     patient_id: ["patient_id", "paciente_id", "id_paciente", "expediente", "id", "folio"],
     patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre", "nombre_completo"],
+    rfc: ["rfc"],
+    fecha_nacimiento: ["fecha_nacimiento", "nacimiento", "fecha_de_nacimiento"],
     fecha_censo: ["fecha_censo", "fecha", "censo_fecha"],
     servicio: ["servicio", "area", "área", "departamento"],
+    servicio_cama: ["servicio_cama", "servicio/cama", "servicio cama", "servicio_y_cama", "servicio-cama"],
     cama: ["cama", "cama_actual", "numero_cama", "número_cama"],
+    sector: ["sector", "derechohabiencia", "derecho_habiencia", "tipo_derechohabiente"],
     edad: ["edad"],
     sexo: ["sexo", "genero", "género"],
     fecha_ingreso: ["fecha_ingreso", "ingreso"],
-    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico", "diagnóstico", "dx"],
+    dx_epidemiologico: ["dx_epidemiologico", "dx_epidemiológico", "dx epidemiologico", "dx epidemiológico", "diagnostico_epidemiologico", "diagnóstico_epidemiológico", "clasificacion_epidemiologica", "clasificación_epidemiológica"],
+    estado: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clínico"],
+    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios"],
     pendientes: ["pendientes", "pendiente", "observaciones_pendientes"],
     hospital_internal_id: ["hospital_internal_id", "id_hospitalario", "registro", "n_expediente"],
     riesgo_iaas: ["riesgo_iaas", "riesgo", "clasificacion_iaas", "clasificación_iaas"],
@@ -207,14 +434,39 @@
   const ui = {
     route: parseRoute(),
     importText: "",
+    importDate: isoToday(),
     importDraft: null,
     importProgress: "",
     importSaving: false,
     selectedService: "Todos",
     censusService: "Todos",
     censusQuery: "",
+    monitorEpiService: "Todos",
+    monitorEpiSector: "Todos",
+    monitorEpiAgeRange: "Todos",
+    monitorEpiSex: "Todos",
+    monitorEpiSort: "service",
+    monitorEpiDiagnosis: "Todos",
+    monitorEpiQuery: "",
+    monitorHospitalService: "Todos",
+    monitorHospitalSector: "Todos",
+    monitorHospitalAgeRange: "Todos",
+    monitorHospitalSex: "Todos",
+    monitorHospitalSort: "service",
+    monitorHospitalDiagnosis: "Todos",
+    monitorHospitalQuery: "",
+    monitorEditDraft: null,
+    monitorEditMode: "",
     dashboardSlide: 0,
     dashboardSlidePausedUntil: 0,
+    dashboardSlideTimer: null,
+    calendarView: "week",
+    calendarDate: "",
+    calendarDraftDate: "",
+    calendarDraftStartTime: "08:00",
+    calendarDraftEndTime: "09:00",
+    calendarDraftTitle: "",
+    calendarDraftCategory: "preventiva",
     focusTarget: "",
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
@@ -242,7 +494,8 @@
       lastSyncedAuditCount: 0,
       spreadsheetUrl: SHEETS_CONFIG.spreadsheetUrl || (SHEETS_CONFIG.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/edit` : ""),
       isSyncing: false,
-      connectAttemptId: 0
+      connectAttemptId: 0,
+      autoReconnectAttempted: false
     },
     requireAuth: window.EPIVIDA_REQUIRE_AUTH !== false,
     allowedEmails: (window.EPIVIDA_ALLOWED_EMAILS || []).map(email => String(email).toLowerCase())
@@ -272,7 +525,47 @@
     await initFirebaseIfConfigured();
     if (!location.hash) location.hash = "#/dashboard";
     renderIaas();
+    startDashboardSlideLoop();
     flushSyncQueue();
+  }
+
+  function startDashboardSlideLoop() {
+    if (ui.dashboardSlideTimer) return;
+    ui.dashboardSlideTimer = window.setInterval(() => {
+      if (ui.route.page !== "dashboard") return;
+      if (Date.now() < ui.dashboardSlidePausedUntil) return;
+      advanceDashboardSlide();
+    }, 7000);
+  }
+
+  function dashboardModuleCount() {
+    const date = activeDate();
+    return dashboardModules(computeStats(date), date).length;
+  }
+
+  function normalizeDashboardSlide(index) {
+    const count = dashboardModuleCount();
+    if (!count) return 0;
+    return ((index % count) + count) % count;
+  }
+
+  function advanceDashboardSlide() {
+    const count = dashboardModuleCount();
+    if (count < 2) return;
+    ui.dashboardSlide = normalizeDashboardSlide(ui.dashboardSlide + 1);
+    syncDashboardSlideDom();
+  }
+
+  function syncDashboardSlideDom() {
+    const track = document.querySelector(".command-module-track");
+    if (!track) return false;
+    const index = normalizeDashboardSlide(ui.dashboardSlide);
+    track.style.setProperty("--feature-index", String(index));
+    document.querySelectorAll(".module-dots button").forEach((dot, dotIndex) => {
+      dot.classList.toggle("active", dotIndex === index);
+      dot.setAttribute("aria-current", dotIndex === index ? "true" : "false");
+    });
+    return true;
   }
 
   function loadStore() {
@@ -288,11 +581,170 @@
         saveStore(restored);
         return restored;
       }
+      const repaired = mergePrivateSeedIntoStore(current);
+      if (repaired !== current) {
+        saveStore(repaired);
+        return repaired;
+      }
       return current;
     }
     const seeded = seedFromCurrentCensus();
     saveStore(seeded);
     return seeded;
+  }
+
+  function mergePrivateSeedIntoStore(current) {
+    if (!hasPrivateCensusSeed()) return current;
+    const seeded = seedFromCurrentCensus();
+    const seedDate = Object.keys(seeded.dailyCensus || {})[0];
+    if (!seedDate) return current;
+    if (shouldReplaceWithPrivateSeed(current, seeded, seedDate)) {
+      seeded.auditLogs = current.auditLogs || [];
+      seeded.writeQueue = [];
+      seeded.lastSavedAt = nowIso();
+      return seeded;
+    }
+    let changed = false;
+    const next = clone(current);
+    next.patients ||= {};
+    next.dailyCensus ||= {};
+    next.dailyRounds ||= {};
+    next.deviceEpisodes ||= {};
+    next.auditLogs ||= [];
+    next.writeQueue ||= [];
+    Object.entries(seeded.patients || {}).forEach(([patientId, seedPatient]) => {
+      if (!next.patients[patientId]) {
+        next.patients[patientId] = seedPatient;
+        changed = true;
+        return;
+      }
+      if (fillMissingPatientFields(next.patients[patientId], seedPatient)) changed = true;
+    });
+    const seedCensus = seeded.dailyCensus[seedDate];
+    if (!next.dailyCensus[seedDate]) {
+      next.dailyCensus[seedDate] = seedCensus;
+      changed = true;
+    } else {
+      next.dailyCensus[seedDate].patients ||= {};
+      Object.entries(seedCensus.patients || {}).forEach(([patientId, seedRow]) => {
+        if (!next.dailyCensus[seedDate].patients[patientId]) {
+          next.dailyCensus[seedDate].patients[patientId] = seedRow;
+          changed = true;
+          return;
+        }
+        if (fillMissingCensusFields(next.dailyCensus[seedDate].patients[patientId], seedRow)) changed = true;
+      });
+      const total = Object.keys(next.dailyCensus[seedDate].patients || {}).length;
+      if (next.dailyCensus[seedDate].totalRows !== total) {
+        next.dailyCensus[seedDate].totalRows = total;
+        next.dailyCensus[seedDate].totalPatientsDetected = total;
+        changed = true;
+      }
+    }
+    const seedRound = seeded.dailyRounds[seedDate];
+    if (!next.dailyRounds[seedDate]) {
+      next.dailyRounds[seedDate] = seedRound;
+      changed = true;
+    } else {
+      next.dailyRounds[seedDate].entries ||= {};
+      Object.entries(seedRound.entries || {}).forEach(([patientId, seedEntry]) => {
+        if (!next.dailyRounds[seedDate].entries[patientId]) {
+          next.dailyRounds[seedDate].entries[patientId] = seedEntry;
+          changed = true;
+        }
+      });
+      if (changed) recalculateSeededRound(next.dailyRounds[seedDate]);
+    }
+    Object.entries(seeded.deviceEpisodes || {}).forEach(([episodeId, episode]) => {
+      if (!next.deviceEpisodes[episodeId]) {
+        next.deviceEpisodes[episodeId] = episode;
+        changed = true;
+      }
+    });
+    if (!next.activeDate && !next.dailyCensus[isoToday()] && next.dailyCensus[seedDate]) {
+      next.activeDate = seedDate;
+      changed = true;
+    }
+    if (!changed) return current;
+    next.lastSavedAt = nowIso();
+    return next;
+  }
+
+  function shouldReplaceWithPrivateSeed(current, seeded, seedDate) {
+    const seedIds = new Set(Object.keys(seeded.dailyCensus?.[seedDate]?.patients || {}));
+    const currentIds = Object.keys(current.dailyCensus?.[seedDate]?.patients || {});
+    if (!seedIds.size) return false;
+    if (currentIds.length !== seedIds.size) return true;
+    if (currentIds.some(patientId => !seedIds.has(patientId))) return true;
+    return currentIds.some(patientId => {
+      const currentRow = current.dailyCensus?.[seedDate]?.patients?.[patientId] || {};
+      const seedRow = seeded.dailyCensus?.[seedDate]?.patients?.[patientId] || {};
+      return cleanCell(currentRow.patientName) !== cleanCell(seedRow.patientName)
+        || cleanCell(currentRow.service) !== cleanCell(seedRow.service)
+        || cleanCell(currentRow.bed) !== cleanCell(seedRow.bed)
+        || cleanCell(currentRow.diagnosis) !== cleanCell(seedRow.diagnosis)
+        || cleanCell(currentRow.epidemiologicalDiagnosis) !== cleanCell(seedRow.epidemiologicalDiagnosis)
+        || cleanCell(currentRow.observations) !== cleanCell(seedRow.observations);
+    });
+  }
+
+  function fillMissingPatientFields(target, source) {
+    return fillMissingFields(target, source, [
+      "patientName",
+      "hospitalInternalId",
+      "currentService",
+      "currentBed",
+      "sector",
+      "sex",
+      "age",
+      "admissionDate",
+      "currentState",
+      "currentDiagnosis",
+      "epidemiologicalDiagnosis",
+      "observations",
+      "currentRiskLevel",
+      "hospitalizationStatus",
+      "latestCensusDate"
+    ]);
+  }
+
+  function fillMissingCensusFields(target, source) {
+    return fillMissingFields(target, source, [
+      "patientName",
+      "service",
+      "bed",
+      "sector",
+      "age",
+      "sex",
+      "admissionDate",
+      "state",
+      "diagnosis",
+      "epidemiologicalDiagnosis",
+      "observations"
+    ]);
+  }
+
+  function fillMissingFields(target, source, fields) {
+    let changed = false;
+    fields.forEach(field => {
+      if (isBlankValue(target[field]) && !isBlankValue(source[field])) {
+        target[field] = source[field];
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  function isBlankValue(value) {
+    return value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length);
+  }
+
+  function recalculateSeededRound(round) {
+    const entries = Object.values(round.entries || {});
+    round.totalPatients = entries.length;
+    round.reviewedPatients = entries.filter(entry => ["revisado", "alerta"].includes(entry.status)).length;
+    round.pendingPatients = entries.filter(entry => entry.status === "pendiente").length;
+    round.incompletePatients = entries.filter(entry => entry.status === "incompleto").length;
   }
 
   function seedFromCurrentCensus() {
@@ -515,6 +967,7 @@
   function renderSidebar(active) {
     const nav = [
       ["dashboard", "Centro de Vigilancia"],
+      ["monitoreo-epidemiologico", "Monitoreo Epidemiológico"],
       ["ronda", "Paquetes Preventivos"],
       ["seguimiento-iaas", "Seguimiento IAAS"],
       ["censo-hospitalario", "Vigilancia Hospitalaria"],
@@ -551,7 +1004,7 @@
         renderSyncState(),
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
-        h("button", { class: "iaas-button ghost", onclick: () => window.print() }, [commandIcon("print"), "Imprimir"]),
+        h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
         ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
       ])
     ]);
@@ -586,7 +1039,7 @@
         renderSyncState(),
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
-        h("button", { class: "iaas-button ghost", onclick: () => window.print() }, [commandIcon("print"), "Imprimir"]),
+        h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
         ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
       ])
     ]);
@@ -685,8 +1138,9 @@
   function renderRoute() {
     const { page, parts } = ui.route;
     if (page === "censo-hospitalario") return renderHospitalCensusPage();
+    if (page === "monitoreo-epidemiologico") return renderEpidemiologicalMonitoringPage();
     if (page === "importar-censo") return renderImportPage();
-    if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3]);
+    if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3], parts[4] || null);
     if (page === "ronda") return renderRoundPage(parts[1] || activeDate());
     if (page === "seguimiento-iaas") return renderIaasFollowUpHub();
     if (page === "pacientes" && parts[2] === "seguimiento") return renderPatientFollowUp(parts[1]);
@@ -700,17 +1154,13 @@
     return h("div", { class: "command-dashboard" }, [
       h("section", { class: "command-heading" }, [
         h("div", {}, [
-          h("h1", {}, ["Centro de Vigilancia"]),
-          h("p", {}, ["Calendario, notificaciones y eventos epidemiológicos"])
+          h("h1", {}, ["Centro de Vigilancia"])
         ])
       ]),
       renderCommandFeatureRail(stats, date),
       renderCommandMetrics(stats, date),
-      h("section", { class: "command-bottom-grid" }, [
-        renderCommandCalendar(date),
-        renderCommandNotifications(stats, date),
-        renderCommandQuickActions(date)
-      ])
+      renderCommandNotificationPanels(stats, date),
+      renderCommandCalendar(date)
     ]);
   }
 
@@ -728,7 +1178,6 @@
         h("div", { class: "command-module-track", style: `--feature-index:${activeIndex}` }, modules.map(module =>
           h("a", { class: `command-module-card ${module.tone}`, href: module.href, style: `--module-bg:url('${module.backdrop}')` }, [
             h("div", { class: "command-module-copy" }, [
-              h("div", { class: "command-module-meta" }, module.meta.map(item => h("span", {}, [item]))),
               h("strong", {}, [module.title]),
               h("p", {}, [module.text]),
               h("em", {}, [module.action, commandIcon("chevron-right")])
@@ -790,101 +1239,1243 @@
 
   function renderCommandMetrics(stats, date) {
     const epi = commandEpiCounts(date);
-    const compliance = stats.totalPatients ? Math.round((stats.reviewedPatients / stats.totalPatients) * 100) : 0;
+    const surveillancePatients = epi.iaas + epi.riesgo + epi.vig;
     const metrics = [
-      { label: "Pacientes en vigilancia", value: stats.totalPatients, note: `${stats.installedToday} alta(s) operativas hoy`, tone: "blue" },
-      { label: "IAAS activas", value: epi.iaas, note: `${epi.riesgo} en riesgo`, tone: "pink" },
-      { label: "Pendientes críticos", value: stats.activeAlerts + stats.incompletePatients, note: "Requieren atención", tone: "rose" },
-      { label: "Días dispositivo hoy", value: stats.totalDeviceDays, note: "Total", tone: "cyan" },
-      { label: "Cumplimiento paquetes", value: `${compliance}%`, note: "Global", tone: "violet", ring: compliance }
+      { label: "Pacientes en vigilancia", value: surveillancePatients, note: "IAAS, riesgo y VIG", tone: "blue", icon: "shield" },
+      { label: "IAAS activas", value: epi.iaas, note: `${epi.riesgo} en riesgo`, tone: "pink", icon: "alert" },
+      { label: "VIG activas", value: epi.vig, note: "Transmisibles y no transmisibles", tone: "green", icon: "info" },
+      { label: "Total pacientes", value: stats.totalPatients, note: "Censo hospitalario", tone: "cyan", icon: "check" }
     ];
     return h("section", { class: "command-metric-row" }, metrics.map(metric =>
       h("article", { class: `command-metric-card ${metric.tone}` }, [
-        metric.ring !== undefined ? h("span", { class: "command-ring", style: `--score:${metric.ring}%` }, [h("b", {}, [String(metric.value)])]) : h("i", {}, []),
+        h("i", {}, [commandIcon(metric.icon)]),
         h("div", {}, [
           h("span", {}, [metric.label]),
-          metric.ring === undefined ? h("strong", {}, [String(metric.value)]) : "",
+          h("strong", {}, [String(metric.value)]),
           h("small", {}, [metric.note])
         ])
       ])
     ));
   }
 
-  function renderCommandCalendar(date) {
-    const days = commandCalendarDays(date);
-    const events = commandCalendarEvents(date);
-    return h("article", { class: "command-panel command-calendar" }, [
-      h("div", { class: "command-panel-head" }, [
-        h("h2", {}, ["Calendario epidemiológico"]),
-        h("div", { class: "command-calendar-controls" }, [
-          h("button", {}, [commandIcon("chevron-left")]),
-          h("button", {}, [commandIcon("chevron-right")]),
-          h("button", {}, ["Hoy"]),
-          h("span", {}, [new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(new Date(`${date}T00:00:00`))]),
-          h("button", { class: "active" }, ["Semana"])
-        ])
+  function renderEpidemiologicalMonitoringPage() {
+    return h("div", { class: "iaas-page epidemiological-monitor-page" }, [
+      renderEpidemiologicalMonitoringPanel(activeDate())
+    ]);
+  }
+
+  function renderEpidemiologicalMonitoringPanel(date) {
+    const rows = monitoringRows(date);
+    const taggedRows = rows.filter(item => item.hasEpidemiologicalTag);
+    const selectedEpiRows = applyMonitoringFilters(taggedRows, "epi");
+    const selectedHospitalRows = applyMonitoringFilters(rows, "hospital");
+    const visibleEpiRows = applyMonitoringSearch(selectedEpiRows, "epi");
+    const visibleHospitalRows = applyMonitoringSearch(selectedHospitalRows, "hospital");
+    const tagTotals = EPIDEMIOLOGICAL_TAGS.map(tag => ({
+      ...tag,
+      total: monitoringTagTotal(tag.key, taggedRows)
+    }));
+    return h("section", { class: "command-panel epidemiological-monitor" }, [
+      h("div", { class: "command-panel-head epidemiological-monitor-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Monitoreo Epidemiológico"]),
+          h("p", {}, [`${taggedRows.length} paciente(s) en censo epidemiológico · ${rows.length} paciente(s) en censo hospitalario`])
+        ]),
+        hasPrivateCensusSeed() ? h("button", { class: "iaas-button ghost compact", type: "button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : ""
       ]),
-      h("div", { class: "command-calendar-grid" }, [
-        h("span", { class: "time-col" }, [""]),
-        ...days.map(day => h("strong", { class: day.today ? "today" : "" }, [day.label])),
-        ...["08:00", "10:00", "12:00"].flatMap(time => [
-          h("span", { class: "time-col" }, [time]),
-          ...days.map((day, index) => {
-            const event = events.find(item => item.day === index && item.time === time);
-            return h("div", { class: "calendar-slot" }, event ? [
-              h("span", { class: `calendar-event ${event.tone}` }, [event.label, h("small", {}, [event.time])])
-            ] : []);
-          })
+      h("div", { class: "epi-tag-summary" }, tagTotals.map(tag =>
+        h("span", { class: `epi-tag-chip ${tag.tone}` }, [
+          h("strong", {}, [String(tag.total)]),
+          tag.label
+        ])
+      )),
+      renderPatientEditorPanel(date),
+      h("div", { class: "monitor-census-stack" }, [
+        h("article", { class: "monitor-census-block epidemiological-census" }, [
+          h("div", { class: "monitor-census-title" }, [
+            h("div", {}, [
+              h("h3", {}, ["Censo Epidemiológico"]),
+              h("span", {}, [`${visibleEpiRows.length} de ${taggedRows.length} registro(s)`])
+            ]),
+            h("button", { class: "iaas-button primary compact", type: "button", onclick: () => openNewMonitoringPatientDraft("epi") }, [commandIcon("plus"), "Agregar paciente"])
+          ]),
+          renderMonitorFilters("epi", taggedRows.length, visibleEpiRows.length, true),
+          selectedEpiRows.length ? renderMonitoringTable(selectedEpiRows, true, "epi") : renderMonitorEmpty("Sin pacientes con etiquetas epidemiológicas en los filtros actuales.")
+        ]),
+        h("article", { class: "monitor-census-block hospital-census" }, [
+          h("div", { class: "monitor-census-title" }, [
+            h("div", {}, [
+              h("h3", {}, ["Censo Hospitalario"]),
+              h("span", {}, [`${visibleHospitalRows.length} de ${rows.length} registro(s)`])
+            ]),
+            h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => openNewMonitoringPatientDraft("hospital") }, [commandIcon("plus"), "Agregar paciente"])
+          ]),
+          renderMonitorFilters("hospital", rows.length, visibleHospitalRows.length, true),
+          selectedHospitalRows.length ? renderMonitoringTable(selectedHospitalRows, false, "hospital") : renderMonitorEmpty("Sin censo hospitalario cargado en los filtros actuales.")
         ])
       ])
     ]);
   }
 
-  function renderCommandNotifications(stats, date) {
-    const items = commandNotifications(stats, date);
-    return h("article", { class: "command-panel command-notifications" }, [
-      h("div", { class: "command-panel-head" }, [
-        h("h2", {}, ["Notificaciones recientes"]),
-        h("a", { href: "#/seguimiento-iaas" }, ["Ver todas"])
-      ]),
-      h("div", { class: "notification-list" }, items.map(item =>
-        h("a", { class: `notification-row ${item.tone}`, href: item.href }, [
-          h("i", {}, [commandIcon(item.icon)]),
-          h("div", {}, [
-            h("strong", {}, [item.title]),
-            h("span", {}, [item.detail])
-          ]),
-          h("time", {}, [item.time])
-        ])
-      ))
+  function renderMonitoringTable(items, epidemiologicalOnly, scope) {
+    const headers = epidemiologicalOnly
+      ? ["Servicio", "Datos del paciente", "Edad / sexo", "Estado", "Ingreso", "Diagnósticos hospitalarios", "Diagnósticos epidemiológicos", "Observaciones"]
+      : ["Servicio", "Datos del paciente", "Edad / sexo", "Estado", "Ingreso", "Diagnósticos hospitalarios", "Observaciones"];
+    return h("div", { class: "monitor-census-scroll" }, [
+      h("table", { class: `iaas-table monitoring-census-table ${epidemiologicalOnly ? "epi" : "hospital"}` }, [
+        h("thead", {}, [h("tr", {}, headers.map(label => h("th", {}, [label])))]),
+        h("tbody", {}, items.map((item, index) =>
+          epidemiologicalOnly
+            ? renderEpidemiologicalMonitorRow(item, items[index - 1], scope)
+            : renderHospitalMonitorRow(item, items[index - 1], scope)
+        ))
+      ])
     ]);
   }
 
-  function renderCommandQuickActions(date) {
-    const actions = [
-      ["Iniciar ronda", `#/ronda/${date}`],
-      ["Registrar IAAS", "#/seguimiento-iaas"],
-      ["Registrar cultivo", "#/seguimiento-iaas"],
-      ["Buscar paciente", "#/censo-hospitalario"],
-      ["Generar reporte", "#/reporte-diario"]
-    ];
-    return h("article", { class: "command-panel command-quick" }, [
-      h("div", { class: "command-panel-head" }, [h("h2", {}, ["Acciones rápidas"])]),
-      h("div", { class: "quick-action-list" }, actions.map(([label, href]) =>
-        h("a", { href }, [h("span", {}, [label]), h("b", {}, [commandIcon("chevron-right")])])
-      ))
+  function renderEpidemiologicalMonitorRow(item, previousItem, scope) {
+    const serviceBreak = previousItem && previousItem.service !== item.service ? "service-break" : "";
+    const searchMatch = monitoringSearchMatches(item, scope);
+    return h("tr", {
+      class: `monitor-row ${serviceBreak} ${searchMatch ? "" : "search-hidden"} ${item.tags.map(tag => tag.tone).join(" ")}`,
+      hidden: !searchMatch,
+      "data-monitor-scope": scope,
+      "data-monitor-search": normalizeText(monitoringSearchText(item))
+    }, [
+      h("td", { class: "monitor-service-cell", "data-label": "Servicio" }, [renderServicePill(item.service)]),
+      h("td", { class: "monitor-patient-cell", "data-label": "Datos del paciente" }, [renderPatientInfoCell(item, {
+        includeMissingWarning: true,
+        showEpiFlag: false,
+        showRfc: false
+      })]),
+      h("td", { class: "monitor-age-sex-cell", "data-label": "Edad / sexo" }, [renderAgeSexCell(item)]),
+      h("td", { class: "monitor-state-cell", "data-label": "Estado" }, [renderStateCell(item)]),
+      h("td", { class: "monitor-admission-cell", "data-label": "Ingreso" }, [renderAdmissionCell(item)]),
+      h("td", { "data-label": "Diagnósticos hospitalarios" }, [renderHospitalDiagnosisCell(item)]),
+      h("td", { class: "monitor-epi-diagnosis-cell", "data-label": "Diagnósticos epidemiológicos" }, [renderEpiDiagnosisChips(item)]),
+      h("td", { "data-label": "Observaciones" }, [
+        h("div", { class: "monitor-observation-cell" }, [
+          renderDotList(item.observations || "Sin observaciones", "monitor-dot-list observation-dot-list", Infinity),
+          renderMonitorEditButton(item, "epi")
+        ])
+      ])
     ]);
+  }
+
+  function renderHospitalMonitorRow(item, previousItem, scope) {
+    const serviceBreak = previousItem && previousItem.service !== item.service ? "service-break" : "";
+    const searchMatch = monitoringSearchMatches(item, scope);
+    return h("tr", {
+      class: `monitor-row ${serviceBreak} ${searchMatch ? "" : "search-hidden"} ${item.hasEpidemiologicalTag ? "epidemiological-highlight" : ""}`,
+      hidden: !searchMatch,
+      "data-monitor-scope": scope,
+      "data-monitor-search": normalizeText(monitoringSearchText(item))
+    }, [
+      h("td", { class: "monitor-service-cell", "data-label": "Servicio" }, [renderServicePill(item.service)]),
+      h("td", { class: "monitor-patient-cell", "data-label": "Datos del paciente" }, [renderPatientInfoCell(item, {
+        includeMissingWarning: false,
+        showEpiFlag: true,
+        showRfc: true,
+        showBirthDate: true
+      })]),
+      h("td", { class: "monitor-age-sex-cell", "data-label": "Edad / sexo" }, [renderAgeSexCell(item)]),
+      h("td", { class: "monitor-state-cell", "data-label": "Estado" }, [renderStateCell(item)]),
+      h("td", { class: "monitor-admission-cell", "data-label": "Ingreso" }, [renderAdmissionCell(item)]),
+      h("td", { "data-label": "Diagnósticos hospitalarios" }, [renderHospitalDiagnosisCell(item)]),
+      h("td", { "data-label": "Observaciones" }, [
+        h("div", { class: "monitor-observation-cell" }, [
+          h("div", {}, [
+            item.hasEpidemiologicalTag ? h("div", { class: "row-epi-marker" }, [renderEpiDiagnosisChips(item)]) : "",
+            renderDotList(item.observations || "Sin observaciones", "monitor-dot-list observation-dot-list", Infinity)
+          ]),
+          renderMonitorEditButton(item, "hospital")
+        ])
+      ])
+    ]);
+  }
+
+  function renderEpidemiologicalTagList(tags) {
+    return tags.length
+      ? h("div", { class: "epi-tag-list" }, tags.map(tag => h("span", { class: `epi-tag-chip ${tag.tone}` }, [tag.label])))
+      : h("span", { class: "epi-tag-chip epi-neutral" }, ["Sin etiqueta"]);
+  }
+
+  function monitoringRows(date) {
+    return hospitalCensusRows(date)
+      .map(item => enrichMonitoringItem(item, date))
+      .sort(monitoringSortCompare("service"));
+  }
+
+  function enrichMonitoringItem(item, date) {
+    const { row, patient } = item;
+    const service = normalizeService(row.service || patient.currentService || "");
+    const sector = patient.sector || row.sector || "";
+    const admissionDate = patient.admissionDate || row.admissionDate || "";
+    const epiText = epidemiologicalText(item);
+    const tags = epidemiologicalTagsForItem(item);
+    const bases = epidemiologicalBasesForText(epiText);
+    const dxHospital = patient.currentDiagnosis || row.diagnosis || "";
+    const observations = patient.observations || row.observations || row.notes || "";
+    return {
+      ...item,
+      service: service || "SIN SERVICIO",
+      bed: row.bed || patient.currentBed || "S/C",
+      patientName: cleanCell(patient.patientName || row.patientName).toUpperCase(),
+      sector,
+      sectorLabel: sectorLabel(sector),
+      age: patient.age ?? row.age ?? "",
+      sex: patient.sex || row.sex || "",
+      admissionDate,
+      deih: isAmbulatoryStayService(service) ? null : daysBetween(admissionDate, date),
+      state: displayState(patient.currentState || row.state || patient.currentRiskLevel || "Sin estado"),
+      dxHospital,
+      observations,
+      epiText,
+      tags,
+      epiBases: bases,
+      hasEpidemiologicalTag: tags.length > 0 || bases.length > 0,
+      rfc: patient.rfc || patient.hospitalInternalId || row.rfc || "",
+      birthDate: patient.birthDate || patient.fechaNacimiento || row.birthDate || ""
+    };
+  }
+
+  function renderMonitorFilters(scope, total, visible, includeEpiFilter) {
+    const prefix = monitorPrefix(scope);
+    return h("div", { class: "monitor-filter-row" }, [
+      h("label", { class: "monitor-search" }, [
+        h("span", {}, ["Buscar paciente"]),
+        h("input", {
+          id: `${scope}-monitor-search`,
+          value: ui[`${prefix}Query`],
+          placeholder: "Nombre, cama, diagnóstico u observación",
+          oninput: event => {
+            ui[`${prefix}Query`] = event.target.value;
+            applyMonitorSearchDom(scope);
+          }
+        })
+      ]),
+      renderMonitorSelect(scope, "Service", "Servicio", ["Todos", ...SERVICES]),
+      renderMonitorSelect(scope, "Sector", "Sector", ["Todos", ...SECTOR_OPTIONS.map(item => item.value)], value => value === "Todos" ? "Todos los sectores" : `${value} · ${sectorLabel(value)}`),
+      renderMonitorSelect(scope, "AgeRange", "Edad", ["Todos", ...AGE_RANGES.map(item => item.value)], value => value === "Todos" ? "Todas las edades" : AGE_RANGES.find(item => item.value === value)?.label || value),
+      renderMonitorSelect(scope, "Sex", "Sexo", ["Todos", ...SEX_OPTIONS], value => value === "Todos" ? "Todos" : value),
+      renderMonitorSelect(scope, "Sort", "Orden", MONITOR_SORTS.map(item => item.value), value => MONITOR_SORTS.find(item => item.value === value)?.label || value),
+      includeEpiFilter ? renderMonitorSelect(scope, "Diagnosis", "Dx epidemiológico", ["Todos", ...EPIDEMIOLOGICAL_TAGS.map(item => item.label)], value => value === "Todos" ? "Todas las etiquetas" : value) : "",
+      h("span", { class: "monitor-filter-count", "data-monitor-count": scope, "data-monitor-total": String(total) }, [`${visible} / ${total}`])
+    ]);
+  }
+
+  function renderMonitorSelect(scope, key, label, values, labelFor = value => value) {
+    const prefix = monitorPrefix(scope);
+    const stateKey = `${prefix}${key}`;
+    return h("label", { class: "monitor-select" }, [
+      h("span", {}, [label]),
+      h("select", { onchange: event => { ui[stateKey] = event.target.value; renderIaas(); } }, values.map(value => option(value, labelFor(value), ui[stateKey] === value)))
+    ]);
+  }
+
+  function monitorPrefix(scope) {
+    return scope === "epi" ? "monitorEpi" : "monitorHospital";
+  }
+
+  function applyMonitoringFilters(items, scope) {
+    const prefix = monitorPrefix(scope);
+    const service = ui[`${prefix}Service`];
+    const sector = ui[`${prefix}Sector`];
+    const ageRange = ui[`${prefix}AgeRange`];
+    const sex = ui[`${prefix}Sex`];
+    const diagnosis = ui[`${prefix}Diagnosis`];
+    return items
+      .filter(item => service === "Todos" || normalizeText(item.service) === normalizeText(service))
+      .filter(item => sector === "Todos" || normalizeText(item.sector) === normalizeText(sector))
+      .filter(item => ageRange === "Todos" || ageRangeMatches(item.age, ageRange))
+      .filter(item => sex === "Todos" || normalizeText(formatSex(item.sex)) === normalizeText(sex))
+      .filter(item => diagnosis === "Todos" || item.epiBases.some(base => normalizeText(base) === normalizeText(diagnosis)))
+      .sort(monitoringSortCompare(ui[`${prefix}Sort`]));
+  }
+
+  function applyMonitoringSearch(items, scope) {
+    return items.filter(item => monitoringSearchMatches(item, scope));
+  }
+
+  function monitoringSearchMatches(item, scope) {
+    const query = normalizeText(ui[`${monitorPrefix(scope)}Query`]);
+    return !query || normalizeText(monitoringSearchText(item)).includes(query);
+  }
+
+  function monitoringSearchText(item) {
+    return [
+      item.service,
+      item.bed,
+      item.patientName,
+      item.sector,
+      item.sectorLabel,
+      item.age,
+      item.sex,
+      item.state,
+      item.dxHospital,
+      item.epiText,
+      item.observations,
+      item.rfc
+    ].filter(Boolean).join(" ");
+  }
+
+  function applyMonitorSearchDom(scope) {
+    const query = normalizeText(ui[`${monitorPrefix(scope)}Query`]);
+    const rows = [...document.querySelectorAll(`tr[data-monitor-scope="${scope}"]`)];
+    let visible = 0;
+    rows.forEach(row => {
+      const match = !query || String(row.dataset.monitorSearch || "").includes(query);
+      row.hidden = !match;
+      row.classList.toggle("search-hidden", !match);
+      if (match) visible += 1;
+    });
+    const count = document.querySelector(`[data-monitor-count="${scope}"]`);
+    if (count) count.textContent = `${visible} / ${count.dataset.monitorTotal || rows.length}`;
+  }
+
+  function ageRangeMatches(value, rangeValue) {
+    const age = parseAge(value);
+    const range = AGE_RANGES.find(item => item.value === rangeValue);
+    if (!range || age === null) return false;
+    return age >= range.min && age <= range.max;
+  }
+
+  function monitoringSortCompare(sort) {
+    return (a, b) => {
+      if (sort === "deih-desc") return (b.deih ?? -1) - (a.deih ?? -1) || sortByServiceBed(a.row, b.row);
+      if (sort === "deih-asc") return (a.deih ?? 9999) - (b.deih ?? 9999) || sortByServiceBed(a.row, b.row);
+      if (sort === "state-asc") return stateRank(a.state) - stateRank(b.state) || sortByServiceBed(a.row, b.row);
+      if (sort === "state-desc") return stateRank(b.state) - stateRank(a.state) || sortByServiceBed(a.row, b.row);
+      return sortByServiceBed(a.row, b.row);
+    };
+  }
+
+  function stateRank(state) {
+    const key = normalizeText(state);
+    const index = STATE_OPTIONS.findIndex(item => normalizeText(item) === key);
+    return index >= 0 ? index : STATE_OPTIONS.length;
+  }
+
+  function monitoringTagTotal(key, items) {
+    const base = {
+      iaas: "IAAS",
+      noIaas: "NO IAAS",
+      riesgoIaas: "RIESGO IAAS",
+      vigTransmisible: "VIG TRANSMISIBLE",
+      vigNoTransmisible: "VIG NO TRANSMISIBLE",
+      esavi: "ESAVI",
+      covidInfluenza: "COVID/INFLUENZA",
+      morbimortalidad: "MORBIMORTALIDAD MATERNA/PERINATAL"
+    }[key];
+    if (!base) return 0;
+    if (key === "iaas") return items.reduce((sum, item) => sum + iaasCountForText(item.epiText), 0);
+    return items.filter(item => item.epiBases.some(active => normalizeText(active) === normalizeText(base))).length;
+  }
+
+  function epidemiologicalBasesForText(value) {
+    const text = normalizeText(value);
+    const bases = [];
+    if (text.includes("COVID") || text.includes("INFLUENZA")) bases.push("COVID/INFLUENZA");
+    if (text.includes("ESAVI")) bases.push("ESAVI");
+    if (text.includes("VIG TRANSMISIBLE")) bases.push("VIG TRANSMISIBLE");
+    if (text.includes("VIG NO TRANSMISIBLE")) bases.push("VIG NO TRANSMISIBLE");
+    if (text.includes("NO IAAS")) bases.push("NO IAAS");
+    if (text.includes("RIESGO IAAS")) bases.push("RIESGO IAAS");
+    if (iaasCountForText(value) > 0) bases.push("IAAS");
+    if (text.includes("MORBIMORTALIDAD") || text.includes("MATERNA") || text.includes("PERINATAL")) bases.push("MORBIMORTALIDAD MATERNA/PERINATAL");
+    return unique(bases);
+  }
+
+  function iaasCountForText(value) {
+    const text = normalizeText(value);
+    if (!text || text.includes("NO IAAS") || text.includes("RIESGO IAAS")) return 0;
+    const match = text.match(/\b([1-4])\s+IAAS\b/);
+    if (match) return Number(match[1]);
+    return text.includes("IAAS") ? 1 : 0;
+  }
+
+  function renderServicePill(service) {
+    const normalized = normalizeService(service);
+    const color = SERVICE_COLORS[normalized] || "#e8f0ff";
+    const labelLines = serviceDisplayLines(normalized);
+    return h("span", { class: "service-pill", title: normalized || "Sin servicio", style: `--service-bg:${color}` }, [
+      h("span", { class: "service-pill-dot" }, []),
+      h("span", { class: "service-pill-label" }, labelLines.map(line => h("span", {}, [line])))
+    ]);
+  }
+
+  function serviceDisplayLabel(service) {
+    const normalized = normalizeService(service);
+    if (normalizeText(normalized) === "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES") return "UCIN";
+    if (normalizeText(normalized) === "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS") return "UCIP";
+    if (normalizeText(normalized) === "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS") return "UCIP";
+    if (normalizeText(normalized) === "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS") return "UCIA";
+    return normalized || "SIN SERVICIO";
+  }
+
+  function serviceDisplayLines(service) {
+    const label = serviceDisplayLabel(service);
+    const key = normalizeText(label);
+    if (key === "MEDICINA INTERNA") return ["MEDICINA", "INTERNA"];
+    if (key === "CIRUGIA Y TRAUMATOLOGIA") return ["CIRUGÍA Y", "TRAUMATOLOGÍA"];
+    if (key === "GINECOLOGIA Y OBSTETRICIA") return ["GINECOLOGÍA Y", "OBSTETRICIA"];
+    return [label];
+  }
+
+  function renderPatientInfoCell(item, options = {}) {
+    const { includeMissingWarning = false, showEpiFlag = false, showRfc = false, showBirthDate = false } = options;
+    return h("div", { class: "monitor-patient-stack" }, [
+      h("strong", { class: "monitor-patient-name" }, [item.patientName]),
+      h("small", {}, [`Cama ${item.bed} · ${item.sectorLabel || "Sector no capturado"}`]),
+      showBirthDate && item.birthDate ? h("small", {}, [`Nac. ${formatDisplayDate(item.birthDate)}`]) : "",
+      showRfc && item.rfc ? h("small", {}, [`RFC ${item.rfc}`]) : "",
+      showEpiFlag && item.hasEpidemiologicalTag ? h("small", { class: "epi-row-flag" }, ["Con diagnóstico epidemiológico"]) : "",
+      includeMissingWarning ? renderMissingDataWarning(item) : ""
+    ]);
+  }
+
+  function renderAgeSexCell(item, includeBirthDate = false) {
+    return h("div", { class: "monitor-age-sex" }, [
+      h("strong", {}, [
+        h("span", { class: "monitor-age-value" }, [item.age || "S/E"]),
+        renderSexBadge(item.sex)
+      ]),
+      includeBirthDate && item.birthDate ? h("small", {}, [`Nac. ${formatDisplayDate(item.birthDate)}`]) : ""
+    ]);
+  }
+
+  function renderSexBadge(value) {
+    const sex = sexAbbreviation(value);
+    return h("span", { class: `sex-square sex-${sex === "F" ? "f" : sex === "M" ? "m" : "unknown"}` }, [sex]);
+  }
+
+  function renderStateCell(item) {
+    return h("span", { class: `monitor-state-badge ${stateClass(item.state)}` }, [item.state || "SIN ESTADO"]);
+  }
+
+  function renderAdmissionCell(item) {
+    const ambulatory = isAmbulatoryStayService(item.service);
+    return h("div", { class: "monitor-admission" }, [
+      h("strong", {}, [formatDisplayDate(item.admissionDate) || "NA"]),
+      !ambulatory && item.deih !== null && item.deih !== undefined
+        ? h("small", {}, [stayDaysLabel(item.deih)])
+        : ""
+    ]);
+  }
+
+  function renderHospitalDiagnosisCell(item) {
+    const tags = clinicalTagsForText(`${item.dxHospital} ${item.observations}`);
+    return h("div", { class: "diagnosis-stack" }, [
+      tags.length ? h("div", { class: "clinical-tag-list" }, tags.map(tag => h("span", { class: `clinical-tag ${tag.tone}` }, [tag.label, tag.cross ? h("b", {}, ["✝"]) : ""]))) : "",
+      renderDotList(item.dxHospital || "Sin diagnóstico hospitalario", "monitor-dot-list diagnosis-dot-list", Infinity)
+    ]);
+  }
+
+  function renderDotList(value, className = "monitor-dot-list", limit = 220) {
+    const text = Number.isFinite(limit) ? truncateText(value, limit) : cleanCell(value);
+    const segments = splitDotSegments(text);
+    return h("ul", { class: className }, segments.map(segment => h("li", {}, [segment])));
+  }
+
+  function splitDotSegments(value) {
+    const cleaned = cleanCell(value);
+    if (!cleaned) return ["Sin datos"];
+    const segments = cleaned
+      .split(/\s*(?:\/|;|\n|\. (?=[A-ZÁÉÍÓÚÑ0-9]))\s*/i)
+      .map(item => item.trim())
+      .filter(Boolean);
+    return segments.length ? segments : [cleaned];
+  }
+
+  function clinicalTagsForText(value) {
+    const text = normalizeText(value);
+    const tags = [];
+    if (/\b(HAS|HTA)\b/.test(text) || text.includes("HIPERTENSION")) tags.push({ label: "Hipertensión arterial sistémica", tone: "has" });
+    if (/\b(DM|DMT|DM1|DM2)\b/.test(text) || text.includes("DIABETES")) tags.push({ label: "Diabetes mellitus", tone: "dm" });
+    if (/\bERC\b/.test(text) || text.includes("RENAL CRONICA")) tags.push({ label: "Enfermedad renal crónica", tone: "erc" });
+    if (text.includes("HIPOTIROID")) tags.push({ label: "Hipotiroidismo", tone: "hipo" });
+    if (text.includes("CANCER") || text.includes("ONCO") || text.includes("TUMOR")) tags.push({ label: "Cáncer", tone: "cancer" });
+    if (text.includes("DEFUNCION") || text.includes("DEFUNCIÓN")) tags.push({ label: "Defunción", tone: "defuncion", cross: true });
+    return unique(tags.map(tag => JSON.stringify(tag))).map(item => JSON.parse(item));
+  }
+
+  function renderEpiDiagnosisChips(item) {
+    const labels = splitEpiDiagnosisLabels(item.epiText);
+    return labels.length
+      ? h("div", { class: "epi-tag-list diagnosis-tags" }, labels.map(label => h("span", { class: `epi-tag-chip ${epidemiologicalComboClass(label)}` }, [label])))
+      : renderEpidemiologicalTagList(item.tags);
+  }
+
+  function splitEpiDiagnosisLabels(value) {
+    return cleanCell(value).split(/\n|;/).map(item => item.trim()).filter(Boolean).slice(0, 4);
+  }
+
+  function epidemiologicalComboClass(value) {
+    const text = normalizeText(value);
+    if (text.includes("/") && text.includes("VIG") && text.includes("IAAS")) return "epi-gradient-vig-iaas";
+    if (text.includes("/") && text.includes("VIG") && text.includes("RIESGO")) return "epi-gradient-vig-riesgo";
+    if (text.includes("/") && text.includes("VIG") && text.includes("NO IAAS")) return "epi-gradient-vig-no-iaas";
+    return epiClass(value);
+  }
+
+  function renderMissingDataWarning(item) {
+    const missing = missingPatientFields(item);
+    if (!missing.length) return "";
+    const service = item.epiBases.includes("IAAS") ? "IAAS" : item.epiBases.some(base => base.startsWith("VIG")) ? "VIG" : "Epidemiología";
+    return h("small", { class: "missing-data-alert" }, [`${service}: faltan datos (${missing.join(", ")})`]);
+  }
+
+  function missingPatientFields(item) {
+    const missing = [];
+    if (!cleanCell(item.service) || item.service === "SIN SERVICIO") missing.push("servicio");
+    if (!cleanCell(item.bed) || item.bed === "S/C") missing.push("cama");
+    if (!cleanCell(item.sector)) missing.push("sector");
+    if (!cleanCell(item.age)) missing.push("edad");
+    if (!cleanCell(item.sex)) missing.push("sexo");
+    if (!isAmbulatoryStayService(item.service) && !cleanCell(item.admissionDate)) missing.push("ingreso");
+    if (!cleanCell(item.state) || normalizeText(item.state) === "SIN ESTADO") missing.push("estado");
+    if (!cleanCell(item.dxHospital)) missing.push("dx hospitalario");
+    return missing;
+  }
+
+  function formatSex(value) {
+    const key = normalizeText(value);
+    if (["M", "MASCULINO", "HOMBRE"].includes(key)) return "MASCULINO";
+    if (["F", "FEMENINO", "MUJER"].includes(key)) return "FEMENINO";
+    return "S/S";
+  }
+
+  function sexAbbreviation(value) {
+    const key = normalizeText(formatSex(value));
+    if (key === "MASCULINO") return "M";
+    if (key === "FEMENINO") return "F";
+    return "S/S";
+  }
+
+  function stayDaysLabel(value) {
+    const days = Number(value);
+    if (!Number.isFinite(days)) return "";
+    return `${days} ${days === 1 ? "día" : "días"}`;
+  }
+
+  function isAmbulatoryStayService(service) {
+    return ["AMBULATORIO", "HEMODIALISIS", "HEMODIÁLISIS", "ONCOLOGIA", "ONCOLOGÍA"].includes(normalizeText(service));
+  }
+
+  function formatDisplayDate(value) {
+    const iso = normalizeDate(value);
+    if (!iso) return "";
+    const [year, month, day] = iso.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  function renderMonitorEditButton(item, mode) {
+    return h("button", {
+      class: "monitor-edit-button",
+      type: "button",
+      title: "Editar paciente",
+      onclick: () => openMonitoringPatientDraft(item.row.patientId, mode)
+    }, [commandIcon("pen")]);
+  }
+
+  function renderPatientEditorPanel(date) {
+    const draft = ui.monitorEditDraft;
+    if (!draft) return "";
+    const title = draft.patientId ? "Editar paciente" : "Agregar paciente";
+    return h("article", { class: "monitor-editor-panel" }, [
+      h("div", { class: "monitor-editor-head" }, [
+        h("div", {}, [
+          h("h3", {}, [title]),
+          h("p", {}, [draft.censusType === "epi" ? "Censo epidemiológico" : "Censo hospitalario"])
+        ]),
+        h("button", { class: "iaas-button ghost compact", type: "button", onclick: closeMonitoringEditor }, ["Cerrar"])
+      ]),
+      requiresOpdNotification(draft) ? h("div", { class: "opd-alert" }, [
+        h("strong", {}, ["OPD"]),
+        h("span", {}, [`SUBIR A ${fullNameFromDraft(draft) || "X PACIENTE"} A LA PLATAFORMA OPD`])
+      ]) : "",
+      h("div", { class: "monitor-form-grid" }, [
+        h("label", { class: "field" }, [h("span", {}, ["Censo"]), h("select", { onchange: event => { patchMonitoringDraft({ censusType: event.target.value }, true); } }, [
+          option("hospital", "Hospitalario", draft.censusType === "hospital"),
+          option("epi", "Epidemiológico", draft.censusType === "epi")
+        ])]),
+        h("label", { class: "field" }, [h("span", {}, ["Servicio"]), h("select", { onchange: event => { patchMonitoringDraft({ service: event.target.value }, true); } }, [
+          option("", "Sin servicio", !draft.service),
+          ...SERVICES.map(service => option(service, service, draft.service === service))
+        ])]),
+        h("label", { class: "field" }, [h("span", {}, ["Cama"]), h("input", { value: draft.bed || "", oninput: event => patchMonitoringDraft({ bed: event.target.value }) })]),
+        h("label", { class: "field" }, [h("span", {}, ["Sector"]), h("select", { onchange: event => patchMonitoringDraft({ sector: event.target.value }, true) }, [
+          option("", "Sin sector", !draft.sector),
+          ...SECTOR_OPTIONS.map(item => option(item.value, `${item.short} · ${item.label}`, draft.sector === item.value))
+        ])]),
+        h("label", { class: "field" }, [h("span", {}, ["Apellido paterno"]), h("input", { value: draft.apellidoPaterno || "", oninput: event => patchMonitoringDraftName(event, "apellidoPaterno") })]),
+        h("label", { class: "field" }, [h("span", {}, ["Apellido materno"]), h("input", { value: draft.apellidoMaterno || "", oninput: event => patchMonitoringDraftName(event, "apellidoMaterno") })]),
+        h("label", { class: "field" }, [h("span", {}, ["Nombre(s)"]), h("input", { value: draft.nombres || "", oninput: event => patchMonitoringDraftName(event, "nombres") })]),
+        h("label", { class: "field" }, [h("span", {}, ["Edad"]), h("input", { value: draft.age || "", oninput: event => patchMonitoringDraft({ age: event.target.value }) })]),
+        h("label", { class: "field" }, [h("span", {}, ["Sexo"]), h("select", { onchange: event => patchMonitoringDraft({ sex: event.target.value }, true) }, [
+          option("", "Sin sexo", !draft.sex),
+          ...SEX_OPTIONS.map(item => option(item, item, formatSex(draft.sex) === item))
+        ])]),
+        h("label", { class: "field" }, [h("span", {}, ["Ingreso"]), h("input", { type: "date", value: draft.admissionDate || "", oninput: event => patchMonitoringDraft({ admissionDate: event.target.value }, true) })]),
+        h("label", { class: "field" }, [h("span", {}, ["Estado"]), h("select", { onchange: event => patchMonitoringDraft({ state: event.target.value }, true) }, [
+          option("", "Sin estado", !draft.state),
+          ...STATE_OPTIONS.map(item => option(item, item, normalizeText(draft.state) === normalizeText(item)))
+        ])]),
+        h("label", { class: "field" }, [h("span", {}, ["RFC"]), h("input", { value: draft.rfc || "", oninput: event => patchMonitoringDraft({ rfc: event.target.value }) })]),
+        h("label", { class: "field" }, [h("span", {}, ["Fecha nacimiento"]), h("input", { type: "date", value: draft.birthDate || "", oninput: event => patchMonitoringDraft({ birthDate: event.target.value }) })]),
+        h("label", { class: "field full" }, [h("span", {}, ["Diagnósticos hospitalarios"]), h("textarea", { value: draft.dxHospital || "", oninput: event => patchMonitoringDraft({ dxHospital: event.target.value }) })]),
+        h("label", { class: "field full" }, [h("span", {}, ["Diagnósticos epidemiológicos"]), h("select", { onchange: event => patchMonitoringDraft({ epiDiagnosis: event.target.value, censusType: event.target.value ? "epi" : draft.censusType }, true) }, [
+          option("", "Sin diagnóstico epidemiológico", !draft.epiDiagnosis),
+          ...EPIDEMIOLOGICAL_COMBOS.map(item => option(item, item, draft.epiDiagnosis === item))
+        ])]),
+        h("label", { class: "field full" }, [h("span", {}, ["Observaciones"]), h("textarea", { value: draft.observations || "", oninput: event => patchMonitoringDraft({ observations: event.target.value }) })])
+      ]),
+      h("div", { class: "monitor-editor-actions" }, [
+        h("button", { class: "iaas-button ghost", type: "button", onclick: closeMonitoringEditor }, ["Cancelar"]),
+        h("button", { class: "iaas-button primary", type: "button", onclick: () => saveMonitoringPatient(date) }, ["Guardar paciente"])
+      ])
+    ]);
+  }
+
+  function openNewMonitoringPatientDraft(mode) {
+    ui.monitorEditMode = mode;
+    ui.monitorEditDraft = {
+      patientId: "",
+      censusType: mode === "epi" ? "epi" : "hospital",
+      service: "",
+      bed: "",
+      apellidoPaterno: "",
+      apellidoMaterno: "",
+      nombres: "",
+      sector: "",
+      age: "",
+      sex: "",
+      admissionDate: "",
+      state: "",
+      rfc: "",
+      birthDate: "",
+      dxHospital: "",
+      epiDiagnosis: "",
+      observations: ""
+    };
+    renderIaas();
+  }
+
+  function openMonitoringPatientDraft(patientId, mode) {
+    const row = getCensusRows(activeDate()).find(item => item.patientId === patientId) || {};
+    const patient = store.patients[patientId] || {};
+    const item = enrichMonitoringItem({ row, patient }, activeDate());
+    const parts = splitPatientName(item.patientName);
+    ui.monitorEditMode = mode;
+    ui.monitorEditDraft = {
+      patientId,
+      censusType: mode === "epi" || item.hasEpidemiologicalTag ? "epi" : "hospital",
+      service: item.service === "SIN SERVICIO" ? "" : item.service,
+      bed: item.bed === "S/C" ? "" : item.bed,
+      apellidoPaterno: parts.apellidoPaterno,
+      apellidoMaterno: parts.apellidoMaterno,
+      nombres: parts.nombres,
+      sector: item.sector || "",
+      age: item.age || "",
+      sex: formatSex(item.sex) === "S/S" ? "" : formatSex(item.sex),
+      admissionDate: item.admissionDate || "",
+      state: item.state === "SIN ESTADO" ? "" : item.state,
+      rfc: patient.rfc || "",
+      birthDate: patient.birthDate || patient.fechaNacimiento || "",
+      dxHospital: item.dxHospital || "",
+      epiDiagnosis: item.epiText || "",
+      observations: item.observations || ""
+    };
+    renderIaas();
+  }
+
+  function patchMonitoringDraft(patch, rerender = false) {
+    if (!ui.monitorEditDraft) return;
+    ui.monitorEditDraft = { ...ui.monitorEditDraft, ...patch };
+    if (rerender) renderIaas();
+  }
+
+  function patchMonitoringDraftName(event, key) {
+    const value = cleanCell(event.target.value).toUpperCase();
+    event.target.value = value;
+    patchMonitoringDraft({ [key]: value });
+  }
+
+  function closeMonitoringEditor() {
+    ui.monitorEditDraft = null;
+    ui.monitorEditMode = "";
+    renderIaas();
+  }
+
+  function splitPatientName(value) {
+    const parts = cleanCell(value).split(/\s+/).filter(Boolean);
+    return {
+      apellidoPaterno: parts[0] || "",
+      apellidoMaterno: parts[1] || "",
+      nombres: parts.slice(2).join(" ")
+    };
+  }
+
+  function fullNameFromDraft(draft) {
+    return cleanCell([draft.apellidoPaterno, draft.apellidoMaterno, draft.nombres].filter(Boolean).join(" ")).toUpperCase();
+  }
+
+  function saveMonitoringPatient(date) {
+    const draft = ui.monitorEditDraft;
+    if (!draft) return;
+    const patientId = draft.patientId || `manual_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 7)}`;
+    const before = clone(store.patients[patientId] || {});
+    const patientName = fullNameFromDraft(draft) || "PACIENTE SIN NOMBRE";
+    const service = draft.service ? normalizeService(draft.service) : "";
+    const bed = normalizeBed(draft.bed || "");
+    const admissionDate = normalizeDate(draft.admissionDate || "");
+    const state = displayState(draft.state || "Sin estado");
+    const patient = {
+      ...(store.patients[patientId] || {}),
+      patientId,
+      displayCode: store.patients[patientId]?.displayCode || makeDisplayCode(patientId),
+      patientName,
+      currentService: service,
+      currentBed: bed,
+      sector: draft.sector || null,
+      age: parseAge(draft.age) ?? cleanCell(draft.age),
+      sex: draft.sex || null,
+      admissionDate: admissionDate || null,
+      currentState: state,
+      currentDiagnosis: cleanCell(draft.dxHospital) || null,
+      epidemiologicalDiagnosis: cleanCell(draft.epiDiagnosis) || null,
+      currentEpidemiologicalDiagnosis: cleanCell(draft.epiDiagnosis) || null,
+      observations: cleanCell(draft.observations) || null,
+      rfc: cleanCell(draft.rfc) || null,
+      birthDate: normalizeDate(draft.birthDate) || null,
+      hospitalizationStatus: normalizeText(service) === "AMBULATORIO" ? "ambulatorio" : "hospitalizado",
+      presentInLatestCensus: true,
+      latestCensusDate: date,
+      updatedAt: nowIso(),
+      updatedBy: currentUserId(),
+      createdAt: store.patients[patientId]?.createdAt || nowIso(),
+      createdBy: store.patients[patientId]?.createdBy || currentUserId()
+    };
+    store.patients[patientId] = patient;
+    store.dailyCensus[date] = {
+      ...(store.dailyCensus[date] || {}),
+      censusDate: date,
+      patients: store.dailyCensus[date]?.patients || {}
+    };
+    store.dailyCensus[date].patients[patientId] = {
+      ...(store.dailyCensus[date].patients[patientId] || {}),
+      patientId,
+      roundDate: date,
+      service,
+      bed,
+      patientName,
+      sector: patient.sector,
+      age: patient.age,
+      sex: patient.sex,
+      admissionDate,
+      diagnosis: patient.currentDiagnosis,
+      epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis,
+      state,
+      observations: patient.observations,
+      present: true,
+      importedFromFile: false,
+      manualEntry: true,
+      reviewStatus: store.dailyCensus[date].patients[patientId]?.reviewStatus || "pendiente",
+      syncStatus: syncStatusForNewWrite(),
+      rowHash: hashText(`${patientId}|${date}|${service}|${bed}|${patientName}|${patient.currentDiagnosis}|${patient.epidemiologicalDiagnosis}`),
+      notes: patient.observations || ""
+    };
+    ensureDailyRound(date);
+    store.dailyRounds[date].entries[patientId] = {
+      ...(store.dailyRounds[date].entries[patientId] || defaultRoundEntry(store.dailyCensus[date].patients[patientId], date)),
+      patientId,
+      entryId: patientId,
+      service,
+      bed,
+      roundDate: date,
+      syncStatus: syncStatusForNewWrite()
+    };
+    addAudit(draft.patientId ? "PATIENT_UPDATED" : "PATIENT_CREATED", { patientId, roundDate: date, before, after: patient, metadata: { source: "monitoring-editor", censusType: draft.censusType } });
+    recalculateRound(date);
+    saveStore();
+    enqueueWrite({ type: "patientUpdate", date, patientId, patient, censusRow: store.dailyCensus[date].patients[patientId] });
+    ui.monitorEditDraft = null;
+    ui.monitorEditMode = "";
+    flashIaas("Paciente guardado en monitoreo.");
+    renderIaas();
+  }
+
+  function requiresOpdNotification(draft) {
+    const service = normalizeText(draft.service);
+    const dx = normalizeText(draft.epiDiagnosis);
+    const hospitalized = service !== "AMBULATORIO";
+    const excludedIaas = ["AMBULATORIO", "HEMODIALISIS", "HEMODIÁLISIS", "ONCOLOGIA", "ONCOLOGÍA"].includes(service);
+    if (!dx) return false;
+    if (dx.includes("VIG TRANSMISIBLE") || dx.includes("VIG NO TRANSMISIBLE")) return true;
+    if (dx.includes("MORBIMORTALIDAD") || dx.includes("MATERNA") || dx.includes("PERINATAL")) return true;
+    if (hospitalized && (dx.includes("ESAVI") || dx.includes("COVID") || dx.includes("INFLUENZA"))) return true;
+    if (iaasCountForText(dx) > 0 && !excludedIaas) return true;
+    return false;
+  }
+
+  function renderMonitorEmpty(message) {
+    return h("div", { class: "monitor-empty" }, [
+      h("strong", {}, [message])
+    ]);
+  }
+
+  function renderCommandCalendar(date) {
+    ensureCommandCalendarState(date);
+    const calendarDate = ui.calendarDate || date;
+    const view = ui.calendarView || "week";
+    const range = commandCalendarRange(calendarDate, view);
+    const events = commandCalendarEvents(calendarDate, view, range);
+    return h("article", { class: `command-panel command-calendar calendar-${view}` }, [
+      h("div", { class: "command-panel-head" }, [
+        h("h2", {}, ["Calendario epidemiológico"]),
+        h("div", { class: "command-calendar-controls" }, [
+          h("button", { type: "button", onpointerdown: event => event.preventDefault(), onclick: event => { event.preventDefault(); shiftCommandCalendar(-1); }, "aria-label": "Periodo anterior" }, [commandIcon("chevron-left")]),
+          h("button", { type: "button", onpointerdown: event => event.preventDefault(), onclick: event => { event.preventDefault(); shiftCommandCalendar(1); }, "aria-label": "Periodo siguiente" }, [commandIcon("chevron-right")]),
+          h("button", { type: "button", onpointerdown: event => event.preventDefault(), onclick: event => { event.preventDefault(); resetCommandCalendarToday(); } }, ["Hoy"]),
+          h("span", { class: "command-calendar-period" }, [commandCalendarPeriodLabel(range, view)]),
+          h("select", { class: "command-calendar-view", onchange: event => setCommandCalendarView(event.target.value) }, [
+            option("day", "Día", view === "day"),
+            option("week", "Semana", view === "week"),
+            option("month", "Mes", view === "month"),
+            option("year", "Año", view === "year")
+          ])
+        ])
+      ]),
+      renderCommandCalendarRangeBar(range, view),
+      h("div", { class: "command-calendar-body" }, [
+        renderCommandCalendarCanvas(range, events, view),
+        renderCommandCalendarEditor(calendarDate)
+      ])
+    ]);
+  }
+
+  function renderCommandNotificationPanels(stats, date) {
+    const panels = [
+      { title: "Notificaciones Preventivas", href: `#/ronda/${date}`, items: commandPreventiveNotifications(stats, date), tone: "preventive" },
+      { title: "Notificaciones IAAS", href: "#/seguimiento-iaas", items: commandIaasNotifications(stats, date), tone: "iaas" },
+      { title: "Notificaciones VIG", href: "#/censo-hospitalario", items: commandVigNotifications(stats, date), tone: "vig" }
+    ];
+    return h("section", { class: "command-notification-grid" }, panels.map(panel =>
+      h("article", { class: `command-panel command-notification-panel ${panel.tone}` }, [
+        h("div", { class: "command-panel-head" }, [
+          h("h2", {}, [panel.title]),
+          h("a", { href: panel.href }, ["Ver módulo"])
+        ]),
+        h("div", { class: "notification-list" }, panel.items.map(item =>
+          h("a", { class: `notification-row ${item.tone}`, href: item.href }, [
+            h("i", {}, [commandIcon(item.icon)]),
+            h("div", {}, [
+              h("strong", {}, [item.title]),
+              h("span", {}, [item.detail])
+            ]),
+            h("time", {}, [item.time])
+          ])
+        ))
+      ])
+    ));
+  }
+
+  function commandPreventiveNotifications(stats, date) {
+    const briefing = salaBriefingData(stats, date);
+    return [
+      {
+        title: "Paquetes preventivos por completar",
+        detail: `${stats.pendingPatients} paciente(s) pendientes de ronda preventiva`,
+        time: "Hoy",
+        icon: "check",
+        tone: "round",
+        href: `#/ronda/${date}`
+      },
+      {
+        title: "Dispositivos activos para vigilancia",
+        detail: `${stats.activeDevices} invasivo(s), ${stats.totalDeviceDays} día(s) dispositivo acumulados`,
+        time: "Turno",
+        icon: "shield",
+        tone: "culture",
+        href: "#/reporte-diario"
+      },
+      {
+        title: briefing.surgicalSignals ? "Señales quirúrgicas visibles" : "Sin señales ISQ visibles",
+        detail: briefing.surgicalSignals ? `${briefing.surgicalSignals} paciente(s) con seguimiento ISQ potencial` : "Paquete quirúrgico sin eventos detectados",
+        time: "ISQ",
+        icon: "info",
+        tone: "rhove",
+        href: `#/ronda/${date}`
+      }
+    ];
+  }
+
+  function commandIaasNotifications(stats, date) {
+    const briefing = salaBriefingData(stats, date);
+    return [
+      {
+        title: stats.alertPatients[0] ? `${stats.alertPatients[0].reason} en ${stats.alertPatients[0].currentService || "servicio"}` : "Sin alertas IAAS críticas nuevas",
+        detail: stats.alertPatients[0] ? patientLabel(stats.alertPatients[0]) : "Seguimiento IAAS sin casos críticos activos",
+        time: "08:24",
+        icon: "alert",
+        tone: "critical",
+        href: "#/seguimiento-iaas"
+      },
+      {
+        title: briefing.cultureEvents[0] ? "Cultivo o PCR pendiente" : "Cultivos sin pendientes visibles",
+        detail: briefing.cultureEvents[0]?.meta || "Sin eventos microbiológicos detectados",
+        time: "07:58",
+        icon: "flask",
+        tone: "culture",
+        href: "#/seguimiento-iaas"
+      },
+      {
+        title: `${stats.incompletePatients} expediente(s) IAAS incompletos`,
+        detail: stats.incompletePatients ? "Requieren completar seguimiento clínico" : "Sin expedientes incompletos en seguimiento",
+        time: "IAAS",
+        icon: "info",
+        tone: "round",
+        href: "#/seguimiento-iaas"
+      }
+    ];
+  }
+
+  function commandVigNotifications(stats, date) {
+    const vigPatients = getCensusRows(date)
+      .map(row => ({ row, patient: store.patients[row.patientId] || {} }))
+      .filter(item => epiClass([
+        item.patient.epidemiologicalDiagnosis,
+        item.patient.currentEpidemiologicalDiagnosis,
+        item.row.epidemiologicalDiagnosis
+      ].filter(Boolean).join(" ")) === "epi-vig")
+      .slice(0, 2);
+    const epi = commandEpiCounts(date);
+    const items = vigPatients.map(item => ({
+      title: patientLabel(item.patient, item.row),
+      detail: `${item.row.service || item.patient.currentService || "Sin servicio"} · VIG transmisible / no transmisible`,
+      time: "VIG",
+      icon: "shield",
+      tone: "rhove",
+      href: "#/censo-hospitalario"
+    }));
+    items.push({
+      title: epi.vig ? `${epi.vig} caso(s) VIG activos` : "Sin VIG activos visibles",
+      detail: epi.vig ? "Incluye VIG transmisible y VIG no transmisible" : "Vigilancia hospitalaria sin VIG catalogados",
+      time: "Hoy",
+      icon: "info",
+      tone: "round",
+      href: "#/censo-hospitalario"
+    });
+    return items.slice(0, 3);
+  }
+
+  function ensureCommandCalendarState(date) {
+    if (!ui.calendarDate || !validIsoDate(ui.calendarDate)) ui.calendarDate = date;
+    if (!ui.calendarDraftDate || !validIsoDate(ui.calendarDraftDate)) ui.calendarDraftDate = ui.calendarDate;
+    if (!ui.calendarDraftStartTime) ui.calendarDraftStartTime = "08:00";
+    if (!ui.calendarDraftEndTime) ui.calendarDraftEndTime = "09:00";
+    if (!["day", "week", "month", "year"].includes(ui.calendarView)) ui.calendarView = "week";
+    if (!["preventiva", "iaas", "vig", "rhove"].includes(ui.calendarDraftCategory)) ui.calendarDraftCategory = "preventiva";
+    if (!Array.isArray(store.commandCalendarEvents)) store.commandCalendarEvents = [];
+  }
+
+  function renderCommandCalendarRangeBar(range, view) {
+    return h("div", { class: "command-calendar-rangebar" }, [
+      h("span", {}, [commandCalendarMonthLabel(range, view)]),
+      h("strong", {}, [commandCalendarPeriodLabel(range, view)])
+    ]);
+  }
+
+  function renderCommandCalendarCanvas(range, events, view) {
+    if (view === "year") return renderCommandYearView(range, events);
+    if (view === "month") return renderCommandMonthView(range, events);
+    return renderCommandTimeGrid(range, events);
+  }
+
+  function renderCommandTimeGrid(range, events) {
+    const times = commandCalendarTimes(events);
+    return h("div", { class: "command-calendar-grid", style: `--calendar-days:${range.days.length}` }, [
+      h("span", { class: "time-col" }, [""]),
+      ...range.days.map(day => h("strong", { class: day.today ? "today" : "" }, [day.label])),
+      ...times.flatMap(time => [
+        h("span", { class: "time-col" }, [commandTimeLabel(time)]),
+        ...range.days.map(day => {
+          const slotEvents = events.filter(item => item.date === day.date && commandEventStartTime(item) === time);
+          return h("div", { class: "calendar-slot" }, slotEvents.map(renderCalendarEvent));
+        })
+      ])
+    ]);
+  }
+
+  function renderCommandMonthView(range, events) {
+    const firstDate = new Date(`${range.start}T00:00:00`);
+    const leading = (firstDate.getDay() + 6) % 7;
+    const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    const blanks = Array.from({ length: leading }, (_, index) => h("div", { class: "calendar-month-cell empty", "aria-hidden": "true" }, []));
+    return h("div", { class: "command-month-grid" }, [
+      ...weekdays.map(day => h("span", { class: "month-weekday" }, [day])),
+      ...blanks,
+      ...range.days.map(day => {
+        const dayEvents = events.filter(item => item.date === day.date);
+        return h("div", { class: `calendar-month-cell ${day.today ? "today" : ""}` }, [
+          h("strong", {}, [String(new Date(`${day.date}T00:00:00`).getDate())]),
+          ...dayEvents.slice(0, 3).map(renderCalendarEvent),
+          dayEvents.length > 3 ? h("small", { class: "calendar-more" }, [`+${dayEvents.length - 3} más`]) : ""
+        ]);
+      })
+    ]);
+  }
+
+  function renderCommandYearView(range, events) {
+    const year = new Date(`${range.start}T00:00:00`).getFullYear();
+    const formatter = new Intl.DateTimeFormat("es-MX", { month: "long" });
+    return h("div", { class: "command-year-grid" }, Array.from({ length: 12 }, (_, month) => {
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+      const monthEvents = events.filter(item => item.date >= toIsoDate(monthStart) && item.date <= toIsoDate(monthEnd));
+      return h("button", {
+        type: "button",
+        class: "calendar-year-card",
+        onclick: () => {
+          ui.calendarDate = toIsoDate(monthStart);
+          ui.calendarDraftDate = ui.calendarDate;
+          ui.calendarView = "month";
+          updateCommandCalendarDom();
+        }
+      }, [
+        h("strong", {}, [formatter.format(monthStart)]),
+        h("span", {}, [`${monthEvents.length} evento(s)`]),
+        monthEvents[0] ? h("small", {}, [monthEvents[0].label]) : h("small", {}, ["Sin eventos programados"])
+      ]);
+    }));
+  }
+
+  function renderCalendarEvent(event) {
+    return h("span", { class: `calendar-event ${event.tone || "blue"}` }, [
+      h("b", {}, [event.label]),
+      h("small", {}, [`${commandEventTimeRange(event)} · ${commandCalendarCategoryLabel(event.category)}`])
+    ]);
+  }
+
+  function renderCommandCalendarEditor(calendarDate) {
+    const saved = commandStoredCalendarEvents()
+      .slice()
+      .sort((a, b) => `${a.date} ${commandEventStartTime(a)}`.localeCompare(`${b.date} ${commandEventStartTime(b)}`))
+      .slice(0, 6);
+    return h("aside", { class: "command-calendar-editor" }, [
+      h("h3", {}, ["Agregar evento"]),
+      h("form", { class: "command-calendar-form", onsubmit: addCommandCalendarEvent }, [
+        h("label", { class: "field full" }, [
+          h("span", {}, ["Evento"]),
+          h("input", {
+            id: "calendar-event-title",
+            value: ui.calendarDraftTitle,
+            placeholder: "Ej. Comité IAAS, ronda VIG, revisión de paquetes",
+            oninput: event => { ui.calendarDraftTitle = event.target.value; }
+          })
+        ]),
+        h("div", { class: "command-calendar-date-row" }, [
+          h("label", { class: "field" }, [
+            h("span", {}, ["Fecha"]),
+            h("input", { type: "date", value: ui.calendarDraftDate || calendarDate, onchange: event => { ui.calendarDraftDate = event.target.value; } })
+          ])
+        ]),
+        h("div", { class: "command-calendar-time-row" }, [
+          h("label", { class: "field" }, [
+            h("span", {}, ["Inicio"]),
+            renderCommandTimeSelect(ui.calendarDraftStartTime || "08:00", value => { ui.calendarDraftStartTime = value; })
+          ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Término"]),
+            renderCommandTimeSelect(ui.calendarDraftEndTime || "09:00", value => { ui.calendarDraftEndTime = value; })
+          ])
+        ]),
+        h("label", { class: "field full" }, [
+          h("span", {}, ["Tipo"]),
+          h("select", { onchange: event => { ui.calendarDraftCategory = event.target.value; } }, [
+            option("preventiva", "Preventiva", ui.calendarDraftCategory === "preventiva"),
+            option("iaas", "IAAS", ui.calendarDraftCategory === "iaas"),
+            option("vig", "VIG", ui.calendarDraftCategory === "vig"),
+            option("rhove", "RHOVE / comité", ui.calendarDraftCategory === "rhove")
+          ])
+        ]),
+        h("button", { class: "iaas-button primary", type: "submit" }, ["Agregar evento"])
+      ]),
+      h("div", { class: "command-calendar-saved" }, [
+        h("h3", {}, ["Eventos agregados"]),
+        saved.length ? h("div", { class: "command-calendar-event-list" }, saved.map(event =>
+          h("div", { class: `calendar-saved-event ${event.tone || "blue"}` }, [
+            h("div", {}, [
+              h("strong", {}, [event.label]),
+              h("span", {}, [`${event.date} · ${commandEventTimeRange(event)} · ${commandCalendarCategoryLabel(event.category)}`])
+            ]),
+            h("button", { type: "button", onclick: () => removeCommandCalendarEvent(event.id) }, ["Quitar"])
+          ])
+        )) : h("p", {}, ["Aún no hay eventos agregados."])
+      ])
+    ]);
+  }
+
+  function shiftCommandCalendar(offset) {
+    dismissCalendarPopups();
+    const view = ui.calendarView || "week";
+    const base = new Date(`${ui.calendarDate || activeDate()}T00:00:00`);
+    if (view === "day") base.setDate(base.getDate() + offset);
+    if (view === "week") base.setDate(base.getDate() + offset * 7);
+    if (view === "month") base.setMonth(base.getMonth() + offset);
+    if (view === "year") base.setFullYear(base.getFullYear() + offset);
+    ui.calendarDate = toIsoDate(base);
+    ui.calendarDraftDate = ui.calendarDate;
+    updateCommandCalendarDom();
+  }
+
+  function resetCommandCalendarToday() {
+    dismissCalendarPopups();
+    ui.calendarDate = activeDate();
+    ui.calendarDraftDate = ui.calendarDate;
+    updateCommandCalendarDom();
+  }
+
+  function setCommandCalendarView(view) {
+    dismissCalendarPopups();
+    ui.calendarView = ["day", "week", "month", "year"].includes(view) ? view : "week";
+    updateCommandCalendarDom();
+  }
+
+  function addCommandCalendarEvent(event) {
+    event?.preventDefault?.();
+    dismissCalendarPopups();
+    const label = cleanCell(ui.calendarDraftTitle || document.querySelector("#calendar-event-title")?.value);
+    const date = normalizeDate(ui.calendarDraftDate || ui.calendarDate || activeDate());
+    const startTime = cleanCell(ui.calendarDraftStartTime || "08:00");
+    const endTime = cleanCell(ui.calendarDraftEndTime || "");
+    const category = ["preventiva", "iaas", "vig", "rhove"].includes(ui.calendarDraftCategory) ? ui.calendarDraftCategory : "preventiva";
+    if (!label) {
+      setCalendarFormMessage("Escribe el nombre del evento epidemiológico.");
+      return;
+    }
+    if (!date || !isValidCalendarTime(startTime) || !isValidCalendarTime(endTime) || endTime <= startTime) {
+      setCalendarFormMessage("Revisa fecha, hora de inicio y hora de término.");
+      return;
+    }
+    store.commandCalendarEvents = commandStoredCalendarEvents();
+    store.commandCalendarEvents.push({
+      id: `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      date,
+      startTime,
+      endTime,
+      label,
+      category,
+      tone: commandCalendarTone(category),
+      createdAt: nowIso(),
+      createdBy: currentUserId()
+    });
+    saveStore();
+    ui.calendarDate = date;
+    ui.calendarDraftDate = date;
+    ui.calendarDraftTitle = "";
+    updateCommandCalendarDom();
+  }
+
+  function removeCommandCalendarEvent(id) {
+    dismissCalendarPopups();
+    store.commandCalendarEvents = commandStoredCalendarEvents().filter(event => event.id !== id);
+    saveStore();
+    updateCommandCalendarDom();
+  }
+
+  function commandStoredCalendarEvents() {
+    if (!Array.isArray(store.commandCalendarEvents)) store.commandCalendarEvents = [];
+    return store.commandCalendarEvents;
+  }
+
+  function updateCommandCalendarDom() {
+    const current = document.querySelector(".command-calendar");
+    if (!current || ui.route.page !== "dashboard") {
+      renderIaas();
+      return false;
+    }
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const next = renderCommandCalendar(activeDate());
+    current.replaceWith(next);
+    window.scrollTo(scrollX, scrollY);
+    return true;
+  }
+
+  function dismissCalendarPopups() {
+    document.querySelectorAll(".iaas-toast").forEach(toast => toast.remove());
+    const message = document.querySelector(".command-calendar-form-message");
+    if (message) message.remove();
+  }
+
+  function setCalendarFormMessage(message) {
+    document.querySelectorAll(".command-calendar-form-message").forEach(node => node.remove());
+    const form = document.querySelector(".command-calendar-form");
+    if (!form) return;
+    form.prepend(h("p", { class: "command-calendar-form-message" }, [message]));
+  }
+
+  function isValidCalendarTime(value) {
+    return /^\d{2}:\d{2}$/.test(value || "");
   }
 
   function commandEpiCounts(date) {
     return getCensusRows(date).reduce((out, row) => {
       const patient = store.patients[row.patientId] || {};
-      const cls = epiClass([patient.epidemiologicalDiagnosis, patient.currentEpidemiologicalDiagnosis, row.epidemiologicalDiagnosis].filter(Boolean).join(" "));
-      if (cls === "epi-iaas") out.iaas += 1;
-      if (cls === "epi-riesgo-iaas") out.riesgo += 1;
-      if (cls === "epi-vig") out.vig += 1;
+      const text = epidemiologicalText({ row, patient });
+      const bases = epidemiologicalBasesForText(text);
+      out.iaas += iaasCountForText(text);
+      if (bases.includes("RIESGO IAAS")) out.riesgo += 1;
+      if (bases.some(base => base.startsWith("VIG"))) out.vig += 1;
       return out;
     }, { iaas: 0, riesgo: 0, vig: 0 });
+  }
+
+  function epidemiologicalTagsForItem(item) {
+    const text = normalizeText(epidemiologicalSearchText(item));
+    if (!text) return [];
+    const withoutNoRisk = text
+      .replace(/\bNO\s+IAAS\b/g, " ")
+      .replace(/\bRIESGO\s+IAAS\b/g, " ");
+    return EPIDEMIOLOGICAL_TAGS.filter(tag => {
+      if (tag.key === "iaas") return /\b(\d+\s*)?IAAS\b/.test(withoutNoRisk);
+      if (tag.key === "noIaas") return /\bNO\s+IAAS\b/.test(text);
+      if (tag.key === "riesgoIaas") return /\bRIESGO\s+IAAS\b/.test(text);
+      if (tag.key === "vigTransmisible") return /\bVIG\s+TRANSMISIBLE\b/.test(text);
+      if (tag.key === "vigNoTransmisible") return /\bVIG\s+NO\s+TRANSMISIBLE\b/.test(text);
+      if (tag.key === "esavi") return /\bESAVI\b/.test(text);
+      if (tag.key === "covidInfluenza") return /\bCOVID\b|\bINFLUENZA\b/.test(text);
+      if (tag.key === "morbimortalidad") return /\bMORBIMORTALIDAD\b|\bMATERNA\b|\bPERINATAL\b/.test(text);
+      return false;
+    });
+  }
+
+  function epidemiologicalSearchText({ row = {}, patient = {} }) {
+    return [
+      patient.epidemiologicalDiagnosis,
+      patient.currentEpidemiologicalDiagnosis,
+      row.epidemiologicalDiagnosis,
+      patient.observations,
+      row.observations,
+      row.notes,
+      patient.currentDiagnosis,
+      row.diagnosis
+    ].filter(Boolean).join(" ");
+  }
+
+  function epidemiologicalText(item) {
+    const seen = new Set();
+    return [
+      item.patient?.epidemiologicalDiagnosis,
+      item.patient?.currentEpidemiologicalDiagnosis,
+      item.row?.epidemiologicalDiagnosis
+    ].map(cleanCell).filter(Boolean).filter(value => {
+      const key = normalizeText(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).join(" / ");
   }
 
   function commandNotifications(stats, date) {
@@ -925,31 +2516,149 @@
     ];
   }
 
-  function commandCalendarDays(date) {
+  function commandCalendarRange(date, view = "week") {
     const selected = new Date(`${date}T00:00:00`);
-    const day = selected.getDay() || 7;
-    const monday = new Date(selected);
-    monday.setDate(selected.getDate() - day + 1);
+    const current = Number.isFinite(selected.getTime()) ? selected : new Date(`${activeDate()}T00:00:00`);
     const fmt = new Intl.DateTimeFormat("es-MX", { weekday: "short", day: "numeric" });
-    return Array.from({ length: 7 }, (_, index) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + index);
+    if (view === "day") {
+      const iso = toIsoDate(current);
       return {
-        label: fmt.format(d).replace(".", ""),
-        today: toIsoDate(d) === date
+        start: iso,
+        end: iso,
+        days: [{ date: iso, label: fmt.format(current).replace(".", ""), today: iso === activeDate() }]
       };
-    });
+    }
+    if (view === "month") {
+      const start = new Date(current.getFullYear(), current.getMonth(), 1);
+      const end = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+      return commandDateRange(start, end, fmt);
+    }
+    if (view === "year") {
+      const start = new Date(current.getFullYear(), 0, 1);
+      const end = new Date(current.getFullYear(), 11, 31);
+      return commandDateRange(start, end, fmt);
+    }
+    const day = current.getDay() || 7;
+    const monday = new Date(current);
+    monday.setDate(current.getDate() - day + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return commandDateRange(monday, sunday, fmt);
   }
 
-  function commandCalendarEvents(date) {
-    return [
-      { day: 0, time: "08:00", label: "Ronda UCI A", tone: "blue" },
-      { day: 1, time: "10:00", label: "Vigilancia", tone: "violet" },
-      { day: 2, time: "11:00", label: "Comité IAAS", tone: "pink" },
-      { day: 4, time: "12:00", label: "Reporte RHOVE", tone: "pink" },
-      { day: 5, time: "09:00", label: "Ronda UCI C", tone: "violet" },
-      { day: 5, time: "11:00", label: "Revisión cultivos", tone: "cyan" }
-    ];
+  function commandDateRange(start, end, fmt) {
+    const days = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const iso = toIsoDate(cursor);
+      days.push({
+        date: iso,
+        label: fmt.format(cursor).replace(".", ""),
+        today: iso === activeDate()
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return { start: toIsoDate(start), end: toIsoDate(end), days };
+  }
+
+  function commandCalendarEvents(date, view = "week", range = commandCalendarRange(date, view)) {
+    const customEvents = commandStoredCalendarEvents().map(event => ({
+      ...event,
+      tone: event.tone || commandCalendarTone(event.category)
+    }));
+    return customEvents
+      .filter(event => event.date >= range.start && event.date <= range.end)
+      .sort((a, b) => `${a.date} ${commandEventStartTime(a)}`.localeCompare(`${b.date} ${commandEventStartTime(b)}`));
+  }
+
+  function commandCalendarTimes(events) {
+    const workdayHours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00"];
+    return unique([...workdayHours, ...events.map(commandEventStartTime).filter(Boolean)]).sort();
+  }
+
+  function commandCalendarTimeOptions(current = "") {
+    const options = [];
+    for (let minutes = 8 * 60; minutes <= 15 * 60; minutes += 15) {
+      const hour = String(Math.floor(minutes / 60)).padStart(2, "0");
+      const minute = String(minutes % 60).padStart(2, "0");
+      options.push(`${hour}:${minute}`);
+    }
+    const safeCurrent = isValidCalendarTime(current) ? current : "";
+    return unique([...options, safeCurrent].filter(Boolean)).sort();
+  }
+
+  function renderCommandTimeSelect(value, onChange) {
+    const selectedValue = isValidCalendarTime(value) ? value : "08:00";
+    return h("select", { class: "command-calendar-time-select", onchange: event => onChange(event.target.value) },
+      commandCalendarTimeOptions(selectedValue).map(time => option(time, commandTimeLabel(time), time === selectedValue))
+    );
+  }
+
+  function commandCalendarPeriodLabel(range, view) {
+    const start = new Date(`${range.start}T00:00:00`);
+    const end = new Date(`${range.end}T00:00:00`);
+    if (view === "day") return dayLabel(start);
+    if (view === "month") return new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(start);
+    if (view === "year") return String(start.getFullYear());
+    const fmt = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" });
+    return `${fmt.format(start).replace(".", "")} - ${fmt.format(end).replace(".", "")} ${end.getFullYear()}`;
+  }
+
+  function commandCalendarMonthLabel(range, view) {
+    const start = new Date(`${range.start}T00:00:00`);
+    const end = new Date(`${range.end}T00:00:00`);
+    if (view === "year") return String(start.getFullYear());
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      return capitalizeFirst(new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(start));
+    }
+    const fmt = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" });
+    return `${capitalizeFirst(fmt.format(start))} - ${capitalizeFirst(fmt.format(end))}`;
+  }
+
+  function capitalizeFirst(value) {
+    return String(value || "").replace(/^\S/, letter => letter.toUpperCase());
+  }
+
+  function commandEventStartTime(event) {
+    return event.startTime || event.time || "08:00";
+  }
+
+  function commandEventEndTime(event) {
+    return event.endTime || event.finishTime || commandEventStartTime(event);
+  }
+
+  function commandEventTimeRange(event) {
+    const start = commandEventStartTime(event);
+    const end = commandEventEndTime(event);
+    return end && end !== start ? `${commandTimeLabel(start)} - ${commandTimeLabel(end)}` : commandTimeLabel(start);
+  }
+
+  function commandTimeLabel(value) {
+    const match = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return value || "";
+    const hour = Number(match[1]);
+    const minute = match[2];
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour % 12 || 12;
+    return minute === "00" ? `${displayHour} ${suffix}` : `${displayHour}:${minute} ${suffix}`;
+  }
+
+  function commandCalendarTone(category) {
+    return {
+      preventiva: "blue",
+      iaas: "pink",
+      vig: "green",
+      rhove: "cyan"
+    }[category] || "blue";
+  }
+
+  function commandCalendarCategoryLabel(category) {
+    return {
+      preventiva: "Preventiva",
+      iaas: "IAAS",
+      vig: "VIG",
+      rhove: "RHOVE"
+    }[category] || "Evento";
   }
 
   function commandIcon(name) {
@@ -965,6 +2674,9 @@
       logout: ['<path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 3v18h-7"/>'],
       "chevron-left": ['<path d="m15 18-6-6 6-6"/>'],
       "chevron-right": ['<path d="m9 18 6-6-6-6"/>'],
+      plus: ['<path d="M12 5v14M5 12h14"/>'],
+      pen: ['<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/>'],
+      clock: ['<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
       shield: ['<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>'],
       alert: ['<path d="m10.3 3.4-8.2 14A2 2 0 0 0 3.8 20h16.4a2 2 0 0 0 1.7-2.6l-8.2-14a2 2 0 0 0-3.4 0Z"/><path d="M12 8v5M12 17h.01"/>'],
       flask: ['<path d="M9 2h6"/><path d="M10 2v6L5 19a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 19L14 8V2"/><path d="M7 16h10"/>'],
@@ -987,6 +2699,16 @@
         backdrop: `${PRO_ASSET}/backgrounds/hero-holographic-epidemiology-dashboard.webp`,
         tone: "vigilancia",
         meta: ["Calendario", "Notificaciones", "Eventos"]
+      },
+      {
+        title: "Monitoreo Epidemiológico",
+        text: "Censo epidemiológico y hospitalario con filtros clínicos, edición directa y etiquetas OPD.",
+        href: "#/monitoreo-epidemiologico",
+        action: "Abrir monitoreo",
+        image: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`,
+        backdrop: `${PRO_ASSET}/backgrounds/extra-network-interface-concept.webp`,
+        tone: "monitoreo",
+        meta: ["Epidemiológico", "Hospitalario", "OPD"]
       },
       {
         title: "Paquetes Preventivos",
@@ -1074,9 +2796,9 @@
   }
 
   function setDashboardSlide(index) {
-    ui.dashboardSlide = index;
+    ui.dashboardSlide = normalizeDashboardSlide(index);
     ui.dashboardSlidePausedUntil = Date.now() + 10000;
-    renderIaas();
+    if (!syncDashboardSlideDom()) renderIaas();
   }
 
   function renderSalaBriefing(stats, date) {
@@ -1238,41 +2960,73 @@
 
   function renderIaasFollowUpHub() {
     const date = activeDate();
-    const stats = computeStats(date);
-    const patients = Object.values(store.patients)
-      .filter(patient =>
-        patient.latestRoundStatus === "alerta" ||
-        patient.hospitalizationStatus === "requiere_conciliación" ||
-        activeEpisodes(patient.patientId, date).length
-      )
-      .slice(0, 12);
+    const rows = iaasFollowUpRows(date);
+    const activeDevices = rows.reduce((sum, item) => sum + activeEpisodes(item.row.patientId, date).length, 0);
+    const pendingValuations = rows.filter(item => !store.dailyRounds[date]?.entries?.[item.row.patientId]?.iaasAssessment).length;
+    const cultures = rows.filter(item => normalizeText(`${item.patient.cultureStatus || item.row.cultureStatus || ""} ${item.patient.observations || item.row.observations || ""}`).includes("CULT")).length;
     return h("div", { class: "iaas-page follow-up-hub" }, [
       h("section", { class: "iaas-panel follow-hero" }, [
         h("div", {}, [
           h("h1", {}, ["Seguimiento IAAS"]),
-          h("p", {}, ["Vista puente para pacientes con invasivos, alertas, cultivos o conciliación pendiente. En esta fase conserva la lógica actual y prepara el terreno para vigilancia activa diaria."])
+          h("p", {}, ["Seguimiento diario para pacientes con IAAS activa o importada. La valoración integra invasivos, signos vitales, laboratorios, cultivos, tratamiento, bitácora diaria y gráfica de temperatura."])
         ]),
         h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" })
       ]),
       renderMetricGrid([
-        ["Alertas IAAS", stats.activeAlerts, "Seguimiento dirigido"],
-        ["Invasivos activos", stats.activeDevices, "Episodios vigentes"],
-        ["Pendientes", stats.pendingPatients, "Ronda del día"],
-        ["Conciliación", stats.reconciliationPatients, "Censo hospitalario"]
+        ["Pacientes IAAS", rows.length, "activos/importados"],
+        ["Invasivos activos", activeDevices, "solo pacientes IAAS"],
+        ["Valoración pendiente", pendingValuations, "registro diario"],
+        ["Cultivos visibles", cultures, "notas o resultados"]
       ], "compact"),
       h("section", { class: "iaas-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
-            h("h2", {}, ["Pacientes para seguimiento"]),
-            h("p", {}, ["Prioriza invasivos activos, alertas y registros que requieren conciliación."])
+            h("h2", {}, ["Pacientes IAAS para valoración"]),
+            h("p", {}, ["Solo se muestran pacientes con diagnóstico epidemiológico IAAS. La revisión abre directamente la pestaña de valoración por IAAS."])
           ]),
           h("a", { href: "#/censo-hospitalario" }, ["Ver vigilancia hospitalaria"])
         ]),
-        patients.length
-          ? renderPatientMiniTable(patients, "Sin pacientes priorizados.")
-          : h("p", { class: "muted" }, ["Sin pacientes priorizados para seguimiento IAAS en este momento."])
+        rows.length
+          ? renderIaasFollowUpCards(rows, date)
+          : h("p", { class: "muted" }, ["Sin pacientes IAAS activos en el censo actual."])
       ])
     ]);
+  }
+
+  function iaasFollowUpRows(date) {
+    return monitoringRows(date)
+      .filter(item => iaasCountForText(item.epiText) > 0)
+      .sort((a, b) => sortByServiceBed(a.row, b.row));
+  }
+
+  function renderIaasFollowUpCards(rows, date) {
+    return h("div", { class: "iaas-follow-list" }, rows.map(item => {
+      const patient = item.patient || {};
+      const active = activeEpisodes(item.row.patientId, date);
+      const entry = store.dailyRounds[date]?.entries?.[item.row.patientId] || {};
+      return h("article", { class: "iaas-follow-card" }, [
+        h("div", { class: "iaas-follow-avatar" }, [
+          h("img", { src: `${PRO_ASSET}/badges/badge-iaas.webp`, alt: "", loading: "lazy" })
+        ]),
+        h("div", { class: "iaas-follow-main" }, [
+          h("strong", {}, [item.patientName || patientLabel(patient, item.row)]),
+          h("span", {}, [`${serviceDisplayLabel(item.service)} · Cama ${item.bed || "S/C"}`]),
+          h("small", {}, [item.dxHospital || "Sin diagnóstico hospitalario registrado"])
+        ]),
+        h("div", { class: "iaas-follow-tags" }, [
+          h("span", { class: "badge epi-iaas" }, [cleanCell(item.epiText) || "IAAS"]),
+          active.length ? h("span", { class: "badge device" }, [`${active.length} invasivo(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos activos"]),
+          entry.iaasAssessment ? h("span", { class: "badge revisado" }, ["Valoración del día"]) : h("span", { class: "badge pendiente" }, ["Pendiente"])
+        ]),
+        h("div", { class: "iaas-follow-actions" }, [
+          h("a", {
+            class: "iaas-button primary",
+            href: `#/ronda/${date}/paciente/${item.row.patientId}/iaas`
+          }, ["Revisar"]),
+          h("a", { class: "iaas-button ghost", href: `#/pacientes/${item.row.patientId}/seguimiento` }, ["Historial"])
+        ])
+      ]);
+    }));
   }
 
   function renderHospitalCensusPage() {
@@ -1296,7 +3050,7 @@
           h("div", { class: "report-actions" }, [
             hasPrivateCensusSeed() ? h("button", { class: "iaas-button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : "",
             h("a", { class: "iaas-button", href: "#/importar-censo" }, ["Importar censo"]),
-            h("button", { class: "iaas-button primary", onclick: () => window.print() }, ["Imprimir censo"])
+            h("button", { class: "iaas-button primary", onclick: printEpidemiologicalCensusFromSheets }, ["Imprimir censo"])
           ])
         ])
       ]),
@@ -1501,32 +3255,45 @@
 
   function renderImportPage() {
     const draft = ui.importDraft;
+    const importDate = ui.importDate || isoToday();
     return h("div", { class: "iaas-page import-page" }, [
       h("section", { class: "iaas-panel import-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
             h("h1", {}, ["Base de Datos"]),
-            h("p", {}, ["Pega desde Excel/Google Sheets o carga CSV/XLSX. La importación es determinística: valida, deduplica, concilia y luego guarda."])
+            h("p", {}, ["Pega desde Excel/Google Sheets como ruta principal, o carga CSV/XLSX como respaldo. La importación valida, deduplica, concilia y luego guarda."])
           ]),
           h("span", { class: "badge" }, ["Sin IA pagada"])
+        ]),
+        h("div", { class: "import-recommendation" }, [
+          h("strong", {}, ["Recomendado para mañana: copiar y pegar"]),
+          h("span", {}, ["Es el flujo más estable en móvil y escritorio: no depende del lector externo de XLSX y acepta el formato humano del censo con Servicio/Cama, Paciente, Dx hospitalario y Observaciones."])
         ]),
         h("div", { class: "import-controls" }, [
           h("label", { class: "field" }, [
             h("span", {}, ["Fecha del censo"]),
-            h("input", { type: "date", value: isoToday(), id: "import-date" })
+            h("input", {
+              type: "date",
+              value: importDate,
+              id: "import-date",
+              onchange: event => { ui.importDate = event.target.value || isoToday(); }
+            })
           ]),
           h("label", { class: "field full" }, [
             h("span", {}, ["Pegar tabla del censo"]),
             h("textarea", {
               id: "import-text",
-              placeholder: "patient_id\tfecha_censo\tservicio\tcama\tedad\tsexo\tfecha_ingreso\tdiagnostico_actual\tpendientes",
+              placeholder: "Servicio/Cama\tPaciente\tSector\tEdad\tSexo\tIngreso\tEstado\tDx hospitalario\tDx epidemiologico\tObservaciones",
               oninput: event => { ui.importText = event.target.value; }
             }, [ui.importText])
           ]),
           h("div", { class: "import-actions" }, [
-            h("input", { type: "file", id: "census-file", accept: ".csv,.txt,.tsv,.xlsx", onchange: handleImportFile }),
+            h("label", { class: "import-file-picker" }, [
+              h("span", {}, ["Cargar archivo CSV/TSV/XLSX"]),
+              h("input", { type: "file", id: "census-file", accept: ".csv,.txt,.tsv,.xlsx", onchange: handleImportFile })
+            ]),
             h("button", { class: "iaas-button", onclick: loadSampleImport }, ["Cargar ejemplo"]),
-            h("button", { class: "iaas-button primary", onclick: parseImportInput }, ["Validar censo"]),
+            h("button", { class: "iaas-button primary", onclick: parseImportInput }, ["Pegar y validar censo"]),
             draft ? h("button", { class: "iaas-button danger ghost", onclick: cancelImport }, ["Cancelar"]) : ""
           ])
         ]),
@@ -1564,10 +3331,10 @@
       renderImportIssues(draft),
       h("div", { class: "table-wrap" }, [
         h("table", { class: "iaas-table" }, [
-          h("thead", {}, [h("tr", {}, ["Estado", "ID", "Servicio", "Cama", "Ingreso", "Dx", "Errores/avisos"].map(label => h("th", {}, [label])))]),
+          h("thead", {}, [h("tr", {}, ["Estado", "Paciente/ID", "Servicio", "Cama", "Ingreso", "Dx", "Errores/avisos"].map(label => h("th", {}, [label])))]),
           h("tbody", {}, draft.rows.slice(0, 30).map(row => h("tr", { class: row.errors.length ? "has-error" : row.warnings.length ? "has-warning" : "" }, [
             h("td", {}, [row.errors.length ? "Error" : row.warnings.length ? "Advertencia" : "Válida"]),
-            h("td", {}, [row.normalized.patient_id || ""]),
+            h("td", {}, [row.normalized.patient_name || row.normalized.patient_id || ""]),
             h("td", {}, [row.normalized.servicio || ""]),
             h("td", {}, [row.normalized.cama || ""]),
             h("td", {}, [row.normalized.fecha_ingreso || ""]),
@@ -1755,21 +3522,73 @@
     ].filter(Boolean).join(" "));
   }
 
-  function renderPatientRound(date, patientId) {
+  function renderPatientRound(date, patientId, requestedSection = null) {
     const patient = store.patients[patientId];
     if (!patient) return renderNotFound("Paciente no encontrado.");
     ensureDailyRound(date);
-    const draft = getReviewDraft(date, patientId);
+    const section = requestedSection === "iaas" ? "iaas" : "preventive";
+    const draft = getReviewDraft(date, patientId, section);
     const active = activeEpisodes(patientId, date);
+    const stay = isAmbulatoryStayService(patient.currentService) ? "Ambulatorio" : `${daysBetween(patient.admissionDate, date) ?? "NA"} días`;
     return h("div", { class: "iaas-page patient-round" }, [
       h("section", { class: "iaas-panel patient-sticky-summary" }, [
         h("div", {}, [
-          h("a", { href: `#/ronda/${date}`, class: "back-link" }, ["Volver al servicio"]),
+          h("a", { href: draft.activeRoundSection === "iaas" ? "#/seguimiento-iaas" : `#/ronda/${date}`, class: "back-link" }, ["Volver al servicio"]),
           h("h1", {}, [`Cama ${patient.currentBed} · ${patientLabel(patient)}`]),
-          h("p", {}, [`${patient.currentService} · Estancia: ${daysBetween(patient.admissionDate, date) ?? "NA"} días`])
+          h("p", {}, [`${patient.currentService} · Estancia: ${stay}`])
         ]),
         h("span", { class: `risk ${riskClass(patient.currentRiskLevel)}` }, [patient.currentRiskLevel || "Sin riesgo"])
       ]),
+      renderRoundModeTiles(date, patientId, draft),
+      ...(draft.activeRoundSection === "iaas"
+        ? [renderIaasAssessmentPanel(date, patientId, patient, active, draft)]
+        : renderPreventiveReviewSections(date, patientId, patient, active, draft)),
+      h("div", { class: "round-save-bar" }, [
+        h("button", { class: "iaas-button ghost", onclick: () => saveRoundEntry(date, patientId, "incompleto", false) }, ["Guardar como incompleto"]),
+        h("button", { class: "iaas-button", onclick: () => saveRoundEntry(date, patientId, "pendiente", false) }, ["Marcar pendiente"]),
+        h("button", { class: "iaas-button primary", onclick: () => saveRoundEntry(date, patientId, "revisado", false) }, ["Guardar"]),
+        h("button", { class: "iaas-button primary strong", onclick: () => saveRoundEntry(date, patientId, "revisado", true) }, ["Guardar y siguiente cama"])
+      ])
+    ]);
+  }
+
+  function renderRoundModeTiles(date, patientId, draft) {
+    return h("section", { class: "patient-round-modes" }, [
+      h("button", {
+        class: `round-mode-card ${draft.activeRoundSection === "preventive" ? "active" : ""}`,
+        type: "button",
+        onclick: () => setRoundPatientSection(date, patientId, "preventive")
+      }, [
+        h("img", { src: `${PRO_ASSET}/icons/icon-seguridad.webp`, alt: "", loading: "lazy" }),
+        h("span", {}, ["REVISIÓN PAQUETES PREVENTIVOS"]),
+        h("small", {}, ["Ronda de invasivos y paquetes"])
+      ]),
+      h("button", {
+        class: `round-mode-card iaas-mode ${draft.activeRoundSection === "iaas" ? "active" : ""}`,
+        type: "button",
+        onclick: () => setRoundPatientSection(date, patientId, "iaas")
+      }, [
+        h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" }),
+        h("span", {}, ["VALORACIÓN POR IAAS"]),
+        h("small", {}, ["Registro clínico epidemiológico diario"])
+      ])
+    ]);
+  }
+
+  function setRoundPatientSection(date, patientId, activeRoundSection) {
+    updateDraft(date, patientId, { activeRoundSection });
+    const target = activeRoundSection === "iaas"
+      ? `#/ronda/${date}/paciente/${patientId}/iaas`
+      : `#/ronda/${date}/paciente/${patientId}`;
+    if (location.hash !== target) {
+      location.hash = target;
+    } else {
+      renderIaas();
+    }
+  }
+
+  function renderPreventiveReviewSections(date, patientId, patient, active, draft) {
+    return [
       h("section", { class: "iaas-panel" }, [
         h("h2", {}, ["Resumen del paciente"]),
         h("p", {}, [patient.currentDiagnosis || "Sin diagnóstico registrado."]),
@@ -1797,14 +3616,617 @@
           h("span", {}, ["Notas cortas"]),
           h("textarea", { value: draft.notes || "", oninput: event => updateDraft(date, patientId, { notes: event.target.value }) })
         ])
+      ])
+    ];
+  }
+
+  function renderIaasAssessmentPanel(date, patientId, patient, active, draft) {
+    const assessment = normalizeIaasAssessment(draft.iaasAssessment);
+    const limited = isLimitedIaasAssessmentService(patient.currentService);
+    const hemodialysis = isHemodialysisService(patient.currentService);
+    const hasVentilation = hasVentilationDevice(active);
+    const viralOptions = limited ? IAAS_LIMITED_VIRAL_PANEL_TESTS : IAAS_VIRAL_PANEL_TESTS;
+    return h("section", { class: "iaas-panel iaas-assessment-panel" }, [
+      h("div", { class: "iaas-panel-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Valoración por IAAS"]),
+          h("p", {}, [limited
+            ? "Paciente de servicio ambulatorio: se limita a invasivos, signos vitales, panel viral, cultivos y tratamiento."
+            : "Registro diario de signos vitales, laboratorio, orina, cultivos, tratamiento y evolución."])
+        ]),
+        h("span", { class: "badge epi-iaas" }, ["IAAS"])
       ]),
-      h("div", { class: "round-save-bar" }, [
-        h("button", { class: "iaas-button ghost", onclick: () => saveRoundEntry(date, patientId, "incompleto", false) }, ["Guardar como incompleto"]),
-        h("button", { class: "iaas-button", onclick: () => saveRoundEntry(date, patientId, "pendiente", false) }, ["Marcar pendiente"]),
-        h("button", { class: "iaas-button primary", onclick: () => saveRoundEntry(date, patientId, "revisado", false) }, ["Guardar"]),
-        h("button", { class: "iaas-button primary strong", onclick: () => saveRoundEntry(date, patientId, "revisado", true) }, ["Guardar y siguiente cama"])
+      h("div", { class: "iaas-assessment-grid" }, [
+        renderIaasInvasiveSummary(active),
+        renderIaasVitalSigns(date, patientId, assessment, hasVentilation),
+        limited ? "" : renderIaasCbc(date, patientId, assessment),
+        limited ? "" : renderIaasUrinalysis(date, patientId, assessment),
+        renderIaasOtherStudies(date, patientId, assessment, limited, viralOptions),
+        hemodialysis ? renderHemodialysisInfectionPanel(date, patientId, patient, assessment) : "",
+        renderIaasCultures(date, patientId, assessment),
+        renderIaasTreatments(date, patientId, assessment),
+        renderIaasGeneralObservations(date, patientId, assessment)
+      ]),
+      h("div", { class: "iaas-daily-section" }, [
+        h("div", { class: "iaas-panel-head compact" }, [
+          h("div", {}, [
+            h("h3", {}, ["Registro diario IAAS"]),
+            h("p", {}, ["Tabla de seguimiento por fecha desde el ingreso; se completa al guardar la valoración diaria."])
+          ])
+        ]),
+        renderIaasTemperatureChart(patientId),
+        renderDailyIaasTable(patient, patientId, date),
+        renderIaasStudyHistory(patient, patientId)
       ])
     ]);
+  }
+
+  function renderIaasInvasiveSummary(active) {
+    return h("article", { class: "iaas-assessment-block iaas-invasive-summary" }, [
+      h("h3", {}, ["Invasivos"]),
+      active.length ? h("div", { class: "iaas-invasive-list" }, active.map(ep =>
+        h("div", {}, [
+          h("strong", {}, [ep.deviceType]),
+          h("span", {}, [`Instalación ${formatDisplayDate(ep.installationDate) || "sin fecha"}${ep.anatomicalSite ? ` · ${ep.anatomicalSite}` : ""}`])
+        ])
+      )) : h("p", { class: "muted" }, ["Sin invasivos activos capturados por enfermería."])
+    ]);
+  }
+
+  function renderIaasVitalSigns(date, patientId, assessment, hasVentilation) {
+    const fields = IAAS_VITAL_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "vitalSigns", key, label, assessment.vitalSigns?.[key]));
+    const ventilationFields = hasVentilation
+      ? IAAS_VENTILATION_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "vitalSigns", key, label, assessment.vitalSigns?.[key]))
+      : [h("p", { class: "iaas-locked-note" }, ["FiO2 y PEEP se desbloquean cuando exista ventilación activa."])];
+    return h("article", { class: "iaas-assessment-block" }, [
+      h("h3", {}, ["Signos vitales"]),
+      h("div", { class: "iaas-field-grid" }, [
+        iaasDateInput(date, patientId, "vitalSigns", "studyDate", "Fecha del estudio", assessment.vitalSigns?.studyDate || date),
+        ...fields,
+        ...ventilationFields
+      ])
+    ]);
+  }
+
+  function renderIaasCbc(date, patientId, assessment) {
+    return h("article", { class: "iaas-assessment-block" }, [
+      h("h3", {}, ["Biometría hemática"]),
+      h("div", { class: "iaas-field-grid three" }, [
+        iaasDateInput(date, patientId, "cbc", "studyDate", "Fecha del estudio", assessment.cbc?.studyDate || date),
+        ...IAAS_CBC_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "cbc", key, label, assessment.cbc?.[key]))
+      ])
+    ]);
+  }
+
+  function renderIaasUrinalysis(date, patientId, assessment) {
+    return h("article", { class: "iaas-assessment-block" }, [
+      h("h3", {}, ["Examen general de orina"]),
+      h("div", { class: "iaas-field-grid three" }, [
+        iaasDateInput(date, patientId, "urinalysis", "studyDate", "Fecha del estudio", assessment.urinalysis?.studyDate || date),
+        ...IAAS_URINALYSIS_SELECTS.map(([key, label, values]) => iaasSelectInput(date, patientId, "urinalysis", key, label, values, assessment.urinalysis?.[key])),
+        iaasTextInput(date, patientId, "urinalysis", "leukocytes", "Leucocitos", assessment.urinalysis?.leukocytes)
+      ])
+    ]);
+  }
+
+  function renderIaasOtherStudies(date, patientId, assessment, limited, viralOptions) {
+    const viralRows = assessment.otherStudies?.viralPanel?.length ? assessment.otherStudies.viralPanel : [{ test: viralOptions[0], result: "" }];
+    return h("article", { class: "iaas-assessment-block" }, [
+      h("div", { class: "iaas-block-head" }, [
+        h("h3", {}, ["Otros estudios"]),
+        h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => addIaasViralPanel(date, patientId, viralOptions[0]) }, ["Agregar panel viral"])
+      ]),
+      h("div", { class: `iaas-field-grid ${limited ? "" : "four"}` }, [
+        iaasDateInput(date, patientId, "otherStudies", "studyDate", "Fecha del estudio", assessment.otherStudies?.studyDate || date),
+        ...(limited ? [] : IAAS_OTHER_STUDY_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "otherStudies", key, label, assessment.otherStudies?.[key])))
+      ]),
+      h("div", { class: "iaas-repeat-list viral-panel-list" }, viralRows.map((row, index) =>
+        h("div", { class: "iaas-repeat-row viral-panel-row" }, [
+          h("label", { class: "field" }, [
+            h("span", {}, ["Panel viral"]),
+            h("select", { onchange: event => updateIaasViralPanel(date, patientId, index, { test: event.target.value }) }, viralOptions.map(value => option(value, value, row.test === value)))
+          ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Resultado"]),
+            h("select", { onchange: event => updateIaasViralPanel(date, patientId, index, { result: event.target.value }) }, ["", "Negativo", "Positivo"].map(value => option(value, value || "Sin resultado", row.result === value)))
+          ]),
+          h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => removeIaasViralPanel(date, patientId, index) }, ["Quitar"])
+        ])
+      ))
+    ]);
+  }
+
+  function renderHemodialysisInfectionPanel(date, patientId, patient, assessment) {
+    const section = assessment.infectionTracking || {};
+    const signals = hemodialysisInfectionSignals(patient);
+    return h("article", { class: "iaas-assessment-block full hemodialysis-infection-panel" }, [
+      h("div", { class: "iaas-block-head" }, [
+        h("h3", {}, ["Seguimiento de infecciones"]),
+        h("span", { class: "badge epi-riesgo-iaas" }, ["HEMODIÁLISIS"])
+      ]),
+      signals.length
+        ? h("div", { class: "iaas-signal-list" }, signals.map(signal => h("span", { class: "iaas-signal-chip" }, [signal])))
+        : h("p", { class: "muted" }, ["Sin datos de parche, gasas o secreciones detectados en el censo actual; registrar la valoración directa del acceso."]),
+      h("div", { class: "iaas-field-grid three" }, [
+        iaasDateInput(date, patientId, "infectionTracking", "assessmentDate", "Fecha de revisión", section.assessmentDate || date),
+        iaasSelectInput(date, patientId, "infectionTracking", "patchIntegrity", "Parche", IAAS_PATCH_STATUS_OPTIONS, section.patchIntegrity),
+        iaasSelectInput(date, patientId, "infectionTracking", "patchMoisture", "Humedad del parche", IAAS_MOISTURE_OPTIONS, section.patchMoisture),
+        iaasSelectInput(date, patientId, "infectionTracking", "externalGauze", "Gasas externas", IAAS_GAUZE_OPTIONS, section.externalGauze),
+        iaasSelectInput(date, patientId, "infectionTracking", "internalGauze", "Gasas internas", IAAS_GAUZE_OPTIONS, section.internalGauze),
+        iaasSelectInput(date, patientId, "infectionTracking", "secretionPresence", "Secreción", IAAS_SECRETION_PRESENCE_OPTIONS, section.secretionPresence),
+        iaasSelectInput(date, patientId, "infectionTracking", "secretionType", "Tipo de secreción", IAAS_SECRETION_TYPE_OPTIONS, section.secretionType),
+        iaasTextInput(date, patientId, "infectionTracking", "secretionAmount", "Cantidad", section.secretionAmount),
+        iaasTextInput(date, patientId, "infectionTracking", "insertionSite", "Sitio de inserción", section.insertionSite),
+        iaasSelectInput(date, patientId, "infectionTracking", "probableOrigin", "Origen probable", IAAS_ORIGIN_OPTIONS, section.probableOrigin)
+      ]),
+      iaasTextareaInput(date, patientId, "infectionTracking", "carePlan", "Plan de cuidado y seguimiento", section.carePlan, "Ej. parche íntegro, gasas secas, sin secreción, seguimiento en hemodiálisis...")
+    ]);
+  }
+
+  function renderIaasCultures(date, patientId, assessment) {
+    const cultures = assessment.cultures || [];
+    return h("article", { class: "iaas-assessment-block full" }, [
+      h("div", { class: "iaas-block-head" }, [
+        h("h3", {}, ["Cultivos"]),
+        h("button", { class: "iaas-button primary compact", type: "button", onclick: () => addIaasCulture(date, patientId) }, ["Agregar cultivo"])
+      ]),
+      cultures.length ? h("div", { class: "iaas-repeat-list" }, cultures.map((culture, index) =>
+        h("div", { class: "iaas-repeat-row culture-row" }, [
+          h("label", { class: "field wide" }, [
+            h("span", {}, ["Tipo de cultivo"]),
+            h("select", { onchange: event => updateIaasCulture(date, patientId, index, { type: event.target.value }, true) }, ["", ...IAAS_CULTURE_TYPES].map(value => option(value, value || "Seleccionar", culture.type === value)))
+          ]),
+          culture.type === "Cultivo de herida" ? h("label", { class: "field" }, [
+            h("span", {}, ["Sitio anatómico"]),
+            h("input", { value: culture.woundSite || "", oninput: event => updateIaasCulture(date, patientId, index, { woundSite: event.target.value }) })
+          ]) : "",
+          h("label", { class: "field" }, [
+            h("span", {}, ["Fecha de toma"]),
+            h("input", { type: "date", value: culture.collectionDate || "", oninput: event => updateIaasCulture(date, patientId, index, { collectionDate: event.target.value }) })
+          ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Fecha de resultado"]),
+            h("input", { type: "date", value: culture.resultDate || "", oninput: event => updateIaasCulture(date, patientId, index, { resultDate: event.target.value }) })
+          ]),
+          h("label", { class: "field wide" }, [
+            h("span", {}, ["Microorganismo aislado"]),
+            h("input", { value: culture.microorganism || "", oninput: event => updateIaasCulture(date, patientId, index, { microorganism: event.target.value }) })
+          ]),
+          h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => removeIaasCulture(date, patientId, index) }, ["Quitar"])
+        ])
+      )) : h("p", { class: "muted" }, ["Sin cultivos agregados en esta valoración."])
+    ]);
+  }
+
+  function renderIaasTreatments(date, patientId, assessment) {
+    const treatments = assessment.treatments || [];
+    return h("article", { class: "iaas-assessment-block full" }, [
+      h("div", { class: "iaas-block-head" }, [
+        h("h3", {}, ["Tratamiento"]),
+        h("button", { class: "iaas-button primary compact", type: "button", onclick: () => addIaasTreatment(date, patientId) }, ["Agregar fármaco"])
+      ]),
+      treatments.length ? h("div", { class: "iaas-repeat-list" }, treatments.map((treatment, index) =>
+        h("div", { class: "iaas-repeat-row treatment-row" }, [
+          h("label", { class: "field wide" }, [
+            h("span", {}, ["Fármaco"]),
+            h("select", { onchange: event => updateIaasTreatment(date, patientId, index, { drug: event.target.value }, true) }, ["", ...IAAS_ANTIMICROBIALS].map(value => option(value, value || "Seleccionar", treatment.drug === value)))
+          ]),
+          treatment.drug === "Otro" ? h("label", { class: "field" }, [
+            h("span", {}, ["Nombre del fármaco"]),
+            h("input", { value: treatment.customDrug || "", oninput: event => updateIaasTreatment(date, patientId, index, { customDrug: event.target.value }) })
+          ]) : "",
+          h("label", { class: "field" }, [
+            h("span", {}, ["Fecha de inicio"]),
+            h("input", { type: "date", value: treatment.startDate || "", oninput: event => updateIaasTreatment(date, patientId, index, { startDate: event.target.value }, true) })
+          ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Fecha de término"]),
+            h("input", { type: "date", value: treatment.endDate || "", oninput: event => updateIaasTreatment(date, patientId, index, { endDate: event.target.value }, true) })
+          ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Contador días"]),
+            h("input", { value: treatmentDaysLabel(treatment, date), disabled: true })
+          ]),
+          h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => removeIaasTreatment(date, patientId, index) }, ["Quitar"])
+        ])
+      )) : h("p", { class: "muted" }, ["Sin tratamiento agregado en esta valoración."])
+    ]);
+  }
+
+  function renderIaasGeneralObservations(date, patientId, assessment) {
+    return h("article", { class: "iaas-assessment-block full iaas-observations-block" }, [
+      h("h3", {}, ["Observaciones IAAS"]),
+      iaasTextareaInput(date, patientId, "observations", null, "Observaciones", assessment.observations || "", "Escribir libremente la evolución, pendientes, aclaraciones o seguimiento del día...")
+    ]);
+  }
+
+  function iaasDateInput(date, patientId, section, key, label, value) {
+    return h("label", { class: "field" }, [
+      h("span", {}, [label]),
+      h("input", {
+        type: "date",
+        value: normalizeDate(value) || normalizeDate(date) || isoToday(),
+        oninput: event => updateIaasSectionField(date, patientId, section, key, event.target.value)
+      })
+    ]);
+  }
+
+  function iaasTextInput(date, patientId, section, key, label, value) {
+    return h("label", { class: "field" }, [
+      h("span", {}, [label]),
+      h("input", {
+        value: value || "",
+        placeholder: label,
+        oninput: event => updateIaasSectionField(date, patientId, section, key, event.target.value)
+      })
+    ]);
+  }
+
+  function iaasTextareaInput(date, patientId, section, key, label, value, placeholder = "") {
+    return h("label", { class: "field full" }, [
+      h("span", {}, [label]),
+      h("textarea", {
+        value: value || "",
+        placeholder,
+        oninput: event => key
+          ? updateIaasSectionField(date, patientId, section, key, event.target.value)
+          : updateIaasTopLevelField(date, patientId, section, event.target.value)
+      })
+    ]);
+  }
+
+  function iaasSelectInput(date, patientId, section, key, label, values, value) {
+    return h("label", { class: "field" }, [
+      h("span", {}, [label]),
+      h("select", { onchange: event => updateIaasSectionField(date, patientId, section, key, event.target.value) },
+        values.map(item => option(item, item || "Seleccionar", value === item))
+      )
+    ]);
+  }
+
+  function updateIaasSectionField(date, patientId, section, key, value, rerender = false) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment[section] ||= {};
+      assessment[section][key] = value;
+    }, rerender);
+  }
+
+  function updateIaasTopLevelField(date, patientId, key, value, rerender = false) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment[key] = value;
+    }, rerender);
+  }
+
+  function addIaasViralPanel(date, patientId, test = "VIH") {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.otherStudies.viralPanel = [...(assessment.otherStudies.viralPanel || []), { test, result: "" }];
+    }, true);
+  }
+
+  function updateIaasViralPanel(date, patientId, index, patch) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.otherStudies.viralPanel[index] = { ...(assessment.otherStudies.viralPanel[index] || {}), ...patch };
+    });
+  }
+
+  function removeIaasViralPanel(date, patientId, index) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.otherStudies.viralPanel = (assessment.otherStudies.viralPanel || []).filter((_, itemIndex) => itemIndex !== index);
+    }, true);
+  }
+
+  function addIaasCulture(date, patientId) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.cultures = [...(assessment.cultures || []), {
+        type: "",
+        woundSite: "",
+        collectionDate: date,
+        resultDate: "",
+        microorganism: ""
+      }];
+    }, true);
+  }
+
+  function updateIaasCulture(date, patientId, index, patch, rerender = false) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.cultures[index] = { ...(assessment.cultures[index] || {}), ...patch };
+    }, rerender);
+  }
+
+  function removeIaasCulture(date, patientId, index) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.cultures = (assessment.cultures || []).filter((_, itemIndex) => itemIndex !== index);
+    }, true);
+  }
+
+  function addIaasTreatment(date, patientId) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.treatments = [...(assessment.treatments || []), {
+        drug: "",
+        customDrug: "",
+        startDate: date,
+        endDate: "",
+        notes: ""
+      }];
+    }, true);
+  }
+
+  function updateIaasTreatment(date, patientId, index, patch, rerender = false) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.treatments[index] = { ...(assessment.treatments[index] || {}), ...patch };
+    }, rerender);
+  }
+
+  function removeIaasTreatment(date, patientId, index) {
+    mutateIaasAssessment(date, patientId, assessment => {
+      assessment.treatments = (assessment.treatments || []).filter((_, itemIndex) => itemIndex !== index);
+    }, true);
+  }
+
+  function mutateIaasAssessment(date, patientId, mutator, rerender = false) {
+    const draft = getReviewDraft(date, patientId);
+    draft.iaasAssessment = normalizeIaasAssessment(draft.iaasAssessment);
+    mutator(draft.iaasAssessment);
+    setReviewDraft(date, patientId, draft);
+    if (rerender) renderIaas();
+  }
+
+  function renderIaasTemperatureChart(patientId) {
+    const points = dailyIaasEntries(patientId)
+      .map(entry => ({ date: entry.date, value: numericTemperature(entry.assessment.vitalSigns?.temperature) }))
+      .filter(point => Number.isFinite(point.value));
+    if (!points.length) {
+      return h("div", { class: "iaas-temperature-chart empty" }, [
+        h("strong", {}, ["Temperatura corporal"]),
+        h("span", {}, ["Sin temperaturas guardadas todavía."])
+      ]);
+    }
+    const min = Math.min(35, ...points.map(point => point.value));
+    const max = Math.max(40, ...points.map(point => point.value));
+    const width = 680;
+    const height = 180;
+    const coordinates = points.map((point, index) => {
+      const x = 42 + index * ((width - 84) / Math.max(1, points.length - 1));
+      const y = 26 + ((max - point.value) / Math.max(.1, max - min)) * (height - 58);
+      return { ...point, x, y };
+    });
+    return h("div", { class: "iaas-temperature-chart" }, [
+      h("strong", {}, ["Temperatura corporal"]),
+      h("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Gráfica de temperatura corporal" }, [
+        h("line", { x1: "42", y1: String(height - 32), x2: String(width - 24), y2: String(height - 32) }),
+        h("line", { x1: "42", y1: "18", x2: "42", y2: String(height - 32) }),
+        h("polyline", { points: coordinates.map(point => `${point.x},${point.y}`).join(" "), fill: "none" }),
+        ...coordinates.map(point => h("circle", { cx: String(point.x), cy: String(point.y), r: "5" })),
+        ...coordinates.map((point, index) => h("text", { x: String(point.x - 14), y: String(height - 10) }, [formatShortDate(point.date)])),
+        ...coordinates.map(point => h("text", { x: String(point.x - 12), y: String(point.y - 10) }, [`${point.value}°`]))
+      ])
+    ]);
+  }
+
+  function renderDailyIaasTable(patient, patientId, date) {
+    const saved = new Map(dailyIaasEntries(patientId).map(entry => [entry.date, entry.assessment]));
+    const dates = patientIaasDateRange(patient, date);
+    const rows = dailyIaasRowsForPatient(patient);
+    return h("div", { class: "daily-iaas-scroll" }, [
+      h("table", { class: "daily-iaas-table" }, [
+        h("thead", {}, [h("tr", {}, [
+          h("th", { colspan: "2", class: "daily-iaas-field-head" }, ["Campo"]),
+          ...dates.map(item => h("th", {}, [formatDisplayDate(item)]))
+        ])]),
+        h("tbody", {}, rows.map((row, index) => {
+          const previous = rows[index - 1];
+          const isFirstInGroup = !previous || previous.group !== row.group;
+          const rowSpan = isFirstInGroup ? rows.filter(item => item.group === row.group).length : 0;
+          return h("tr", {}, [
+            isFirstInGroup ? h("th", { class: "daily-iaas-group", rowspan: String(rowSpan) }, [row.group]) : "",
+            h("th", { class: "daily-iaas-attribute" }, [row.label]),
+            ...dates.map(item => h("td", {}, [row.getter(saved.get(item)) || h("span", { class: "muted" }, ["-"])]))
+          ]);
+        }))
+      ])
+    ]);
+  }
+
+  function dailyIaasRowsForPatient(patient) {
+    const limited = isLimitedIaasAssessmentService(patient.currentService);
+    const hemodialysis = isHemodialysisService(patient.currentService);
+    const fieldRow = (group, label, getter) => ({ group, label, getter });
+    const rows = [
+      ...IAAS_VITAL_FIELDS.map(([key, label]) => fieldRow("SIGNOS VITALES", label, assessment => dailyFieldValue(assessment?.vitalSigns?.[key]))),
+      ...IAAS_VENTILATION_FIELDS.map(([key, label]) => fieldRow("VENTILACIÓN", label, assessment => dailyFieldValue(assessment?.vitalSigns?.[key])))
+    ];
+    if (!limited) {
+      rows.push(
+        ...IAAS_CBC_FIELDS.map(([key, label]) => fieldRow("BIOMETRÍA HEMÁTICA", label, assessment => dailyFieldValue(assessment?.cbc?.[key]))),
+        ...IAAS_URINALYSIS_SELECTS.map(([key, label]) => fieldRow("EXAMEN GENERAL DE ORINA", label, assessment => dailyFieldValue(assessment?.urinalysis?.[key]))),
+        fieldRow("EXAMEN GENERAL DE ORINA", "Leucocitos", assessment => dailyFieldValue(assessment?.urinalysis?.leukocytes))
+      );
+    }
+    rows.push(
+      ...(limited ? [] : IAAS_OTHER_STUDY_FIELDS.map(([key, label]) => fieldRow("OTROS ESTUDIOS", label, assessment => dailyFieldValue(assessment?.otherStudies?.[key])))),
+      fieldRow("OTROS ESTUDIOS", "Panel viral", assessment => summarizeViralPanel(assessment?.otherStudies?.viralPanel)),
+      ...(hemodialysis ? IAAS_INFECTION_TRACKING_FIELDS
+        .filter(([key]) => key !== "assessmentDate")
+        .map(([key, label]) => fieldRow("SEGUIMIENTO DE INFECCIONES", label, assessment => dailyFieldValue(assessment?.infectionTracking?.[key]))) : []),
+      fieldRow("CULTIVOS", "Cultivos", assessment => summarizeCultures(assessment?.cultures)),
+      fieldRow("TRATAMIENTO", "Tratamiento", assessment => summarizeTreatments(assessment?.treatments)),
+      fieldRow("OBSERVACIONES IAAS", "Observaciones", assessment => dailyFieldValue(assessment?.observations))
+    );
+    return rows;
+  }
+
+  function dailyFieldValue(value) {
+    return cleanCell(value);
+  }
+
+  function renderIaasStudyHistory(patient, patientId) {
+    const entries = dailyIaasEntries(patientId);
+    const revisionEntries = iaasRevisionHistoryEntries(patientId);
+    if (!entries.length && !revisionEntries.length) return "";
+    return h("details", { class: "iaas-study-history" }, [
+      h("summary", {}, ["Historial de estudios ingresados y ediciones"]),
+      h("div", { class: "iaas-history-list" }, [
+        ...entries.map(entry => renderIaasHistoryCard(patient, entry, false)),
+        ...revisionEntries.map(entry => renderIaasHistoryCard(patient, entry, true))
+      ])
+    ]);
+  }
+
+  function renderIaasHistoryCard(patient, entry, revision) {
+    const assessment = normalizeIaasAssessment(entry.assessment);
+    const limited = isLimitedIaasAssessmentService(patient.currentService);
+    const hemodialysis = isHemodialysisService(patient.currentService);
+    const lines = [
+      `Signos vitales (${formatDisplayDate(assessment.vitalSigns.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.vitalSigns, [...IAAS_VITAL_FIELDS, ...IAAS_VENTILATION_FIELDS]) || "sin datos"}`,
+      !limited ? `Biometría hemática (${formatDisplayDate(assessment.cbc.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.cbc, IAAS_CBC_FIELDS) || "sin datos"}` : "",
+      !limited ? `EGO (${formatDisplayDate(assessment.urinalysis.studyDate || entry.date) || "sin fecha"}): ${summarizeUrinalysis(assessment.urinalysis) || "sin datos"}` : "",
+      `Otros estudios (${formatDisplayDate(assessment.otherStudies.studyDate || entry.date) || "sin fecha"}): ${summarizeOtherStudies(assessment.otherStudies) || "sin datos"}`,
+      hemodialysis ? `Seguimiento infecciones: ${summarizeHemodialysisInfection(assessment.infectionTracking) || "sin datos"}` : "",
+      assessment.observations ? `Observaciones IAAS: ${assessment.observations}` : ""
+    ].filter(Boolean);
+    return h("article", { class: `iaas-history-card ${revision ? "revision" : ""}` }, [
+      h("strong", {}, [revision ? `Edición previa · ${formatDisplayDate(entry.date) || entry.date}` : `Registro guardado · ${formatDisplayDate(entry.date) || entry.date}`]),
+      entry.editedAt ? h("small", {}, [`Guardado originalmente: ${formatDateTime(entry.editedAt)}`]) : "",
+      h("ul", {}, lines.map(line => h("li", {}, [line])))
+    ]);
+  }
+
+  function iaasRevisionHistoryEntries(patientId) {
+    return Object.values(store.dailyRounds || {}).flatMap(round =>
+      Object.values(round.entries || {})
+        .filter(entry => entry.patientId === patientId)
+        .flatMap(entry => Array.isArray(entry.iaasAssessmentHistory)
+          ? entry.iaasAssessmentHistory.map(history => ({
+            date: history.roundDate || entry.roundDate || "",
+            editedAt: history.editedAt || "",
+            assessment: history.assessment
+          }))
+          : [])
+    ).filter(entry => entry.assessment);
+  }
+
+  function dailyIaasEntries(patientId) {
+    return Object.entries(store.dailyRounds || {})
+      .map(([date, round]) => {
+        const entry = round.entries?.[patientId];
+        return entry?.iaasAssessment ? { date: entry.roundDate || date, assessment: normalizeIaasAssessment(entry.iaasAssessment) } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }
+
+  function patientIaasDateRange(patient, date) {
+    const start = normalizeDate(patient.admissionDate) || date;
+    const end = normalizeDate(date) || isoToday();
+    const startDate = new Date(`${start}T00:00:00`);
+    const endDate = new Date(`${end}T00:00:00`);
+    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || startDate > endDate) return [end];
+    const out = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) out.push(toIsoDate(d));
+    return out;
+  }
+
+  function summarizeSection(section, fields) {
+    return fields.map(([key, label]) => cleanCell(section?.[key]) ? `${label}: ${cleanCell(section[key])}` : "").filter(Boolean).join(" · ");
+  }
+
+  function summarizeUrinalysis(section = {}) {
+    return [
+      summarizeSection(section, IAAS_URINALYSIS_SELECTS.map(([key, label]) => [key, label])),
+      cleanCell(section.leukocytes) ? `Leucocitos: ${cleanCell(section.leukocytes)}` : ""
+    ].filter(Boolean).join(" · ");
+  }
+
+  function summarizeOtherStudies(section = {}) {
+    return [
+      summarizeSection(section, IAAS_OTHER_STUDY_FIELDS),
+      summarizeViralPanel(section.viralPanel)
+    ].filter(Boolean).join(" · ");
+  }
+
+  function summarizeHemodialysisInfection(section = {}) {
+    return summarizeSection(section, IAAS_INFECTION_TRACKING_FIELDS);
+  }
+
+  function summarizeViralPanel(rows = []) {
+    return rows.map(row => cleanCell(row.test) ? `${row.test}: ${cleanCell(row.result) || "sin resultado"}` : "").filter(Boolean).join(" · ");
+  }
+
+  function summarizeCultures(rows = []) {
+    return rows.map(row => {
+      const type = cleanCell(row.type);
+      if (!type) return "";
+      const site = row.woundSite ? ` (${row.woundSite})` : "";
+      const micro = row.microorganism ? `: ${row.microorganism}` : "";
+      return `${type}${site}${micro}`;
+    }).filter(Boolean).join(" · ");
+  }
+
+  function summarizeTreatments(rows = []) {
+    return rows.map(row => {
+      const drug = row.drug === "Otro" ? row.customDrug : row.drug;
+      if (!cleanCell(drug)) return "";
+      return `${drug}${row.startDate ? ` desde ${formatDisplayDate(row.startDate)}` : ""}${row.endDate ? ` a ${formatDisplayDate(row.endDate)}` : ""}`;
+    }).filter(Boolean).join(" · ");
+  }
+
+  function numericTemperature(value) {
+    const match = String(value || "").replace(",", ".").match(/\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : NaN;
+  }
+
+  function formatShortDate(value) {
+    const iso = normalizeDate(value);
+    if (!iso) return "";
+    const [, month, day] = iso.split("-");
+    return `${day}/${month}`;
+  }
+
+  function formatDateTime(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return cleanCell(value);
+    return date.toLocaleString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function treatmentDaysLabel(treatment, fallbackDate) {
+    const start = normalizeDate(treatment.startDate);
+    if (!start) return "";
+    const end = normalizeDate(treatment.endDate) || normalizeDate(fallbackDate) || isoToday();
+    const days = (daysBetween(start, end) ?? 0) + 1;
+    return `${days} ${days === 1 ? "día" : "días"}`;
+  }
+
+  function hasVentilationDevice(active) {
+    return active.some(ep => ["Ventilación mecánica", "Tubo endotraqueal", "Traqueostomía"].includes(ep.deviceType));
+  }
+
+  function isLimitedIaasAssessmentService(service) {
+    return ["HEMODIALISIS", "HEMODIÁLISIS", "ONCOLOGIA", "ONCOLOGÍA", "AMBULATORIO"].includes(normalizeText(service));
+  }
+
+  function isHemodialysisService(service) {
+    return ["HEMODIALISIS", "HEMODIÁLISIS"].includes(normalizeText(service));
+  }
+
+  function hemodialysisInfectionSignals(patient = {}) {
+    const text = normalizeText([
+      patient.currentDiagnosis,
+      patient.epidemiologicalDiagnosis,
+      patient.currentEpidemiologicalDiagnosis,
+      patient.observations,
+      patient.notes
+    ].filter(Boolean).join(" "));
+    const signals = [];
+    if (/PARCHE.*(DESPEG|NO INTEGRO|NO ÍNTEGRO)/.test(text)) signals.push("Parche no íntegro o despegado");
+    if (/PARCHE.*(HUMED|HÚMED|MOJAD)/.test(text)) signals.push("Parche húmedo/mojado");
+    if (/GASAS?.*EXTERNAS?.*(HUMED|HÚMED|MOJAD)/.test(text)) signals.push("Gasas externas húmedas/mojadas");
+    if (/GASAS?.*INTERNAS?.*(HUMED|HÚMED|MOJAD)/.test(text)) signals.push("Gasas internas húmedas/mojadas");
+    if (/GASAS?.*(INTERNAS?.*EXTERNAS?|EXTERNAS?.*INTERNAS?).*(HUMED|HÚMED|MOJAD)/.test(text)) signals.push("Gasas internas y externas húmedas/mojadas");
+    if (/SECREC|SECRES|PURUL|VERDOSA|AMARILL/.test(text)) signals.push("Presencia o sospecha de secreción");
+    if (/HEMOCULT|CULTIVO|STAPH|BACILLUS|PSEUDOMONA|KLEBSIELLA|E COLI|ENTEROCOC/.test(text)) signals.push("Cultivo o microorganismo documentado");
+    if (/CASA|DOMICIL/.test(text)) signals.push("Dato relacionado con cuidado en casa");
+    if (/HEMODIAL/.test(text)) signals.push("Dato relacionado con hemodiálisis");
+    return unique(signals);
   }
 
   function renderActiveDevice(ep, draft) {
@@ -2151,6 +4573,7 @@
   async function parseImportInput() {
     const text = (document.querySelector("#import-text")?.value || ui.importText || "").trim();
     const date = document.querySelector("#import-date")?.value || isoToday();
+    ui.importDate = date;
     if (!text) {
       flashIaas("Archivo o tabla vacía.");
       return;
@@ -2167,16 +4590,18 @@
   async function handleImportFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const date = document.querySelector("#import-date")?.value || ui.importDate || isoToday();
+    ui.importDate = date;
     ui.importProgress = "Leyendo archivo...";
     renderIaas();
     try {
       if (/\.xlsx$/i.test(file.name)) {
         const rows = await parseXlsx(file);
-        ui.importDraft = buildImportDraft(rows, isoToday());
+        ui.importDraft = buildImportDraft(rows, date);
       } else if (/\.(csv|txt|tsv)$/i.test(file.name)) {
         const text = await file.text();
         ui.importText = text;
-        ui.importDraft = buildImportDraft(parseDelimitedText(text), isoToday());
+        ui.importDraft = buildImportDraft(parseDelimitedText(text), date);
       } else {
         flashIaas("Tipo de archivo no soportado.");
       }
@@ -2193,7 +4618,21 @@
     const buffer = await file.arrayBuffer();
     const workbook = window.XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+    const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
+    return rowsFromMatrix(matrix);
+  }
+
+  function rowsFromMatrix(matrix) {
+    const rows = (matrix || []).filter(row => Array.isArray(row) && row.some(cell => cleanCell(cell)));
+    if (!rows.length) return [];
+    const headerIndex = rows.findIndex(row => looksLikeImportHeader(row.map(cleanCell)));
+    const startIndex = headerIndex >= 0 ? headerIndex : 0;
+    const headers = rows[startIndex].map(header => cleanCell(header));
+    return rows.slice(startIndex + 1).map(cells => {
+      const row = {};
+      headers.forEach((header, index) => row[header] = cells[index] ?? "");
+      return row;
+    });
   }
 
   function loadSheetJs() {
@@ -2230,15 +4669,21 @@
       const canonical = canonicalColumn(key);
       if (canonical) mapped[canonical] = cleanCell(value);
     });
+    const serviceBed = splitServiceBed(mapped.servicio_cama);
     const row = {
       patient_id: cleanCell(mapped.patient_id || mapped.hospital_internal_id || ""),
-      patient_name: cleanCell(mapped.patient_name),
+      patient_name: cleanCell(mapped.patient_name).toUpperCase(),
+      rfc: cleanCell(mapped.rfc),
+      fecha_nacimiento: normalizeDate(mapped.fecha_nacimiento),
       fecha_censo: normalizeDate(mapped.fecha_censo) || fallbackDate,
-      servicio: normalizeService(mapped.servicio),
-      cama: normalizeBed(mapped.cama),
+      servicio: normalizeService(mapped.servicio || serviceBed.service),
+      cama: normalizeBed(mapped.cama || serviceBed.bed),
+      sector: cleanCell(mapped.sector),
       edad: parseAge(mapped.edad),
       sexo: normalizeSex(mapped.sexo),
       fecha_ingreso: normalizeDate(mapped.fecha_ingreso),
+      dx_epidemiologico: cleanCell(mapped.dx_epidemiologico),
+      estado: mapped.estado ? displayState(mapped.estado) : "",
       diagnostico_actual: cleanCell(mapped.diagnostico_actual),
       pendientes: cleanCell(mapped.pendientes),
       hospital_internal_id: cleanCell(mapped.hospital_internal_id),
@@ -2252,12 +4697,12 @@
     };
     const errors = [];
     const warnings = [];
-    if (!row.patient_id) errors.push("Falta patient_id o expediente estable.");
+    if (!row.patient_id && !row.hospital_internal_id && !row.patient_name) errors.push("Falta patient_id, expediente o nombre de paciente.");
     if (!row.fecha_censo) errors.push("Fecha de censo inválida.");
     if (!row.servicio) errors.push("Falta servicio.");
     if (!row.cama) errors.push("Falta cama.");
     if (mapped.edad && row.edad === null) warnings.push("Edad no numérica.");
-    if (mapped.fecha_ingreso && !row.fecha_ingreso) warnings.push("Fecha de ingreso inválida.");
+    if (mapped.fecha_ingreso && !row.fecha_ingreso && !["AMB", "NA"].includes(normalizeText(mapped.fecha_ingreso))) warnings.push("Fecha de ingreso inválida.");
     if (row.fecha_ingreso && row.fecha_censo && row.fecha_ingreso > row.fecha_censo) warnings.push("Ingreso posterior al censo.");
     if (!row.diagnostico_actual) warnings.push("Diagnóstico vacío.");
     return { index: index + 1, raw, normalized: row, errors, warnings };
@@ -2348,14 +4793,19 @@
           patientId: row.patientId,
           displayCode: makeDisplayCode(row.patientId),
           patientName: row.patient_name || null,
+          rfc: row.rfc || null,
+          birthDate: row.fecha_nacimiento || null,
           hospitalInternalId: row.hospital_internal_id || row.patient_id || null,
           pseudonymizedId: row.patientId,
           currentService: row.servicio,
           currentBed: row.cama,
+          sector: row.sector || null,
           sex: row.sexo,
           age: row.edad,
           admissionDate: row.fecha_ingreso || null,
+          currentState: row.estado || null,
           currentDiagnosis: row.diagnostico_actual || null,
+          epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || null,
           diagnosisHistory: [{ date: plan.date, value: row.diagnostico_actual || "", source: "import" }],
           activePendingIssues: pending,
           currentRiskLevel: riskFromImport(row),
@@ -2376,10 +4826,16 @@
         previous.currentService = row.servicio;
         previous.currentBed = row.cama;
         previous.patientName = row.patient_name || previous.patientName || null;
+        previous.rfc = row.rfc || previous.rfc || null;
+        previous.birthDate = row.fecha_nacimiento || previous.birthDate || null;
+        previous.sector = row.sector || previous.sector || null;
         previous.sex = row.sexo || previous.sex;
         previous.age = row.edad ?? previous.age;
         previous.admissionDate = row.fecha_ingreso || previous.admissionDate;
+        previous.currentState = row.estado || previous.currentState || null;
         previous.currentDiagnosis = row.diagnostico_actual || previous.currentDiagnosis;
+        previous.epidemiologicalDiagnosis = row.dx_epidemiologico || row.riesgo_iaas || previous.epidemiologicalDiagnosis || null;
+        previous.observations = row.observaciones || row.pendientes || previous.observations || null;
         previous.activePendingIssues = mergeUnique(previous.activePendingIssues || [], pending);
         previous.currentRiskLevel = riskFromImport(row) || previous.currentRiskLevel;
         previous.hospitalizationStatus = "hospitalizado";
@@ -2398,9 +4854,14 @@
         service: row.servicio,
         bed: row.cama,
         patientName: row.patient_name || store.patients[row.patientId]?.patientName || null,
+        rfc: row.rfc || store.patients[row.patientId]?.rfc || null,
+        birthDate: row.fecha_nacimiento || store.patients[row.patientId]?.birthDate || null,
+        sector: row.sector || store.patients[row.patientId]?.sector || null,
         age: row.edad ?? null,
         sex: row.sexo || null,
         admissionDate: row.fecha_ingreso || null,
+        state: row.estado || null,
+        epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || store.patients[row.patientId]?.epidemiologicalDiagnosis || null,
         diagnosis: row.diagnostico_actual || null,
         observations: row.observaciones || row.pendientes || null,
         present: true,
@@ -2503,10 +4964,11 @@
     renderIaas();
   }
 
-  function saveRoundEntry(date, patientId, requestedStatus, goNext) {
+  async function saveRoundEntry(date, patientId, requestedStatus, goNext) {
     const patient = store.patients[patientId];
     const draft = getReviewDraft(date, patientId);
     const errors = validateReviewDraft(date, patientId, draft, requestedStatus);
+    const forcedIncomplete = errors.length && requestedStatus === "revisado";
     if (errors.length && requestedStatus === "revisado") {
       flashIaas(`Datos incompletos: ${errors[0]}`);
       requestedStatus = "incompleto";
@@ -2567,8 +5029,15 @@
     }
     const activeNow = activeEpisodes(patientId, date);
     const alerts = buildAlertsForPatient(patient, activeNow, draft);
-    const status = alerts.length ? "alerta" : requestedStatus;
+    const status = forcedIncomplete ? "incompleto" : alerts.length ? "alerta" : requestedStatus;
+    const previousEntry = store.dailyRounds[date]?.entries?.[patientId] || {};
+    const iaasAssessment = completeIaasAssessmentForSave(draft.iaasAssessment, date);
+    const storesIaasAssessment = draft.activeRoundSection === "iaas" || iaasAssessmentHasContent(iaasAssessment) || Boolean(previousEntry.iaasAssessment);
+    const iaasAssessmentHistory = storesIaasAssessment
+      ? buildIaasAssessmentHistory(previousEntry, iaasAssessment, date)
+      : (Array.isArray(previousEntry.iaasAssessmentHistory) ? previousEntry.iaasAssessmentHistory : []);
     ensureDailyRound(date);
+    const initialSyncStatus = syncStatusForNewWrite();
     const entry = {
       entryId: patientId,
       patientId,
@@ -2583,10 +5052,16 @@
       pendingIssuesAdded: pendingAdded,
       alertsGenerated: alerts,
       status,
-      syncStatus: syncStatusForNewWrite(),
+      syncStatus: initialSyncStatus,
       localSavedAt: nowIso(),
-      serverConfirmedAt: ui.firebase.ready && navigator.onLine ? nowIso() : null,
-      notes: draft.notes || ""
+      serverConfirmedAt: null,
+      notes: draft.notes || "",
+      activeRoundSection: draft.activeRoundSection || "preventive",
+      iaasAssessment: storesIaasAssessment
+        ? (draft.activeRoundSection === "iaas" || iaasAssessmentHasContent(iaasAssessment) ? iaasAssessment : previousEntry.iaasAssessment)
+        : null,
+      iaasAssessmentHistory,
+      iaasAssessmentUpdatedAt: draft.activeRoundSection === "iaas" ? nowIso() : previousEntry.iaasAssessmentUpdatedAt || null
     };
     store.dailyRounds[date].entries[patientId] = entry;
     if (store.dailyCensus[date]?.patients?.[patientId]) {
@@ -2603,11 +5078,23 @@
     recalculateRound(date);
     clearReviewDraft(date, patientId);
     saveStore();
-    enqueueWrite({ type: "roundEntry", date, patientId, entry, patient, episodes: createdEpisodeIds.map(id => store.deviceEpisodes[id]) });
-    flashIaas(entry.syncStatus === "local_pending" ? "Guardado localmente. Pendiente de sincronizar." : "Sincronizado.");
+    const syncItem = await enqueueWrite({ type: "roundEntry", date, patientId, entry, patient, episodes: createdEpisodeIds.map(id => store.deviceEpisodes[id]) });
+    const finalSyncStatus = syncItem?.status === "server_synced" ? "server_synced" : syncItem?.status === "error" ? "error" : "local_pending";
+    entry.syncStatus = finalSyncStatus;
+    entry.serverConfirmedAt = finalSyncStatus === "server_synced" ? (syncItem?.serverConfirmedAt || ui.sheets.lastSyncAt || nowIso()) : null;
+    if (store.dailyCensus[date]?.patients?.[patientId]) {
+      store.dailyCensus[date].patients[patientId].syncStatus = entry.syncStatus;
+      store.dailyCensus[date].patients[patientId].serverConfirmedAt = entry.serverConfirmedAt;
+    }
+    saveStore();
+    flashIaas(finalSyncStatus === "server_synced"
+      ? "Sincronizado."
+      : finalSyncStatus === "error"
+        ? "Guardado localmente. No se pudo sincronizar; quedo pendiente."
+        : "Guardado localmente. Pendiente de sincronizar.");
     if (goNext) {
-      const next = nextPatientId(date, patientId);
-      location.hash = next ? `#/ronda/${date}/paciente/${next}` : `#/ronda/${date}`;
+      const next = draft.activeRoundSection === "iaas" ? nextIaasPatientId(date, patientId) : nextPatientId(date, patientId);
+      location.hash = next ? `#/ronda/${date}/paciente/${next}${draft.activeRoundSection === "iaas" ? "/iaas" : ""}` : `#/${draft.activeRoundSection === "iaas" ? "seguimiento-iaas" : `ronda/${date}`}`;
     } else {
       renderIaas();
     }
@@ -2627,7 +5114,7 @@
     if (draft.noInvasivesConfirmed && activeEpisodes(patientId, date).some(ep => !draft.removals?.[ep.episodeId])) {
       errors.push("Había invasivos activos. Confirme fecha de retiro o marque como incompleto.");
     }
-    if (requestedStatus === "revisado" && !draft.noInvasivesConfirmed && !(draft.deviceDrafts || []).length && !activeEpisodes(patientId, date).length) {
+    if (requestedStatus === "revisado" && draft.activeRoundSection !== "iaas" && !draft.noInvasivesConfirmed && !(draft.deviceDrafts || []).length && !activeEpisodes(patientId, date).length) {
       errors.push("Confirme Sin invasivos o agregue dispositivos.");
     }
     return errors;
@@ -2767,7 +5254,7 @@
     try {
       const ranges = [
         sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100"),
-        sheetRange(SHEETS_CONFIG.tabs.baseDatos, "A1:R1000"),
+        sheetRange(SHEETS_CONFIG.tabs.baseDatos, "A1:U1000"),
         sheetRange(SHEETS_CONFIG.tabs.rondas, "A1:U1000"),
         sheetRange(SHEETS_CONFIG.tabs.dispositivos, "A1:U1000"),
         sheetRange(SHEETS_CONFIG.tabs.auditoria, "A1:H1000")
@@ -2827,7 +5314,7 @@
     const confirmedAt = nowIso();
     const pendingAuditLogs = store.auditLogs.filter(log => !log.serverConfirmedAt);
     const clearRanges = [
-      sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:R${SHEETS_CONFIG.maxRows}`),
+      sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100")
@@ -2842,7 +5329,7 @@
         valueInputOption: "USER_ENTERED",
         data: [
           { range: sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B9"), values: appConfigRows(writeId, confirmedAt) },
-          { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:R${baseRowsForSheets().length}`), values: baseRowsForSheets() },
+          { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${baseRowsForSheets().length}`), values: baseRowsForSheets() },
           { range: sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${roundRowsForSheets().length}`), values: roundRowsForSheets() },
           { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRowsForSheets().length}`), values: deviceRowsForSheets() }
         ]
@@ -2855,6 +5342,7 @@
       });
       pendingAuditLogs.forEach(log => { log.serverConfirmedAt = confirmedAt; });
     }
+    markSnapshotSynced(confirmedAt);
     ui.sheets.lastWriteId = writeId;
     ui.sheets.lastSyncAt = confirmedAt;
     ui.sheets.status = "connected";
@@ -2887,6 +5375,521 @@
     }
     if (response.status === 204) return {};
     return response.json();
+  }
+
+  async function printEpidemiologicalCensusFromSheets() {
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.opener = null;
+      printWindow.document.write("<!doctype html><title>Preparando impresión</title><body style=\"font-family:Arial,sans-serif;padding:24px\">Preparando impresión nativa desde Google Sheets...</body>");
+    }
+    try {
+      if (ui.sheets.connected) {
+        if (pendingQueue().length) await flushSyncQueue();
+        else await writeOperationToSheets();
+      }
+      if (!ui.sheets.accessToken) {
+        flashIaas("Conecta Sheets para preparar el censo nativo actualizado antes de imprimir.");
+        await connectSheets();
+      }
+      if (!ui.sheets.accessToken) throw new Error("No se imprimió para evitar abrir un censo desactualizado. Conecta Sheets y vuelve a presionar Imprimir.");
+      const url = await epidemiologicalCensusPrintUrl();
+      if (printWindow) {
+        printWindow.location.replace(url);
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      flashIaas("Abriendo impresión nativa del censo epidemiológico desde Google Sheets.");
+    } catch (error) {
+      if (printWindow) printWindow.close();
+      flashIaas(friendlyError(error));
+      console.error(error);
+    }
+  }
+
+  async function epidemiologicalCensusPrintUrl() {
+    const spreadsheetId = cleanCell(SHEETS_CONFIG.spreadsheetId);
+    if (!spreadsheetId) throw new Error("No hay un Google Sheets configurado para imprimir el censo epidemiológico.");
+    const configuredGid = cleanCell(SHEETS_CONFIG.printSheetGid || SHEETS_CONFIG.epidemiologicalPrintGid || "");
+    const gid = configuredGid || await resolveEpidemiologicalPrintGid(spreadsheetId);
+    if (!gid) throw new Error("No se encontró la pestaña del censo epidemiológico en Google Sheets. Conecta Sheets o configura printSheetGid.");
+    const printGrid = ui.sheets.accessToken
+      ? await syncEpidemiologicalReportSheet(spreadsheetId, gid)
+      : printReportGridBounds();
+    const params = new URLSearchParams({
+      exportFormat: "pdf",
+      format: "pdf",
+      gid: String(gid),
+      range: printGrid.range,
+      r1: String(printGrid.r1),
+      c1: String(printGrid.c1),
+      r2: String(printGrid.r2),
+      c2: String(printGrid.c2),
+      size: "0",
+      portrait: "false",
+      fitw: "true",
+      scale: "4",
+      sheetnames: "false",
+      printtitle: "false",
+      pagenumbers: "false",
+      gridlines: "false",
+      fzr: "false",
+      attachment: "false",
+      printnotes: "false",
+      pageorder: "2",
+      horizontal_alignment: "CENTER",
+      vertical_alignment: "TOP",
+      top_margin: "0.10",
+      bottom_margin: "0.10",
+      left_margin: "0.10",
+      right_margin: "0.10"
+    });
+    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/export?${params.toString()}`;
+  }
+
+  async function resolveEpidemiologicalPrintGid(spreadsheetId) {
+    const candidates = unique([
+      SHEETS_CONFIG.printSheetName,
+      SHEETS_CONFIG.tabs.censoEpidemiologico,
+      SHEETS_CONFIG.tabs.epidemiologico,
+      "🖨️ REPORTE_BN",
+      "REPORTE_BN",
+      "CENSO VIG EPIDEMIOLOGICA",
+      "CENSO VIG EPIDEMIOLÓGICA",
+      "CENSO EPIDEMIOLOGICO",
+      "CENSO EPIDEMIOLÓGICO",
+      SHEETS_CONFIG.printFallbackSheetName,
+      SHEETS_CONFIG.tabs.baseDatos
+    ].map(cleanCell).filter(Boolean));
+    if (!ui.sheets.accessToken) return "";
+    const response = await fetch(`${SHEETS_API_BASE}/${encodeURIComponent(spreadsheetId)}?fields=sheets(properties(sheetId,title))`, {
+      headers: { Authorization: `Bearer ${ui.sheets.accessToken}` }
+    });
+    if (!response.ok) throw new Error("No se pudo leer la lista de pestañas de Google Sheets para imprimir.");
+    const metadata = await response.json();
+    const sheets = metadata.sheets || [];
+    const match = sheets.find(sheet => candidates.some(name => normalizeText(sheet.properties?.title) === normalizeText(name)));
+    return match?.properties?.sheetId ?? "";
+  }
+
+  async function syncEpidemiologicalReportSheet(spreadsheetId, gid) {
+    const sheetId = Number(gid);
+    if (!Number.isFinite(sheetId)) return printReportGridBounds();
+    const report = buildPrintReportModel();
+    await sheetsRequest(":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({ requests: epidemiologicalReportSheetRequests(sheetId, report) })
+    });
+    return printReportGridBounds(report);
+  }
+
+  function epidemiologicalReportSheetRequests(sheetId, report = buildPrintReportModel()) {
+    const printGrid = printReportGridBounds(report);
+    const endRow = printGrid.r2;
+    const hiddenStartRow = Math.max(endRow, 6);
+    const reportRows = report.rows;
+    const totalColumns = report.columns;
+    const bottomStart = report.bottomStartIndex;
+    const indicatorStart = bottomStart + 1;
+    const indicatorEnd = reportRows.length;
+    const requests = [
+      { unmergeCells: { range: gridRange(sheetId, 0, SHEETS_CONFIG.maxRows, 0, 26) } },
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: hiddenStartRow },
+        properties: { hiddenByUser: false },
+        fields: "hiddenByUser"
+      } },
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "ROWS", startIndex: hiddenStartRow, endIndex: SHEETS_CONFIG.maxRows },
+        properties: { hiddenByUser: true },
+        fields: "hiddenByUser"
+      } },
+      { updateCells: {
+        range: gridRange(sheetId, 0, SHEETS_CONFIG.maxRows, 0, 26),
+        rows: [],
+        fields: "userEnteredValue,userEnteredFormat"
+      } },
+      { updateCells: {
+        range: gridRange(sheetId, 0, reportRows.length, 0, totalColumns),
+        rows: reportRows.map(row => ({ values: row.map(value => sheetCellValue(value)) })),
+        fields: "userEnteredValue"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 0, endRow, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 1, green: 1, blue: 1 } },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+          textFormat: { fontFamily: "Arial", fontSize: 7, foregroundColorStyle: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"
+      } },
+      ...[0, 1, 2, 3].map(row => ({ mergeCells: { range: gridRange(sheetId, row, row + 1, 0, totalColumns), mergeType: "MERGE_ALL" } })),
+      { repeatCell: {
+        range: gridRange(sheetId, 0, 1, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Arial", fontSize: 10, bold: true, foregroundColorStyle: { rgbColor: { red: 0.05, green: 0.05, blue: 0.05 } } }
+        } },
+        fields: "userEnteredFormat(horizontalAlignment,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 1, 2, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 0.08, green: 0.08, blue: 0.08 } },
+          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Arial", fontSize: 13, bold: true, foregroundColorStyle: { rgbColor: { red: 1, green: 1, blue: 1 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 2, 4, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Arial", fontSize: 10, bold: true, foregroundColorStyle: { rgbColor: { red: 0.12, green: 0.12, blue: 0.12 } } }
+        } },
+        fields: "userEnteredFormat(horizontalAlignment,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 4, 5, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 0.16, green: 0.16, blue: 0.16 } },
+          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Arial", fontSize: 7, bold: true, foregroundColorStyle: { rgbColor: { red: 1, green: 1, blue: 1 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 5, bottomStart - 1, 0, 2),
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
+        fields: "userEnteredFormat(horizontalAlignment,textFormat.bold)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 5, bottomStart - 1, 3, 9),
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
+        fields: "userEnteredFormat.horizontalAlignment"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, 5, bottomStart - 1, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+          textFormat: { fontFamily: "Arial", fontSize: 6 }
+        } },
+        fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, bottomStart, bottomStart + 1, 0, totalColumns),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 0.03, green: 0.30, blue: 0.27 } },
+          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Arial", fontSize: 8, bold: true, foregroundColorStyle: { rgbColor: { red: 1, green: 1, blue: 1 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,textFormat)"
+      } },
+      { updateBorders: {
+        range: gridRange(sheetId, 4, bottomStart - 1, 0, totalColumns),
+        top: reportBorder(),
+        bottom: reportBorder(),
+        left: reportBorder(),
+        right: reportBorder(),
+        innerHorizontal: reportBorder(),
+        innerVertical: reportBorder()
+      } },
+      { updateBorders: {
+        range: gridRange(sheetId, bottomStart, endRow, 0, totalColumns),
+        top: reportBorder("SOLID_MEDIUM"),
+        bottom: reportBorder(),
+        left: reportBorder(),
+        right: reportBorder(),
+        innerHorizontal: reportBorder(),
+        innerVertical: reportBorder()
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, indicatorStart, indicatorEnd, 0, 5),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 0.92, green: 0.96, blue: 0.95 } },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+          textFormat: { fontFamily: "Arial", fontSize: 7, bold: true, foregroundColorStyle: { rgbColor: { red: 0, green: 0.20, blue: 0.18 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, indicatorStart, indicatorEnd, 5, 6),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 0.97, green: 0.88, blue: 0.63 } },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          textFormat: { fontFamily: "Arial", fontSize: 8, bold: true, foregroundColorStyle: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,verticalAlignment,textFormat)"
+      } },
+      { repeatCell: {
+        range: gridRange(sheetId, indicatorStart, indicatorEnd, 6, totalColumns),
+        cell: { userEnteredFormat: {
+          backgroundColorStyle: { rgbColor: { red: 1, green: 1, blue: 1 } },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+          textFormat: { fontFamily: "Arial", fontSize: 7, bold: false, foregroundColorStyle: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+        } },
+        fields: "userEnteredFormat(backgroundColorStyle,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)"
+      } },
+      ...report.patientBreakRows.map(row => ({
+        updateBorders: {
+          range: gridRange(sheetId, row, row + 1, 0, totalColumns),
+          top: reportBorder("SOLID_MEDIUM")
+        }
+      })),
+      { mergeCells: { range: gridRange(sheetId, bottomStart, bottomStart + 1, 0, 6), mergeType: "MERGE_ALL" } },
+      { mergeCells: { range: gridRange(sheetId, bottomStart, bottomStart + 1, 6, totalColumns), mergeType: "MERGE_ALL" } },
+      ...indicatorMergeRequests(sheetId, indicatorStart, indicatorEnd),
+      ...reportColumnWidthRequests(sheetId),
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 4 },
+        properties: { pixelSize: 22 },
+        fields: "pixelSize"
+      } },
+      { autoResizeDimensions: { dimensions: { sheetId, dimension: "ROWS", startIndex: 4, endIndex: bottomStart - 1 } } },
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "ROWS", startIndex: bottomStart, endIndex: endRow },
+        properties: { pixelSize: 38 },
+        fields: "pixelSize"
+      } },
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: totalColumns, endIndex: 26 },
+        properties: { hiddenByUser: true },
+        fields: "hiddenByUser"
+      } },
+      { updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: totalColumns },
+        properties: { hiddenByUser: false },
+        fields: "hiddenByUser"
+      } }
+    ];
+    return requests;
+  }
+
+  function buildPrintReportModel() {
+    const date = activeDate();
+    const items = monitoringRows(date).slice().sort(sortByPrintServiceBed);
+    const headerRows = [
+      ["INSTITUTO DE SEGURIDAD SOCIAL DE LOS TRABAJADORES DEL ESTADO DE CHIAPAS", "", "", "", "", "", "", "", "", "", "", ""],
+      ["CENSO DE VIGILANCIA EPIDEMIOLÓGICA HOSPITALARIA", "", "", "", "", "", "", "", "", "", "", ""],
+      ["HOSPITAL DE ESPECIALIDADES \"VIDA MEJOR\"", "", "", "", "", "", "", "", "", "", "", ""],
+      [printReportDateTotalFormula(items.length), "", "", "", "", "", "", "", "", "", "", ""],
+      ["SERVICIO", "CAMA", "PACIENTE", "SECTOR", "EDAD", "SEXO", "INGRESO", "DEIH", "ESTADO", "DX HOSPITALARIOS", "DX EPIDEMIOLÓGICOS", "OBSERVACIONES"]
+    ];
+    const patientRows = items.map(printReportPatientRow);
+    const spacerRow = Array(12).fill("");
+    const bottomRows = printReportBottomRows(items, date);
+    const bottomStartIndex = headerRows.length + patientRows.length + 1;
+    const rows = [...headerRows, ...patientRows, spacerRow, ...bottomRows];
+    return {
+      rows,
+      columns: 12,
+      patientRows: patientRows.length,
+      bottomStartIndex,
+      patientBreakRows: printReportServiceBreakRows(items, headerRows.length)
+    };
+  }
+
+  function printReportPatientRow(item) {
+    const ambulatory = isAmbulatoryStayService(item.service);
+    return [
+      printServiceLabel(item.service),
+      printBedLabel(item.bed),
+      cleanCell(item.patientName).toUpperCase(),
+      printSectorLabel(item.sector),
+      cleanCell(item.age),
+      sexAbbreviation(item.sex),
+      ambulatory ? "AMB" : formatDisplayDate(item.admissionDate),
+      ambulatory ? "NA" : cleanCell(item.deih),
+      cleanCell(item.state).toUpperCase(),
+      cleanCell(item.dxHospital || "SIN DIAGNÓSTICO HOSPITALARIO").toUpperCase(),
+      cleanCell(item.epiText || "SIN DX EPIDEMIOLÓGICO").toUpperCase(),
+      cleanCell(item.observations || "SIN OBSERVACIONES").toUpperCase()
+    ];
+  }
+
+  function printReportBottomRows(items, date) {
+    const indicators = printReportIndicators(items, date);
+    const responsiblePairs = {
+      0: [
+        "DRA. FABIOLA MONTERROSA HERNÁNDEZ\nJEFE DE DPTO. MED. PREV. Y EPIDEMIOLOGÍA",
+        "DRA. GABRIELA ALEJANDRA TRUJILLO PALACIOS\nVIGILANCIA EPIDEMIOLÓGICA MATUTINO (RESPONSABLE IAAS)"
+      ],
+      3: [
+        "DRA. MELANI CASTILLEJOS GORDILLO\nVIGILANCIA EPIDEMIOLÓGICA TRANSMISIBLES / NO TRANSMISIBLES",
+        "DRA. ESTHER MARIN MÉNDEZ\nVIGILANCIA EPIDEMIOLÓGICA"
+      ],
+      6: [
+        "L.E. MARIA ELENA LÓPEZ SARMIENTO\nVIGILANCIA EPIDEMIOLÓGICA HOSPITALARIA",
+        "COPIA DE CONOCIMIENTO (CCP)\nDRA. BERENICE NORIEGA ACUÑA - DIRECCIÓN DEL HEVM\nDR. JORGE ALAN KENNETH SILVA BOTELLO - SUBDIRECCIÓN MÉDICA DEL HEVM\nDPTO. DE EPIDEMIOLOGÍA DEL HEVM"
+      ]
+    };
+    const rows = [["CONCENTRADO DE INDICADORES", "", "", "", "", "", "VALIDACIÓN Y RESPONSABLES", "", "", "", "", ""]];
+    indicators.forEach((indicator, index) => {
+      const [leftResponsible, rightResponsible] = responsiblePairs[index] || ["", ""];
+      rows.push([indicator.label, "", "", "", "", String(indicator.value), leftResponsible, "", "", rightResponsible, "", ""]);
+    });
+    return rows;
+  }
+
+  function printReportIndicators(items, date) {
+    const dataStart = 6;
+    const dataEnd = Math.max(dataStart, dataStart + items.length - 1);
+    const dxRange = `$K$${dataStart}:$K$${dataEnd}`;
+    const seedIndicator = label => cleanCell((window.CENSO_SEED?.indicators || []).find(item => normalizeText(item.name) === normalizeText(label))?.value);
+    return [
+      { label: "CONFIRMADOS INFLUENZA/COVID", value: `=COUNTIF(${dxRange};"*COVID/INFLUENZA*")` },
+      { label: "ESAVIS", value: `=COUNTIF(${dxRange};"*ESAVI*")` },
+      { label: "RIESGO IAAS", value: `=COUNTIF(${dxRange};"*RIESGO IAAS*")` },
+      { label: "NO IAAS", value: `=COUNTIF(${dxRange};"*NO IAAS*")` },
+      { label: "IAAS", value: `=SUM(ARRAYFORMULA(IF(REGEXMATCH(${dxRange};"NO IAAS|RIESGO IAAS");0;IFERROR(VALUE(REGEXEXTRACT(${dxRange};"([1-4]) IAAS"));IF(REGEXMATCH(${dxRange};"IAAS");1;0)))))` },
+      { label: "VIG TRANSMISIBLES", value: `=COUNTIF(${dxRange};"*VIG TRANSMISIBLE*")` },
+      { label: "VIG NO TRANSMISIBLES", value: `=COUNTIF(${dxRange};"*VIG NO TRANSMISIBLE*")` },
+      { label: "MORBIMORTALIDAD MATERNA/PERINATAL", value: `=COUNTIF(${dxRange};"*MORBIMORTALIDAD*")` },
+      { label: "PAQUETES PREVENTIVOS", value: seedIndicator("PAQUETES PREVENTIVOS") || "51" }
+    ];
+  }
+
+  function printReportDateTotalFormula(patientCount) {
+    const lastDataRow = Math.max(6, 5 + patientCount);
+    return `=UPPER(TEXT(TODAY();"dddd d ""de"" mmmm ""de"" yyyy"))&" · TOTAL PACIENTES: "&COUNTA($A$6:$A$${lastDataRow})`;
+  }
+
+  function printReportServiceBreakRows(items, headerRowCount) {
+    const rows = [];
+    items.forEach((item, index) => {
+      if (index > 0 && normalizeService(items[index - 1].service) !== normalizeService(item.service)) {
+        rows.push(headerRowCount + index);
+      }
+    });
+    return rows;
+  }
+
+  function indicatorMergeRequests(sheetId, startRow, endRow) {
+    const requests = [];
+    for (let row = startRow; row < endRow; row += 1) {
+      requests.push({ mergeCells: { range: gridRange(sheetId, row, row + 1, 0, 5), mergeType: "MERGE_ALL" } });
+    }
+    [startRow, startRow + 3, startRow + 6].forEach(row => {
+      const blockEnd = Math.min(row + 3, endRow);
+      requests.push({ mergeCells: { range: gridRange(sheetId, row, blockEnd, 6, 9), mergeType: "MERGE_ALL" } });
+      requests.push({ mergeCells: { range: gridRange(sheetId, row, blockEnd, 9, 12), mergeType: "MERGE_ALL" } });
+    });
+    return requests;
+  }
+
+  function sortByPrintServiceBed(a, b) {
+    const ai = SERVICES.indexOf(normalizeService(a.service));
+    const bi = SERVICES.indexOf(normalizeService(b.service));
+    const serviceCompare = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    if (serviceCompare) return serviceCompare;
+    return comparePrintBeds(a.bed, b.bed);
+  }
+
+  function comparePrintBeds(a, b) {
+    const left = printBedLabel(a);
+    const right = printBedLabel(b);
+    const leftNumeric = /^\d+$/.test(left);
+    const rightNumeric = /^\d+$/.test(right);
+    if (leftNumeric && rightNumeric) return Number(left) - Number(right);
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return left.localeCompare(right, "es", { numeric: true, sensitivity: "base" });
+  }
+
+  function printServiceLabel(service) {
+    return serviceDisplayLabel(service).toUpperCase();
+  }
+
+  function printBedLabel(value) {
+    const text = cleanCell(value).toUpperCase();
+    if (!text) return "S/C";
+    const stripped = text.replace(/^(CAMA|SILLÓN|SILLON|CAMILLA|CUBÍCULO|CUBICULO)\s*[-:]?\s*/i, "").trim();
+    return stripped || text;
+  }
+
+  function printSectorLabel(value) {
+    const key = normalizeText(value).replace(/\s+/g, "");
+    const option = SECTOR_OPTIONS.find(item => normalizeText(item.value).replace(/\s+/g, "") === key || normalizeText(item.label).replace(/\s+/g, "") === key);
+    return (option?.short || cleanCell(value)).toUpperCase();
+  }
+
+  function printReportFormulaRequests(sheetId) {
+    const endRow = printReportGridBounds().r2;
+    const formulas = [
+      reportLookupFormula("Servicio"),
+      reportLookupFormula("Cama"),
+      reportLookupFormula("Paciente"),
+      reportLookupFormula("Sector"),
+      reportLookupFormula("Edad"),
+      reportLookupFormula("Sexo"),
+      reportLookupFormula("Fecha_ingreso"),
+      '=IF(INDEX($A:$A;ROW())="";"";IF(OR(INDEX($G:$G;ROW())="";INDEX($G:$G;ROW())="AMB";REGEXMATCH(UPPER(INDEX($A:$A;ROW()));"HEMODI|ONCOLOG|AMBULATORIO"));"";MAX(0;TODAY()-INDEX($G:$G;ROW()))))',
+      reportLookupFormula("Estado"),
+      reportLookupFormula("Dx_hospitalario")
+    ];
+    return formulas.map((formula, columnIndex) => ({
+      repeatCell: {
+        range: gridRange(sheetId, 5, endRow, columnIndex, columnIndex + 1),
+        cell: { userEnteredValue: { formulaValue: formula } },
+        fields: "userEnteredValue"
+      }
+    }));
+  }
+
+  function reportLookupFormula(header) {
+    const source = sheetFormulaName(SHEETS_CONFIG.tabs.baseDatos);
+    const safeHeader = String(header).replace(/"/g, '""');
+    return `=IFERROR(INDEX(${source}!$A:$U;ROW()-4;MATCH("${safeHeader}";${source}!$1:$1;0));"")`;
+  }
+
+  function printReportGridBounds(report = buildPrintReportModel()) {
+    const endRow = Math.min(report.rows.length, SHEETS_CONFIG.maxRows);
+    return {
+      range: `A1:L${endRow}`,
+      r1: 0,
+      c1: 0,
+      r2: endRow,
+      c2: 12
+    };
+  }
+
+  function reportColumnWidthRequests(sheetId) {
+    return [86, 36, 150, 38, 30, 28, 58, 28, 56, 430, 150, 350].map((pixelSize, index) => ({
+      updateDimensionProperties: {
+        range: { sheetId, dimension: "COLUMNS", startIndex: index, endIndex: index + 1 },
+        properties: { pixelSize },
+        fields: "pixelSize"
+      }
+    }));
+  }
+
+  function gridRange(sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex) {
+    return { sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex };
+  }
+
+  function sheetCellValue(value) {
+    const text = String(value ?? "");
+    return { userEnteredValue: text.startsWith("=") ? { formulaValue: text } : { stringValue: text } };
+  }
+
+  function sheetFormulaName(sheetName) {
+    return `'${String(sheetName).replace(/'/g, "''")}'`;
+  }
+
+  function reportBorder(style = "SOLID") {
+    return {
+      style,
+      width: 1,
+      colorStyle: { rgbColor: { red: 0.78, green: 0.78, blue: 0.78 } }
+    };
   }
 
   function sheetsApiError(status, bodyText) {
@@ -2938,10 +5941,13 @@
         patientId,
         displayCode: patientId,
         patientName: cleanCell(row.PACIENTE) || null,
+        rfc: cleanCell(row.RFC) || null,
+        birthDate: sheetDateToIso(row.FECHA_NACIMIENTO) || null,
         hospitalInternalId: patientId,
         pseudonymizedId: patientId,
         currentService: service,
         currentBed: bed,
+        sector: cleanCell(row.SECTOR) || null,
         sex: normalizeSex(row.SEXO),
         age: parseAge(row.EDAD),
         admissionDate: admissionDate || null,
@@ -2971,6 +5977,9 @@
         service,
         bed,
         patientName: patient.patientName,
+        rfc: patient.rfc,
+        birthDate: patient.birthDate,
+        sector: patient.sector,
         age: patient.age,
         sex: patient.sex,
         admissionDate,
@@ -3151,24 +6160,32 @@
       syncStatus: "server_synced",
       localSavedAt: null,
       serverConfirmedAt: null,
-      notes: ""
+      notes: "",
+      activeRoundSection: "preventive",
+      iaasAssessment: null,
+      iaasAssessmentHistory: [],
+      iaasAssessmentUpdatedAt: null
     };
   }
 
   function baseRowsForSheets() {
-    const rows = getCensusRows(activeDate()).map(row => {
+    const date = activeDate();
+    const rows = getCensusRows(date).sort(sortByServiceBed).map(row => {
       const patient = store.patients[row.patientId] || {};
       const admission = patient.admissionDate || row.admissionDate || "";
       return [
         row.patientId,
-        row.roundDate || activeDate(),
+        date,
         row.service || patient.currentService || "",
         row.bed || patient.currentBed || "",
         patient.patientName || row.patientName || "",
+        patient.rfc || row.rfc || "",
+        patient.birthDate || row.birthDate || "",
+        patient.sector || row.sector || "",
         patient.age ?? row.age ?? "",
         patient.sex || row.sex || "",
         admission,
-        daysBetween(admission, row.roundDate || activeDate()) ?? "",
+        isAmbulatoryStayService(row.service || patient.currentService || "") ? "" : daysBetween(admission, date) ?? "",
         patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "",
         patient.iaasType || "",
         row.cultureStatus || patient.cultureStatus || "",
@@ -3331,11 +6348,12 @@
         store.writeQueue.push(item);
         ui.sheets.status = "sync_pending";
         saveStore();
-        return;
+        return item;
       }
       try {
         await writeOperationToSheets(operation);
         item.status = "server_synced";
+        item.serverConfirmedAt = ui.sheets.lastSyncAt || nowIso();
       } catch (error) {
         item.status = "error";
         item.error = friendlyError(error);
@@ -3344,16 +6362,17 @@
       }
       saveStore();
       renderIaas();
-      return;
+      return item;
     }
     if (!ui.firebase.ready || !navigator.onLine) {
       store.writeQueue.push(item);
       saveStore();
-      return;
+      return item;
     }
     try {
       await writeOperationToFirestore(operation);
       item.status = "server_synced";
+      item.serverConfirmedAt = nowIso();
     } catch (error) {
       item.status = "error";
       item.error = friendlyError(error);
@@ -3361,6 +6380,7 @@
       addAudit("SYNC_ERROR", { metadata: { error: item.error, operationType: operation.type } });
     }
     saveStore();
+    return item;
   }
 
   async function flushSyncQueue() {
@@ -3440,6 +6460,7 @@
             stopRealtimeSync();
             ui.firebase.realtimeStatus = "Firebase Auth activo. Base de datos en Google Sheets.";
             ui.sheets.status = ui.sheets.connected ? "connected" : "disconnected";
+            restoreRememberedSheetsConnection();
           } else {
             await hydrateCurrentFirestore();
             startRealtimeSync(activeDate());
@@ -3450,6 +6471,7 @@
           ui.sheets.connected = false;
           ui.sheets.accessToken = "";
           ui.sheets.status = ui.sheets.enabled ? "disconnected" : ui.sheets.status;
+          ui.sheets.autoReconnectAttempted = false;
         }
       });
     } catch (error) {
@@ -3493,22 +6515,23 @@
     if (!firebaseRuntime || !ui.firebase.user || !ui.sheets.enabled) return;
     const attemptId = ui.sheets.connectAttemptId + 1;
     ui.sheets.connectAttemptId = attemptId;
+    ui.sheets.autoReconnectAttempted = true;
     ui.sheets.status = "connecting";
     ui.sheets.error = "Esperando autorizacion de Google Sheets. Si no aparece la ventana de Google, cancela y vuelve a intentar en Chrome.";
     ui.sheets.errorDetail = "";
     try {
-      let accessToken;
+      let tokenResponse;
       try {
         const resultPromise = requestSheetsAccessToken();
         renderIaas();
-        accessToken = await resultPromise;
+        tokenResponse = await resultPromise;
       } catch (error) {
         if (attemptId !== ui.sheets.connectAttemptId) return;
         if (isPopupBlockedError(error)) throw new Error(oauthPopupHelpText());
         throw error;
       }
       if (attemptId !== ui.sheets.connectAttemptId) return;
-      await finishSheetsConnection(accessToken);
+      await finishSheetsConnection(tokenResponse.access_token, { tokenResponse });
     } catch (error) {
       if (attemptId !== ui.sheets.connectAttemptId) return;
       ui.sheets.connected = false;
@@ -3528,6 +6551,7 @@
     ui.sheets.status = "error";
     ui.sheets.error = "Conexion de Sheets cancelada. Presiona Conectar Sheets para intentarlo de nuevo.";
     ui.sheets.errorDetail = ui.sheets.error;
+    forgetSheetsSession();
     flashIaas(ui.sheets.error);
     renderIaas();
   }
@@ -3548,11 +6572,13 @@
     }
   }
 
-  async function requestSheetsAccessToken() {
+  async function requestSheetsAccessToken(options = {}) {
     if (!GOOGLE_OAUTH_CLIENT_ID) {
       throw new Error("Falta configurar EPIVIDA_SHEETS_CONFIG.googleClientId para autorizar Google Sheets.");
     }
     await loadGoogleIdentityServices();
+    const prompt = options.prompt ?? (options.silent ? "" : "consent");
+    const timeoutMs = options.timeoutMs || (options.silent ? 15000 : OAUTH_POPUP_TIMEOUT_MS);
     const email = ui.firebase.user?.email || firebaseRuntime?.auth?.currentUser?.email || "";
     return withTimeout(new Promise((resolve, reject) => {
       try {
@@ -3561,7 +6587,6 @@
           scope: SHEETS_SCOPE,
           hint: email || undefined,
           include_granted_scopes: true,
-          prompt: "consent",
           callback: response => {
             if (response?.error) {
               reject(new Error(response.error_description || response.error));
@@ -3571,17 +6596,17 @@
               reject(new Error("Google no devolvio token de Sheets."));
               return;
             }
-            resolve(response.access_token);
+            resolve(response);
           },
           error_callback: error => {
             reject(new Error(error?.message || error?.type || "No se pudo abrir la autorizacion de Google Sheets."));
           }
         });
-        tokenClient.requestAccessToken({ prompt: "consent" });
+        tokenClient.requestAccessToken({ prompt });
       } catch (error) {
         reject(error);
       }
-    }), "La autorizacion directa de Google Sheets no respondio a tiempo. Revisa si la ventana de Google quedo abierta, bloqueada o en segundo plano; cierra esa ventana y presiona Reintentar.");
+    }), options.timeoutMessage || "La autorizacion directa de Google Sheets no respondio a tiempo. Revisa si la ventana de Google quedo abierta, bloqueada o en segundo plano; cierra esa ventana y presiona Reintentar.", timeoutMs);
   }
 
   async function loadGoogleIdentityServices() {
@@ -3627,7 +6652,7 @@
       if (flow === "sheets" && ui.firebase.ready && ui.sheets.enabled) {
         const credential = firebaseRuntime.authMod.GoogleAuthProvider.credentialFromResult(result);
         if (!credential?.accessToken) throw new Error("Google no devolvio token de Sheets.");
-        await finishSheetsConnection(credential.accessToken);
+        await finishSheetsConnection(credential.accessToken, { tokenResponse: { access_token: credential.accessToken } });
       }
     } catch (error) {
       clearAuthRedirectFlow();
@@ -3642,12 +6667,13 @@
     }
   }
 
-  async function finishSheetsConnection(accessToken) {
+  async function finishSheetsConnection(accessToken, options = {}) {
     ui.sheets.accessToken = accessToken;
     ui.sheets.connected = true;
     ui.sheets.status = "connected";
     ui.sheets.error = "";
     ui.sheets.errorDetail = "";
+    rememberSheetsSession(options.tokenResponse);
     const hadPendingWrites = pendingQueue().length > 0;
     await hydrateFromSheets();
     if (hadPendingWrites) {
@@ -3661,6 +6687,37 @@
       return;
     }
     await flushSyncQueue();
+  }
+
+  async function restoreRememberedSheetsConnection() {
+    if (!ui.sheets.enabled || !ui.firebase.ready || !ui.firebase.user || ui.sheets.connected || ui.sheets.autoReconnectAttempted) return;
+    if (!rememberedSheetsSession()) return;
+    const attemptId = ui.sheets.connectAttemptId + 1;
+    ui.sheets.connectAttemptId = attemptId;
+    ui.sheets.autoReconnectAttempted = true;
+    ui.sheets.status = "connecting";
+    ui.sheets.error = "Reconectando Google Sheets automaticamente.";
+    ui.sheets.errorDetail = "";
+    renderIaas();
+    try {
+      const tokenResponse = await requestSheetsAccessToken({
+        silent: true,
+        prompt: "",
+        timeoutMs: 12000,
+        timeoutMessage: "No se pudo reconectar Google Sheets automaticamente."
+      });
+      if (attemptId !== ui.sheets.connectAttemptId) return;
+      await finishSheetsConnection(tokenResponse.access_token, { tokenResponse, silent: true });
+      flashIaas("Google Sheets reconectado.");
+    } catch {
+      if (attemptId !== ui.sheets.connectAttemptId) return;
+      ui.sheets.connected = false;
+      ui.sheets.accessToken = "";
+      ui.sheets.status = "disconnected";
+      ui.sheets.error = "";
+      ui.sheets.errorDetail = "";
+      renderIaas();
+    }
   }
 
   function isPopupBlockedError(error) {
@@ -3711,6 +6768,34 @@
     } catch {}
   }
 
+  function rememberedSheetsSession() {
+    const session = loadJson(SHEETS_SESSION_KEY, null);
+    if (!session || !SHEETS_CONFIG.spreadsheetId) return null;
+    if (session.spreadsheetId !== SHEETS_CONFIG.spreadsheetId) return null;
+    const email = String(ui.firebase.user?.email || "").toLowerCase();
+    if (session.email && email && String(session.email).toLowerCase() !== email) return null;
+    return session;
+  }
+
+  function rememberSheetsSession(tokenResponse = {}) {
+    if (!ui.sheets.enabled || !SHEETS_CONFIG.spreadsheetId) return;
+    const now = Date.now();
+    const expiresIn = Number(tokenResponse?.expires_in || 3600);
+    saveJson(SHEETS_SESSION_KEY, {
+      spreadsheetId: SHEETS_CONFIG.spreadsheetId,
+      spreadsheetUrl: ui.sheets.spreadsheetUrl,
+      email: String(ui.firebase.user?.email || "").toLowerCase(),
+      connectedAt: nowIso(),
+      expiresAt: new Date(now + Math.max(60, expiresIn) * 1000).toISOString()
+    });
+  }
+
+  function forgetSheetsSession() {
+    try {
+      localStorage.removeItem(SHEETS_SESSION_KEY);
+    } catch {}
+  }
+
   async function signOutFirebase() {
     if (!firebaseRuntime) return;
     stopRealtimeSync();
@@ -3719,6 +6804,8 @@
     ui.sheets.status = ui.sheets.enabled ? "disconnected" : ui.sheets.status;
     ui.sheets.error = "";
     ui.sheets.errorDetail = "";
+    ui.sheets.autoReconnectAttempted = false;
+    forgetSheetsSession();
     ui.firebase.denied = false;
     await firebaseRuntime.authMod.signOut(firebaseRuntime.auth);
   }
@@ -3920,9 +7007,126 @@
     return { ...data, updatedAt: nowIso(), updatedBy: currentUserId() };
   }
 
-  function getReviewDraft(date, patientId) {
+  function defaultIaasAssessment() {
+    const blankFields = fields => Object.fromEntries(fields.map(([key]) => [key, ""]));
+    return {
+      vitalSigns: { studyDate: "", ...blankFields([...IAAS_VITAL_FIELDS, ...IAAS_VENTILATION_FIELDS]) },
+      cbc: { studyDate: "", ...blankFields(IAAS_CBC_FIELDS) },
+      urinalysis: {
+        studyDate: "",
+        ...blankFields(IAAS_URINALYSIS_SELECTS.map(([key, label]) => [key, label])),
+        leukocytes: ""
+      },
+      otherStudies: {
+        studyDate: "",
+        ...blankFields(IAAS_OTHER_STUDY_FIELDS),
+        viralPanel: []
+      },
+      infectionTracking: blankFields(IAAS_INFECTION_TRACKING_FIELDS),
+      cultures: [],
+      treatments: [],
+      observations: ""
+    };
+  }
+
+  function normalizeIaasAssessment(value = {}) {
+    const base = defaultIaasAssessment();
+    const source = value && typeof value === "object" ? value : {};
+    return {
+      vitalSigns: { ...base.vitalSigns, ...(source.vitalSigns || {}) },
+      cbc: { ...base.cbc, ...(source.cbc || {}) },
+      urinalysis: { ...base.urinalysis, ...(source.urinalysis || {}) },
+      otherStudies: {
+        ...base.otherStudies,
+        ...(source.otherStudies || {}),
+        viralPanel: Array.isArray(source.otherStudies?.viralPanel)
+          ? source.otherStudies.viralPanel.map(row => ({ test: cleanCell(row.test), result: cleanCell(row.result) })).filter(row => row.test || row.result)
+          : []
+      },
+      cultures: Array.isArray(source.cultures)
+        ? source.cultures.map(row => ({
+          type: cleanCell(row.type),
+          woundSite: cleanCell(row.woundSite),
+          collectionDate: normalizeDate(row.collectionDate) || cleanCell(row.collectionDate),
+          resultDate: normalizeDate(row.resultDate) || cleanCell(row.resultDate),
+          microorganism: cleanCell(row.microorganism)
+        })).filter(row => row.type || row.woundSite || row.collectionDate || row.resultDate || row.microorganism)
+        : [],
+      treatments: Array.isArray(source.treatments)
+        ? source.treatments.map(row => ({
+          drug: cleanCell(row.drug),
+          customDrug: cleanCell(row.customDrug),
+          startDate: normalizeDate(row.startDate) || cleanCell(row.startDate),
+          endDate: normalizeDate(row.endDate) || cleanCell(row.endDate),
+          notes: cleanCell(row.notes)
+        })).filter(row => row.drug || row.customDrug || row.startDate || row.endDate || row.notes)
+        : [],
+      infectionTracking: { ...base.infectionTracking, ...(source.infectionTracking || {}) },
+      observations: cleanCell(source.observations)
+    };
+  }
+
+  function completeIaasAssessmentForSave(value, date) {
+    const assessment = normalizeIaasAssessment(value);
+    [
+      ["vitalSigns", "studyDate"],
+      ["cbc", "studyDate"],
+      ["urinalysis", "studyDate"],
+      ["otherStudies", "studyDate"],
+      ["infectionTracking", "assessmentDate"]
+    ].forEach(([section, dateKey]) => {
+      if (!assessment[section]) return;
+      if (!assessment[section][dateKey] && iaasSectionHasValues(assessment[section], [dateKey])) {
+        assessment[section][dateKey] = normalizeDate(date) || isoToday();
+      }
+    });
+    return assessment;
+  }
+
+  function iaasSectionHasValues(section = {}, ignoredKeys = []) {
+    const ignored = new Set(ignoredKeys);
+    return Object.entries(section).some(([key, value]) => !ignored.has(key) && iaasAssessmentHasContent(value));
+  }
+
+  function buildIaasAssessmentHistory(previousEntry, nextAssessment, date) {
+    const previousHistory = Array.isArray(previousEntry.iaasAssessmentHistory) ? previousEntry.iaasAssessmentHistory : [];
+    const previousAssessment = previousEntry.iaasAssessment ? normalizeIaasAssessment(previousEntry.iaasAssessment) : null;
+    if (!previousAssessment || !iaasAssessmentHasContent(previousAssessment)) return previousHistory.slice(-20);
+    if (JSON.stringify(previousAssessment) === JSON.stringify(nextAssessment)) return previousHistory.slice(-20);
+    return [
+      ...previousHistory,
+      {
+        roundDate: previousEntry.roundDate || date,
+        editedAt: previousEntry.iaasAssessmentUpdatedAt || previousEntry.reviewedAt || nowIso(),
+        assessment: previousAssessment
+      }
+    ].slice(-20);
+  }
+
+  function iaasAssessmentHasContent(value) {
+    if (Array.isArray(value)) return value.some(iaasAssessmentHasContent);
+    if (value && typeof value === "object") return Object.values(value).some(iaasAssessmentHasContent);
+    return Boolean(cleanCell(value));
+  }
+
+  function getReviewDraft(date, patientId, requestedSection = null) {
     const key = `${date}:${patientId}`;
-    ui.reviewDrafts[key] ||= { deviceDrafts: [], removals: {}, pendingText: "", notes: "", noInvasivesConfirmed: false };
+    const savedEntry = store.dailyRounds?.[date]?.entries?.[patientId] || {};
+    const existing = ui.reviewDrafts[key] || {};
+    const draft = {
+      deviceDrafts: [],
+      removals: {},
+      pendingText: "",
+      notes: savedEntry.notes || "",
+      noInvasivesConfirmed: Boolean(savedEntry.noInvasivesConfirmed),
+      activeRoundSection: savedEntry.activeRoundSection || "preventive",
+      iaasAssessment: normalizeIaasAssessment(savedEntry.iaasAssessment),
+      ...existing
+    };
+    draft.iaasAssessment = normalizeIaasAssessment(draft.iaasAssessment);
+    if (!draft.activeRoundSection) draft.activeRoundSection = "preventive";
+    if (requestedSection) draft.activeRoundSection = requestedSection;
+    ui.reviewDrafts[key] = draft;
     return ui.reviewDrafts[key];
   }
 
@@ -3983,14 +7187,26 @@
   function parseDelimitedText(text) {
     const lines = text.replace(/\r/g, "").split("\n").filter(line => line.trim());
     if (!lines.length) return [];
-    const delimiter = detectDelimiter(lines[0]);
-    const headers = splitCsvLine(lines[0], delimiter).map(header => header.trim());
-    return lines.slice(1).map(line => {
+    const delimiter = detectDelimiter(lines.reduce((best, line) => delimiterScore(line) > delimiterScore(best) ? line : best, lines[0]));
+    const headerIndex = lines.findIndex(line => looksLikeImportHeader(splitCsvLine(line, delimiter)));
+    const startIndex = headerIndex >= 0 ? headerIndex : 0;
+    const headers = splitCsvLine(lines[startIndex], delimiter).map(header => header.trim());
+    return lines.slice(startIndex + 1).map(line => {
       const cells = splitCsvLine(line, delimiter);
       const row = {};
       headers.forEach((header, index) => row[header] = cells[index] ?? "");
       return row;
     });
+  }
+
+  function delimiterScore(line) {
+    return ["\t", ",", ";", "|"].reduce((score, delimiter) => Math.max(score, line.split(delimiter).length), 0);
+  }
+
+  function looksLikeImportHeader(cells) {
+    const canonical = cells.map(canonicalColumn).filter(Boolean);
+    const unique = new Set(canonical);
+    return unique.size >= 3 && (unique.has("patient_name") || unique.has("patient_id") || unique.has("servicio") || unique.has("servicio_cama"));
   }
 
   function splitCsvLine(line, delimiter) {
@@ -4046,12 +7262,12 @@
   }
 
   function loadSampleImport() {
-    const date = isoToday();
+    const date = ui.importDate || isoToday();
     ui.importText = [
-      "patient_id\tfecha_censo\tservicio\tcama\tedad\tsexo\tfecha_ingreso\tdiagnostico_actual\tpendientes",
-      `EXP-001\t${date}\tMEDICINA INTERNA\t23\t71\tM\t2026-04-16\tERC en hemodiálisis / vigilancia IAAS\tConfirmar curación de CVC`,
-      `EXP-002\t${date}\tCIRUGÍA Y TRAUMATOLOGÍA\t45\t77\tF\t2026-04-20\tFístula enterocutánea\tRevisar paquete preventivo`,
-      `EXP-003\t${date}\tURGENCIAS\tA1\t60\tM\t2026-04-27\tNAC descartar influenza y COVID\tResultados PCR`
+      "Fecha_censo\tServicio/Cama\tPaciente\tSector\tEdad\tSexo\tIngreso\tEstado\tDx hospitalario\tDx epidemiologico\tObservaciones",
+      `${date}\tMEDICINA INTERNA / Cama 23\tCASTILLO CARDEÑO FRANCISCO\tBUR\t71\tM\t16/04/2026\tDELICADO\tERC en hemodiálisis / vigilancia IAAS\t1 IAAS\tConfirmar curación de CVC`,
+      `${date}\tCIRUGÍA Y TRAUMATOLOGÍA / Cama 45\tRINCÓN DUARTE MARÍA DE LOURDES\tPIM\t77\tF\t20/04/2026\tDELICADO\tFístula enterocutánea\t1 IAAS IMPORTADA\tRevisar paquete preventivo`,
+      `${date}\tHEMODIÁLISIS / Sillón 1\tGÓMEZ PÉREZ CARLOS\tMAG\t62\tM\tAMB\tESTABLE\tERC en hemodiálisis\tNO IAAS\tParche seco sin secreción`
     ].join("\n");
     ui.importDraft = null;
     renderIaas();
@@ -4196,7 +7412,23 @@
   }
 
   function getCensusRows(date) {
-    return Object.values(store.dailyCensus[date]?.patients || {});
+    const targetDate = censusDateFor(date);
+    const rows = Object.values(store.dailyCensus[targetDate]?.patients || {});
+    if (targetDate === date) return rows;
+    return rows.map(row => ({
+      ...row,
+      roundDate: date,
+      fecha_censo: date
+    }));
+  }
+
+  function censusDateFor(date) {
+    if (store.dailyCensus[date]?.patients) return date;
+    const dates = Object.keys(store.dailyCensus || {})
+      .filter(item => store.dailyCensus[item]?.patients)
+      .sort();
+    const previous = dates.filter(item => item <= date).pop();
+    return previous || dates.at(-1) || date;
   }
 
   function activeEpisodes(patientId, date) {
@@ -4240,8 +7472,16 @@
     return rows[index + 1]?.patientId || null;
   }
 
+  function nextIaasPatientId(date, patientId) {
+    const rows = iaasFollowUpRows(date);
+    const index = rows.findIndex(item => item.row.patientId === patientId);
+    return rows[index + 1]?.row.patientId || null;
+  }
+
   function sortByServiceBed(a, b) {
-    return SERVICES.indexOf(a.service) - SERVICES.indexOf(b.service)
+    const ai = SERVICES.indexOf(normalizeService(a.service));
+    const bi = SERVICES.indexOf(normalizeService(b.service));
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
       || String(a.bed || "").localeCompare(String(b.bed || ""), "es", { numeric: true });
   }
 
@@ -4271,6 +7511,7 @@
   function routeTitle(page) {
     return {
       dashboard: "Centro de Vigilancia",
+      "monitoreo-epidemiologico": "Monitoreo Epidemiológico",
       "censo-hospitalario": "Vigilancia Hospitalaria",
       "importar-censo": "Base de Datos",
       ronda: "Paquetes Preventivos",
@@ -4339,6 +7580,7 @@
     const mapped = {
       "CIRUGIA Y TRAUMATOLOGIA": "CIRUGÍA Y TRAUMATOLOGÍA",
       "HEMODIALISIS": "HEMODIÁLISIS",
+      "ONCOLOGIA": "ONCOLOGÍA",
       "UCIA": "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS",
       "UCIN": "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES",
       "UCIP": "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS",
@@ -4347,8 +7589,22 @@
     return SERVICES.find(service => normalizeText(service) === key) || mapped[key] || cleanCell(value).toUpperCase();
   }
 
+  function splitServiceBed(value) {
+    const text = cleanCell(value);
+    if (!text) return { service: "", bed: "" };
+    const slashParts = text.split(/\s*\/\s*/).filter(Boolean);
+    if (slashParts.length >= 2) {
+      return { service: slashParts[0], bed: slashParts.slice(1).join(" / ") };
+    }
+    const bedMatch = text.match(/^(.*?)(?:\s+-\s+|\s+)(CAMA\s+.+|AIS[-\s]*.+|SILL[ÓO]N\s+.+)$/i);
+    if (bedMatch) return { service: bedMatch[1], bed: bedMatch[2] };
+    return { service: text, bed: "" };
+  }
+
   function normalizeBed(value) {
-    return cleanCell(value).toUpperCase();
+    return cleanCell(value)
+      .replace(/^CAMA\s*[:#-]?\s*/i, "")
+      .toUpperCase();
   }
 
   function normalizeSex(value) {
@@ -4391,7 +7647,7 @@
   }
 
   function activeDate() {
-    return ui.sheets.activeDate || store.activeDate || isoToday();
+    return isoToday();
   }
 
   function nowIso() {
@@ -4412,7 +7668,8 @@
 
   function createPatientId(row) {
     const stable = cleanCell(row.patient_id || row.hospital_internal_id);
-    return `px_${hashText(stable || `${row.servicio}|${row.cama}|${row.fecha_ingreso}`)}`;
+    const fallback = [row.patient_name, row.servicio, row.cama, row.fecha_ingreso || row.fecha_censo].map(cleanCell).join("|");
+    return `px_${hashText(stable || fallback)}`;
   }
 
   function makeDisplayCode(patientId) {
@@ -4424,7 +7681,7 @@
   }
 
   function hashNormalizedRow(row) {
-    return hashText([row.patient_id, row.fecha_censo, row.servicio, row.cama, row.diagnostico_actual, row.pendientes].map(cleanCell).join("|"));
+    return hashText([row.patient_id, row.patient_name, row.fecha_censo, row.servicio, row.cama, row.estado, row.dx_epidemiologico, row.diagnostico_actual, row.observaciones, row.pendientes].map(cleanCell).join("|"));
   }
 
   function buildDeviceEpisodeId(patientId, deviceType, installationDate, site) {
@@ -4455,7 +7712,7 @@
   }
 
   function riskFromImport(row) {
-    const text = normalizeText(`${row.riesgo_iaas} ${row.pendientes} ${row.diagnostico_actual}`);
+    const text = normalizeText(`${row.estado} ${row.riesgo_iaas} ${row.dx_epidemiologico} ${row.pendientes} ${row.diagnostico_actual}`);
     if (text.includes("CRITICO")) return "Crítico";
     if (text.includes("ALTO") || text.includes("IAAS")) return "Alto";
     if (text.includes("MODERADO") || text.includes("RIESGO")) return "Moderado";
@@ -4465,6 +7722,22 @@
 
   function splitPending(text) {
     return cleanCell(text).split(/\/|\||;/).map(item => item.trim()).filter(Boolean).slice(0, 8);
+  }
+
+  function markSnapshotSynced(confirmedAt = nowIso()) {
+    Object.values(store.dailyRounds || {}).forEach(round => {
+      Object.values(round.entries || {}).forEach(entry => {
+        if (!entry || entry.syncStatus === "server_synced") return;
+        entry.syncStatus = "server_synced";
+        entry.serverConfirmedAt = confirmedAt;
+      });
+    });
+    Object.values(store.dailyCensus || {}).forEach(census => {
+      Object.values(census.patients || {}).forEach(row => {
+        if (!row || row.syncStatus === "server_synced") return;
+        row.syncStatus = "server_synced";
+      });
+    });
   }
 
   function syncStatusForNewWrite() {
@@ -4543,7 +7816,6 @@
 
   function displayState(value) {
     const key = normalizeText(value);
-    if (key === "GRAVE INTUBADO") return "MUY GRAVE INTUBADO";
     if (key === "CRITICO") return "CRÍTICO";
     if (key === "CRITICO INTUBADO") return "CRÍTICO INTUBADO";
     return cleanCell(value || "Sin estado").toUpperCase();
@@ -4555,6 +7827,7 @@
       ESTABLE: "status-estable",
       DELICADO: "status-delicado",
       GRAVE: "status-grave",
+      "GRAVE INTUBADO": "status-grave-intubado",
       "MUY GRAVE": "status-muy-grave",
       "MUY GRAVE INTUBADO": "status-muy-grave-intubado",
       CRITICO: "status-critico",

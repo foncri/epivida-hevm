@@ -11,7 +11,7 @@
     <link rel="icon" href="./assets/epivida/logos/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="./assets/epivida/logos/epivida-logo-gradient.svg" as="image" />
     <link rel="stylesheet" href="./styles/epivida-assets.css" />
-    <link rel="stylesheet" href="./iaas-system.css?v=2026-05-03-sheets01" />
+    <link rel="stylesheet" href="./iaas-system.css?v=2026-05-04-functional28" />
   </head>
   <body>
     <noscript>
@@ -42,6 +42,9 @@
         googleClientId: "721538111286-r5keghg78q9gf5cc3bafpq632hiekros.apps.googleusercontent.com",
         appAuthoritative: true,
         schemaVersion: "1",
+        printSheetGid: "264683400",
+        printSheetName: "🖨️ REPORTE_BN",
+        printFallbackSheetName: "BASE_DATOS",
         tabs: {
           appConfig: "APP_CONFIG",
           baseDatos: "BASE_DATOS",
@@ -57,7 +60,7 @@
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
       }
-      epividaScripts.push("./iaas-system.js?v=2026-05-03-sheets11");
+      epividaScripts.push("./iaas-system.js?v=2026-05-04-functional28");
       (async () => {
         for (const src of epividaScripts) {
           await new Promise(resolve => {
