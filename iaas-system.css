@@ -8228,3 +8228,37 @@ body:has(.command-shell),
     white-space: normal;
   }
 }
+
+@media screen and (min-width: 761px) and (max-width: 900px) {
+  .iaas-mobile-section-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding-bottom: 4px;
+  }
+
+  .iaas-mobile-section-tabs button {
+    flex: 1 1 calc(33.333% - 7px);
+    min-height: 36px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 10px !important;
+    border-radius: 999px;
+    font-size: 11px !important;
+    font-weight: 900;
+    white-space: normal;
+  }
+
+  .iaas-assessment-grid {
+    display: block !important;
+  }
+
+  .iaas-mobile-section {
+    display: none;
+  }
+
+  .iaas-mobile-section.mobile-active {
+    display: block;
+  }
+}

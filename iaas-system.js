@@ -1042,7 +1042,7 @@
     return h("header", { class: "iaas-topbar" }, [
       h("div", {}, [
         h("strong", {}, [routeTitle(ui.route.page)]),
-        h("span", {}, [`${dayLabel(new Date())} · ${Object.keys(store.patients).length} pacientes en sistema`])
+        h("span", {}, [`${activeDateLabel()} · ${Object.keys(store.patients).length} pacientes en sistema`])
       ]),
       h("div", { class: "iaas-topbar-actions" }, [
         renderSyncState(),
@@ -1076,8 +1076,8 @@
   function renderCommandTopbar() {
     return h("header", { class: "iaas-topbar command-topbar" }, [
       h("div", { class: "command-date-cluster" }, [
-        h("span", { class: "command-today" }, [commandIcon("calendar"), "Hoy"]),
-        h("strong", {}, [dayLabel(new Date())])
+        h("span", { class: "command-today" }, [commandIcon("calendar"), "Censo activo"]),
+        h("strong", {}, [activeDateLabel()])
       ]),
       h("div", { class: "iaas-topbar-actions command-actions" }, [
         renderSyncState(),
@@ -1480,6 +1480,7 @@
     const bases = epidemiologicalBasesForText(epiText);
     const dxHospital = patient.currentDiagnosis || row.diagnosis || "";
     const observations = patient.observations || row.observations || row.notes || "";
+    const inferredRiskDevices = inferredRiskDevicesForText(`${dxHospital} ${epiText} ${observations}`);
     return {
       ...item,
       service: service || "SIN SERVICIO",
@@ -1497,6 +1498,7 @@
       epiText,
       tags,
       epiBases: bases,
+      inferredRiskDevices,
       hasEpidemiologicalTag: tags.length > 0 || bases.length > 0,
       rfc: patient.rfc || patient.hospitalInternalId || row.rfc || "",
       birthDate: patient.birthDate || patient.fechaNacimiento || row.birthDate || ""
@@ -1653,9 +1655,11 @@
   function iaasCountForText(value) {
     const text = normalizeText(value);
     if (!text || text.includes("NO IAAS") || text.includes("RIESGO IAAS")) return 0;
+    if (/SIN ETIQUETA IAAS|VIGILANCIA IAAS|SEGUIMIENTO IAAS|DESCARTAR IAAS/.test(text)) return 0;
     const match = text.match(/\b([1-4])\s+IAAS\b/);
     if (match) return Number(match[1]);
-    return text.includes("IAAS") ? 1 : 0;
+    if (/\b(IAAS ACTIVA|IAAS IMPORTADA|IAAS CONFIRMADA|IAAS PROBABLE)\b/.test(text)) return 1;
+    return text === "IAAS" ? 1 : 0;
   }
 
   function renderServicePill(service) {
@@ -2199,7 +2203,7 @@
       },
       {
         title: riskRows.length ? `${riskRows.length} paciente(s) con riesgo IAAS` : `${stats.incompletePatients} expediente(s) IAAS incompletos`,
-        detail: riskRows.length ? "Incluidos automáticamente si tienen invasivos relevantes activos" : (stats.incompletePatients ? "Requieren completar seguimiento clínico" : "Sin expedientes incompletos en seguimiento"),
+        detail: riskRows.length ? "Incluidos automáticamente si tienen invasivos relevantes activos o detectados en el texto del censo" : (stats.incompletePatients ? "Requieren completar seguimiento clínico" : "Sin expedientes incompletos en seguimiento"),
         time: "IAAS",
         icon: "info",
         tone: "round",
@@ -2239,10 +2243,17 @@
     return monitoringRows(date)
       .map(item => ({
         ...item,
-        riskDevices: riskRelevantActiveEpisodes(item.row.patientId, date)
+        riskDevices: riskRelevantDevicesForItem(item, date)
       }))
       .filter(item => item.riskDevices.length)
       .sort((a, b) => sortByServiceBed(a.row, b.row));
+  }
+
+  function riskRelevantDevicesForItem(item, date) {
+    const patientId = item?.row?.patientId || item?.patient?.patientId;
+    const active = patientId ? riskRelevantActiveEpisodes(patientId, date) : [];
+    const inferred = item?.inferredRiskDevices || inferredRiskDevicesForText(`${item?.dxHospital || ""} ${item?.epiText || ""} ${item?.observations || ""}`);
+    return uniqueDeviceRiskList([...active, ...inferred]);
   }
 
   function riskRelevantActiveEpisodes(patientId, date) {
@@ -2254,7 +2265,8 @@
     return Boolean(type) && !NON_IAAS_RISK_DEVICE_TYPES.has(type);
   }
 
-  function hasIaasRiskFromDevices(patientId, date) {
+  function hasIaasRiskFromDevices(patientId, date, item = null) {
+    if (item && riskRelevantDevicesForItem(item, date).length > 0) return true;
     return riskRelevantActiveEpisodes(patientId, date).length > 0;
   }
 
@@ -2263,17 +2275,18 @@
     const epiText = item?.epiText || "";
     if (iaasCountForText(epiText) > 0) return true;
     if (normalizeText(epiText).includes("RIESGO IAAS")) return true;
-    if (patientId && hasIaasRiskFromDevices(patientId, date)) return true;
+    if (patientId && hasIaasRiskFromDevices(patientId, date, item)) return true;
     const entry = store.dailyRounds[date]?.entries?.[patientId] || {};
     return (entry.alertsGenerated || []).some(alert => normalizeText(alert).includes("IAAS"));
   }
 
   function deriveIaasReasoning(item, date, active) {
     const text = normalizeText(`${item?.epiText || ""} ${item?.dxHospital || ""} ${item?.observations || ""}`);
-    const riskDevices = (active || []).filter(isIaasRiskRelevantEpisode);
+    const riskDevices = uniqueDeviceRiskList([...(active || []).filter(isIaasRiskRelevantEpisode), ...(item?.inferredRiskDevices || [])]);
     const infectionSignal = /INFECCION|INFECCIÓN|SEPSIS|BACTERIEM|NEUMON|FIEBRE|FEBRIL|LEUCOCIT|CULTIVO|HEMOCULT|UROCULT|PCR|PROCALCITON/.test(text);
     const explicitNoIaas = text.includes("NO IAAS") || text.includes("NO RELACIONADA");
-    const explicitIaas = iaasCountForText(item?.epiText || "") > 0 || (text.includes("IAAS") && !explicitNoIaas && !text.includes("RIESGO IAAS"));
+    const explicitIaasSignal = iaasCountForText(item?.epiText || "") > 0 || /\b([1-4]\s+IAAS|IAAS ACTIVA|IAAS IMPORTADA|IAAS CONFIRMADA|IAAS PROBABLE)\b/.test(text);
+    const explicitIaas = explicitIaasSignal && !explicitNoIaas;
     if (explicitIaas) {
       return {
         kind: "iaas",
@@ -2304,6 +2317,33 @@
       label: "Sin criterio IAAS",
       detail: "Sin etiqueta IAAS, sin riesgo por invasivo relevante y sin señal infecciosa visible."
     };
+  }
+
+  function inferredRiskDevicesForText(value) {
+    const text = normalizeText(value);
+    if (!text) return [];
+    const candidates = [];
+    const add = (deviceType, reason) => candidates.push({ deviceType, inferred: true, source: "census-text", reason });
+    if (/\b(CVC|CATETER VENOSO CENTRAL|CATETER CENTRAL|LINEA CENTRAL|VIA CENTRAL)\b/.test(text)) add("CVC", "Texto compatible con cateter venoso central");
+    if (/\b(MAHURKAR|MAHURCAR|CATETER HD|CAT HD|CATETER PARA HEMODIALISIS|ACCESO HD)\b/.test(text) || (/\bCATETER\b/.test(text) && /\bHEMODIALISIS\b/.test(text))) add("Catéter Mahurkar", "Texto compatible con acceso de hemodialisis");
+    if (/\b(PERMACATH|PERMA CATH|CATETER PERMANENTE PARA HEMODIALISIS)\b/.test(text)) add("Catéter Permacath", "Texto compatible con Permacath");
+    if (/\b(TENCKHOFF|TENKHOFF|TENKOF|CATETER PERITONEAL)\b/.test(text)) add("Catéter Tenckhoff", "Texto compatible con Tenckhoff");
+    if (/\b(PUERTO|PORT A CATH|PORTACATH|PORT-A-CATH|CATETER PUERTO)\b/.test(text)) add("Catéter Puerto", "Texto compatible con cateter puerto");
+    if (/\b(PICC|CATETER CENTRAL PERIFERICO|CATETER CENTRAL DE INSERCION PERIFERICA)\b/.test(text)) add("PICC", "Texto compatible con PICC");
+    if (/\b(SONDA FOLEY|FOLEY|CATETER URINARIO|CATETER VESICAL|SONDA VESICAL)\b/.test(text) || /(^|[\s,.;:/-])C\.?U\.?($|[\s,.;:/-])/.test(text)) add("Sonda Foley", "Texto compatible con cateter urinario");
+    if (/\b(VENTILACION MECANICA|VM|NAVM|TUBO ENDOTRAQUEAL|OROTRAQUEAL|INTUBACION|TRAQUEOSTOMIA)\b/.test(text)) add("Ventilación mecánica", "Texto compatible con ventilacion invasiva");
+    if (/\b(DRENOVAC|DRENO VAC|DRENAJE|DREN)\b/.test(text)) add("DrenoVAC", "Texto compatible con drenaje");
+    return uniqueDeviceRiskList(candidates.filter(isIaasRiskRelevantEpisode));
+  }
+
+  function uniqueDeviceRiskList(devices) {
+    const seen = new Set();
+    return (devices || []).filter(device => {
+      const key = normalizeText(device?.deviceType);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   function commandVigNotifications(stats, date) {
@@ -2858,7 +2898,7 @@
     return [
       {
         title: "Centro de Vigilancia",
-        text: `${dayLabel(new Date())}. ${stats.pendingPatients} pendientes, ${stats.activeAlerts} alertas y ${pendingSync} escritura(s) por sincronizar.`,
+        text: `${activeDateLabel()}. ${stats.pendingPatients} pendientes, ${stats.activeAlerts} alertas y ${pendingSync} escritura(s) por sincronizar.`,
         href: "#/dashboard",
         action: "Ver sala",
         image: `${PRO_ASSET}/icons/extras/neon_glassy_ui_notification_panel.webp`,
@@ -2898,7 +2938,7 @@
       },
       {
         title: "Vigilancia Hospitalaria",
-        text: `${stats.totalPatients} paciente(s) en censo de hoy y ${Object.keys(stats.byService).length} servicio(s) activos.`,
+        text: `${stats.totalPatients} paciente(s) en censo activo y ${Object.keys(stats.byService).length} servicio(s) activos.`,
         href: "#/censo-hospitalario",
         action: "Ver censo",
         image: `${PRO_ASSET}/icons/icon-censo-operativo.webp`,
@@ -3081,7 +3121,7 @@
         progress: value.total ? Math.round((value.reviewed / value.total) * 100) : 0
       }));
     return {
-      day: dayLabel(new Date()),
+      day: activeDateLabel(),
       pendingPatients,
       cultureEvents,
       surgicalSignals,
@@ -3127,7 +3167,7 @@
   function renderIaasFollowUpHub() {
     const date = activeDate();
     const rows = iaasFollowUpRows(date);
-    const activeDevices = rows.reduce((sum, item) => sum + activeEpisodes(item.row.patientId, date).length, 0);
+    const relevantDeviceSignals = rows.reduce((sum, item) => sum + riskRelevantDevicesForItem(item, date).length, 0);
     const pendingValuations = rows.filter(item => !store.dailyRounds[date]?.entries?.[item.row.patientId]?.iaasAssessment).length;
     const cultures = rows.filter(item => normalizeText(`${item.patient.cultureStatus || item.row.cultureStatus || ""} ${item.patient.observations || item.row.observations || ""}`).includes("CULT")).length;
     return h("div", { class: "iaas-page follow-up-hub" }, [
@@ -3141,7 +3181,7 @@
       ]),
       renderMetricGrid([
         ["Pacientes IAAS/riesgo", rows.length, "activos/importados"],
-        ["Invasivos activos", activeDevices, "pacientes en seguimiento"],
+        ["Invasivos/riesgo", relevantDeviceSignals, "activos o detectados"],
         ["Valoración pendiente", pendingValuations, "registro diario"],
         ["Cultivos visibles", cultures, "notas o resultados"]
       ], "compact"),
@@ -3170,6 +3210,8 @@
     return h("div", { class: "iaas-follow-list" }, rows.map(item => {
       const patient = item.patient || {};
       const active = activeEpisodes(item.row.patientId, date);
+      const riskDevices = riskRelevantDevicesForItem(item, date);
+      const inferredCount = riskDevices.filter(device => device.inferred).length;
       const reasoning = deriveIaasReasoning(item, date, active);
       const entry = store.dailyRounds[date]?.entries?.[item.row.patientId] || {};
       return h("article", { class: "iaas-follow-card" }, [
@@ -3184,7 +3226,8 @@
         h("div", { class: "iaas-follow-tags" }, [
           h("span", { class: `badge reasoning-${reasoning.kind}` }, [reasoning.label]),
           h("span", { class: "badge epi-iaas" }, [cleanCell(item.epiText) || "IAAS/riesgo"]),
-          active.length ? h("span", { class: "badge device" }, [`${active.length} invasivo(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos activos"]),
+          riskDevices.length ? h("span", { class: "badge device" }, [`${riskDevices.length} invasivo(s) relevante(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos relevantes"]),
+          inferredCount ? h("span", { class: "badge culture" }, [`${inferredCount} detectado(s) en censo`]) : "",
           entry.iaasAssessment ? h("span", { class: "badge revisado" }, ["Valoración del día"]) : h("span", { class: "badge pendiente" }, ["Pendiente"]),
           reasoning.detail ? h("small", { class: "iaas-reasoning-detail" }, [reasoning.detail]) : ""
         ]),
@@ -3216,7 +3259,7 @@
           ])
         ]),
         h("div", { class: "census-hero-meta" }, [
-          h("strong", {}, [dayLabel(new Date())]),
+          h("strong", {}, [activeDateLabel()]),
           h("span", {}, [`${rows.length} pacientes en censo · ${activeServiceCount(rows)} servicios activos`]),
           h("div", { class: "report-actions" }, [
             hasPrivateCensusSeed() ? h("button", { class: "iaas-button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : "",
@@ -3546,7 +3589,7 @@
     }
     return h("div", { class: "notice warn" }, [
       h("strong", {}, ["Revisión necesaria"]),
-      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Pacientes activos ausentes del censo de hoy: ${missing.length}.`])
+      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Pacientes activos ausentes del censo importado: ${missing.length}.`])
     ]);
   }
 
@@ -4905,7 +4948,7 @@
         h("div", {}, [
           h("strong", {}, [patientLabel(patient)]),
           h("span", {}, [`${patient.currentService} · Cama ${patient.currentBed}`]),
-          h("small", {}, ["No encontrado en censo de hoy"])
+          h("small", {}, ["No encontrado en censo activo"])
         ]),
         h("div", { class: "reconciliation-actions" }, [
           h("button", { onclick: () => resolveReconciliation(patient.patientId, "egresado", "Alta") }, ["Alta"]),
@@ -5423,6 +5466,8 @@
       patients: censusPatients,
       conflicts: plan.conflicts
     };
+    store.activeDate = plan.date;
+    ui.sheets.activeDate = plan.date;
     ensureDailyRound(plan.date);
     const entries = {};
     Object.values(censusPatients).forEach(row => {
@@ -8231,7 +8276,23 @@
   }
 
   function activeDate() {
-    return isoToday();
+    return normalizeDate(ui.sheets.activeDate)
+      || normalizeDate(store.activeDate)
+      || latestCensusDate()
+      || isoToday();
+  }
+
+  function latestCensusDate() {
+    return Object.keys(store.dailyCensus || {})
+      .map(normalizeDate)
+      .filter(Boolean)
+      .sort()
+      .at(-1) || "";
+  }
+
+  function activeDateLabel() {
+    const date = normalizeDate(activeDate()) || isoToday();
+    return dayLabel(new Date(`${date}T00:00:00`));
   }
 
   function nowIso() {
