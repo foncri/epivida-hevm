@@ -257,15 +257,40 @@
 
   const DEVICE_TYPES = [
     "CVC",
+    "Catéter Mahurkar",
+    "Catéter Permacath",
+    "Catéter Tenckhoff",
+    "Catéter Puerto",
+    "PICC",
     "Catéter periférico",
     "Sonda Foley",
     "Ventilación mecánica",
     "Tubo endotraqueal",
     "Traqueostomía",
     "Drenaje",
+    "DrenoVAC",
     "Sonda nasogástrica",
+    "Puntas Nasales/Cánula Nasal",
     "Nutrición parenteral",
     "Otro"
+  ];
+
+  const NON_IAAS_RISK_DEVICE_TYPES = new Set([
+    "Catéter periférico",
+    "Catéter periférico corto",
+    "Puntas nasales",
+    "Cánula nasal",
+    "Puntas Nasales/Cánula Nasal"
+  ].map(normalizeText));
+
+  const IAAS_MOBILE_SECTIONS = [
+    { key: "antibioticos", label: "ANTIBIÓTICOS" },
+    { key: "cultivos", label: "CULTIVOS" },
+    { key: "observaciones", label: "OBSERVACIONES" },
+    { key: "signos", label: "SIGNOS VITALES" },
+    { key: "biometria", label: "BIOMETRÍA HEMÁTICA" },
+    { key: "ego", label: "EXAMEN GENERAL DE ORINA" },
+    { key: "otros", label: "OTROS ESTUDIOS" }
   ];
 
   const IAAS_VITAL_FIELDS = [
@@ -338,7 +363,9 @@
     "Cultivo de secreción bronquial",
     "Cultivo de expectoración",
     "Cultivo de esputo",
-    "Cultivo de herida"
+    "Cultivo de herida",
+    "Coprocultivo",
+    "Coproparasitoscópico"
   ];
   const IAAS_ANTIMICROBIALS = [
     "Amikacina",
@@ -359,6 +386,7 @@
     "Ceftolozane-tazobactam",
     "Ceftriaxona",
     "Ciprofloxacino",
+    "Claritromicina",
     "Clindamicina",
     "Colistina",
     "Daptomicina",
@@ -381,6 +409,7 @@
     "Piperacilina-tazobactam",
     "Posaconazol",
     "Rifampicina",
+    "Rifaximina",
     "Tetraciclina",
     "Tigeciclina",
     "Trimetoprim-sulfametoxazol",
@@ -405,21 +434,21 @@
   ];
 
   const COLUMN_ALIASES = {
-    patient_id: ["patient_id", "paciente_id", "id_paciente", "expediente", "id", "folio"],
-    patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre", "nombre_completo"],
+    patient_id: ["patient_id", "paciente_id", "id_paciente", "expediente", "id", "folio", "registro", "n_expediente", "no_expediente", "numero_expediente", "nss"],
+    patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre", "nombre_completo", "nombre_y_apellidos", "paciente_nombre"],
     rfc: ["rfc"],
     fecha_nacimiento: ["fecha_nacimiento", "nacimiento", "fecha_de_nacimiento"],
-    fecha_censo: ["fecha_censo", "fecha", "censo_fecha"],
-    servicio: ["servicio", "area", "área", "departamento"],
-    servicio_cama: ["servicio_cama", "servicio/cama", "servicio cama", "servicio_y_cama", "servicio-cama"],
-    cama: ["cama", "cama_actual", "numero_cama", "número_cama"],
+    fecha_censo: ["fecha_censo", "fecha", "censo_fecha", "fecha_del_censo", "dia_censo"],
+    servicio: ["servicio", "area", "área", "departamento", "sala", "unidad"],
+    servicio_cama: ["servicio_cama", "servicio/cama", "servicio cama", "servicio_y_cama", "servicio-cama", "ubicacion", "ubicación"],
+    cama: ["cama", "cama_actual", "numero_cama", "número_cama", "no_cama", "num_cama", "cama/sillon", "cama_sillon"],
     sector: ["sector", "derechohabiencia", "derecho_habiencia", "tipo_derechohabiente"],
     edad: ["edad"],
     sexo: ["sexo", "genero", "género"],
-    fecha_ingreso: ["fecha_ingreso", "ingreso"],
-    dx_epidemiologico: ["dx_epidemiologico", "dx_epidemiológico", "dx epidemiologico", "dx epidemiológico", "diagnostico_epidemiologico", "diagnóstico_epidemiológico", "clasificacion_epidemiologica", "clasificación_epidemiológica"],
+    fecha_ingreso: ["fecha_ingreso", "ingreso", "f_ingreso", "fecha de ingreso", "fecha_ingreso_hospitalario"],
+    dx_epidemiologico: ["dx_epidemiologico", "dx_epidemiológico", "dx epidemiologico", "dx epidemiológico", "diagnostico_epidemiologico", "diagnóstico_epidemiológico", "clasificacion_epidemiologica", "clasificación_epidemiológica", "dx_epi", "clasificacion"],
     estado: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clínico"],
-    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios"],
+    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios", "diagnostico_hospitalario", "diagnóstico hospitalario", "padecimiento"],
     pendientes: ["pendientes", "pendiente", "observaciones_pendientes"],
     hospital_internal_id: ["hospital_internal_id", "id_hospitalario", "registro", "n_expediente"],
     riesgo_iaas: ["riesgo_iaas", "riesgo", "clasificacion_iaas", "clasificación_iaas"],
@@ -455,11 +484,14 @@
     monitorHospitalSort: "service",
     monitorHospitalDiagnosis: "Todos",
     monitorHospitalQuery: "",
+    monitorCensusView: "epi",
     monitorEditDraft: null,
     monitorEditMode: "",
+    iaasMobileSection: "antibioticos",
     dashboardSlide: 0,
     dashboardSlidePausedUntil: 0,
     dashboardSlideTimer: null,
+    renderTimer: null,
     calendarView: "week",
     calendarDate: "",
     calendarDraftDate: "",
@@ -938,9 +970,21 @@
   function renderIaas() {
     const app = document.querySelector("#app");
     if (!app) return;
+    if (ui.renderTimer) {
+      window.clearTimeout(ui.renderTimer);
+      ui.renderTimer = null;
+    }
     recalculateRound(activeDate());
     app.replaceChildren(renderShell());
     restoreFocusedControl();
+  }
+
+  function scheduleRenderIaas(delay = 80) {
+    if (ui.renderTimer) window.clearTimeout(ui.renderTimer);
+    ui.renderTimer = window.setTimeout(() => {
+      ui.renderTimer = null;
+      renderIaas();
+    }, delay);
   }
 
   function renderShell() {
@@ -1290,8 +1334,9 @@
         ])
       )),
       renderPatientEditorPanel(date),
+      renderMonitorCensusSwitch(taggedRows.length, rows.length),
       h("div", { class: "monitor-census-stack" }, [
-        h("article", { class: "monitor-census-block epidemiological-census" }, [
+        ui.monitorCensusView === "epi" ? h("article", { class: "monitor-census-block epidemiological-census" }, [
           h("div", { class: "monitor-census-title" }, [
             h("div", {}, [
               h("h3", {}, ["Censo Epidemiológico"]),
@@ -1300,9 +1345,9 @@
             h("button", { class: "iaas-button primary compact", type: "button", onclick: () => openNewMonitoringPatientDraft("epi") }, [commandIcon("plus"), "Agregar paciente"])
           ]),
           renderMonitorFilters("epi", taggedRows.length, visibleEpiRows.length, true),
-          selectedEpiRows.length ? renderMonitoringTable(selectedEpiRows, true, "epi") : renderMonitorEmpty("Sin pacientes con etiquetas epidemiológicas en los filtros actuales.")
-        ]),
-        h("article", { class: "monitor-census-block hospital-census" }, [
+          visibleEpiRows.length ? renderMonitoringTable(visibleEpiRows, true, "epi") : renderMonitorEmpty("Sin pacientes con etiquetas epidemiológicas en los filtros actuales.")
+        ]) : "",
+        ui.monitorCensusView === "hospital" ? h("article", { class: "monitor-census-block hospital-census" }, [
           h("div", { class: "monitor-census-title" }, [
             h("div", {}, [
               h("h3", {}, ["Censo Hospitalario"]),
@@ -1311,10 +1356,29 @@
             h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => openNewMonitoringPatientDraft("hospital") }, [commandIcon("plus"), "Agregar paciente"])
           ]),
           renderMonitorFilters("hospital", rows.length, visibleHospitalRows.length, true),
-          selectedHospitalRows.length ? renderMonitoringTable(selectedHospitalRows, false, "hospital") : renderMonitorEmpty("Sin censo hospitalario cargado en los filtros actuales.")
-        ])
+          visibleHospitalRows.length ? renderMonitoringTable(visibleHospitalRows, false, "hospital") : renderMonitorEmpty("Sin censo hospitalario cargado en los filtros actuales.")
+        ]) : ""
       ])
     ]);
+  }
+
+  function renderMonitorCensusSwitch(epiCount, hospitalCount) {
+    const tabs = [
+      ["epi", "Censo epidemiológico", epiCount],
+      ["hospital", "Censo hospitalario", hospitalCount]
+    ];
+    return h("div", { class: "monitor-census-switch", role: "tablist", "aria-label": "Seleccionar censo visible" }, tabs.map(([key, label, count]) =>
+      h("button", {
+        class: ui.monitorCensusView === key ? "active" : "",
+        type: "button",
+        role: "tab",
+        "aria-selected": ui.monitorCensusView === key ? "true" : "false",
+        onclick: () => { ui.monitorCensusView = key; renderIaas(); }
+      }, [
+        h("strong", {}, [label]),
+        h("span", {}, [`${count} registro(s)`])
+      ])
+    ));
   }
 
   function renderMonitoringTable(items, epidemiologicalOnly, scope) {
@@ -2082,13 +2146,14 @@
 
   function commandPreventiveNotifications(stats, date) {
     const briefing = salaBriefingData(stats, date);
+    const overdue = overduePreventiveRows(date);
     return [
       {
-        title: "Paquetes preventivos por completar",
-        detail: `${stats.pendingPatients} paciente(s) pendientes de ronda preventiva`,
-        time: "Hoy",
+        title: overdue.length ? `${overdue.length} cama(s) sin revisión > 24 h` : "Paquetes preventivos por completar",
+        detail: overdue.length ? overdue.slice(0, 3).map(row => `${serviceDisplayLabel(row.service)} cama ${row.bed || "S/C"}`).join(" · ") : `${stats.pendingPatients} paciente(s) pendientes de ronda preventiva`,
+        time: overdue.length ? "Atrasado" : "Hoy",
         icon: "check",
-        tone: "round",
+        tone: overdue.length ? "critical" : "round",
         href: `#/ronda/${date}`
       },
       {
@@ -2112,10 +2177,13 @@
 
   function commandIaasNotifications(stats, date) {
     const briefing = salaBriefingData(stats, date);
+    const riskRows = iaasRiskNotificationRows(date);
+    const topRisk = riskRows[0];
+    const topAlert = stats.alertPatients[0];
     return [
       {
-        title: stats.alertPatients[0] ? `${stats.alertPatients[0].reason} en ${stats.alertPatients[0].currentService || "servicio"}` : "Sin alertas IAAS críticas nuevas",
-        detail: stats.alertPatients[0] ? patientLabel(stats.alertPatients[0]) : "Seguimiento IAAS sin casos críticos activos",
+        title: topAlert ? `${topAlert.reason} en ${topAlert.currentService || "servicio"}` : topRisk ? `Riesgo IAAS detectado en ${serviceDisplayLabel(topRisk.service)}` : "Sin alertas IAAS críticas nuevas",
+        detail: topAlert ? patientLabel(topAlert) : topRisk ? `${patientLabel(topRisk.patient, topRisk.row)} · ${topRisk.riskDevices.length} invasivo(s) relevante(s)` : "Seguimiento IAAS sin casos críticos activos",
         time: "08:24",
         icon: "alert",
         tone: "critical",
@@ -2130,14 +2198,112 @@
         href: "#/seguimiento-iaas"
       },
       {
-        title: `${stats.incompletePatients} expediente(s) IAAS incompletos`,
-        detail: stats.incompletePatients ? "Requieren completar seguimiento clínico" : "Sin expedientes incompletos en seguimiento",
+        title: riskRows.length ? `${riskRows.length} paciente(s) con riesgo IAAS` : `${stats.incompletePatients} expediente(s) IAAS incompletos`,
+        detail: riskRows.length ? "Incluidos automáticamente si tienen invasivos relevantes activos" : (stats.incompletePatients ? "Requieren completar seguimiento clínico" : "Sin expedientes incompletos en seguimiento"),
         time: "IAAS",
         icon: "info",
         tone: "round",
         href: "#/seguimiento-iaas"
+      },
+      {
+        title: "Recordatorio de catálogos pendientes",
+        detail: "Confirmar próximos invasivos, fármacos y cultivos para agregarlos al sistema.",
+        time: "Pendiente",
+        icon: "info",
+        tone: "culture",
+        href: "#/importar-censo"
       }
     ];
+  }
+
+  function overduePreventiveRows(date) {
+    return getCensusRows(date)
+      .filter(row => {
+        const entry = store.dailyRounds[date]?.entries?.[row.patientId];
+        if (entry && ["revisado", "alerta"].includes(entry.status)) return false;
+        const last = lastReviewedDateForPatient(row.patientId, date);
+        return !last || daysBetween(last, date) >= 1;
+      })
+      .sort(sortByServiceBed);
+  }
+
+  function lastReviewedDateForPatient(patientId, throughDate) {
+    return Object.entries(store.dailyRounds || {})
+      .filter(([date, round]) => date <= throughDate && ["revisado", "alerta"].includes(round?.entries?.[patientId]?.status))
+      .map(([date]) => date)
+      .sort()
+      .at(-1) || "";
+  }
+
+  function iaasRiskNotificationRows(date) {
+    return monitoringRows(date)
+      .map(item => ({
+        ...item,
+        riskDevices: riskRelevantActiveEpisodes(item.row.patientId, date)
+      }))
+      .filter(item => item.riskDevices.length)
+      .sort((a, b) => sortByServiceBed(a.row, b.row));
+  }
+
+  function riskRelevantActiveEpisodes(patientId, date) {
+    return activeEpisodes(patientId, date).filter(isIaasRiskRelevantEpisode);
+  }
+
+  function isIaasRiskRelevantEpisode(ep) {
+    const type = normalizeText(ep?.deviceType);
+    return Boolean(type) && !NON_IAAS_RISK_DEVICE_TYPES.has(type);
+  }
+
+  function hasIaasRiskFromDevices(patientId, date) {
+    return riskRelevantActiveEpisodes(patientId, date).length > 0;
+  }
+
+  function isIaasFollowUpCandidate(item, date) {
+    const patientId = item?.row?.patientId;
+    const epiText = item?.epiText || "";
+    if (iaasCountForText(epiText) > 0) return true;
+    if (normalizeText(epiText).includes("RIESGO IAAS")) return true;
+    if (patientId && hasIaasRiskFromDevices(patientId, date)) return true;
+    const entry = store.dailyRounds[date]?.entries?.[patientId] || {};
+    return (entry.alertsGenerated || []).some(alert => normalizeText(alert).includes("IAAS"));
+  }
+
+  function deriveIaasReasoning(item, date, active) {
+    const text = normalizeText(`${item?.epiText || ""} ${item?.dxHospital || ""} ${item?.observations || ""}`);
+    const riskDevices = (active || []).filter(isIaasRiskRelevantEpisode);
+    const infectionSignal = /INFECCION|INFECCIÓN|SEPSIS|BACTERIEM|NEUMON|FIEBRE|FEBRIL|LEUCOCIT|CULTIVO|HEMOCULT|UROCULT|PCR|PROCALCITON/.test(text);
+    const explicitNoIaas = text.includes("NO IAAS") || text.includes("NO RELACIONADA");
+    const explicitIaas = iaasCountForText(item?.epiText || "") > 0 || (text.includes("IAAS") && !explicitNoIaas && !text.includes("RIESGO IAAS"));
+    if (explicitIaas) {
+      return {
+        kind: "iaas",
+        label: "IAAS probable/registrada",
+        detail: riskDevices.length
+          ? `Cruza etiqueta IAAS con ${riskDevices.length} invasivo(s) relevante(s).`
+          : "Existe clasificación IAAS explícita; requiere validación clínica/documental."
+      };
+    }
+    if (text.includes("RIESGO IAAS") || riskDevices.length) {
+      return {
+        kind: "risk",
+        label: "Riesgo IAAS",
+        detail: riskDevices.length
+          ? `Riesgo por ${riskDevices.map(ep => ep.deviceType).join(", ")}.`
+          : "Riesgo IAAS documentado en el censo."
+      };
+    }
+    if (explicitNoIaas || infectionSignal) {
+      return {
+        kind: "non-iaas",
+        label: "Infección no relacionada a IAAS",
+        detail: "Hay datos infecciosos sin invasivo relevante activo; descartar relación con atención."
+      };
+    }
+    return {
+      kind: "clear",
+      label: "Sin criterio IAAS",
+      detail: "Sin etiqueta IAAS, sin riesgo por invasivo relevante y sin señal infecciosa visible."
+    };
   }
 
   function commandVigNotifications(stats, date) {
@@ -2965,16 +3131,17 @@
     const pendingValuations = rows.filter(item => !store.dailyRounds[date]?.entries?.[item.row.patientId]?.iaasAssessment).length;
     const cultures = rows.filter(item => normalizeText(`${item.patient.cultureStatus || item.row.cultureStatus || ""} ${item.patient.observations || item.row.observations || ""}`).includes("CULT")).length;
     return h("div", { class: "iaas-page follow-up-hub" }, [
+      renderBedBoard(getCensusRows(date).sort(sortByServiceBed), date, "iaas"),
       h("section", { class: "iaas-panel follow-hero" }, [
         h("div", {}, [
           h("h1", {}, ["Seguimiento IAAS"]),
-          h("p", {}, ["Seguimiento diario para pacientes con IAAS activa o importada. La valoración integra invasivos, signos vitales, laboratorios, cultivos, tratamiento, bitácora diaria y gráfica de temperatura."])
+          h("p", {}, ["Seguimiento diario para pacientes con IAAS activa, riesgo IAAS por invasivos relevantes o infección que requiere descartar relación con la atención. La valoración integra invasivos, signos vitales, laboratorios, cultivos, tratamiento, bitácora diaria y gráfica de temperatura."])
         ]),
         h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" })
       ]),
       renderMetricGrid([
-        ["Pacientes IAAS", rows.length, "activos/importados"],
-        ["Invasivos activos", activeDevices, "solo pacientes IAAS"],
+        ["Pacientes IAAS/riesgo", rows.length, "activos/importados"],
+        ["Invasivos activos", activeDevices, "pacientes en seguimiento"],
         ["Valoración pendiente", pendingValuations, "registro diario"],
         ["Cultivos visibles", cultures, "notas o resultados"]
       ], "compact"),
@@ -2982,20 +3149,20 @@
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
             h("h2", {}, ["Pacientes IAAS para valoración"]),
-            h("p", {}, ["Solo se muestran pacientes con diagnóstico epidemiológico IAAS. La revisión abre directamente la pestaña de valoración por IAAS."])
+            h("p", {}, ["Se muestran pacientes con IAAS, riesgo IAAS por invasivos relevantes o alerta IAAS diaria. La revisión abre directamente la pestaña de valoración por IAAS."])
           ]),
           h("a", { href: "#/censo-hospitalario" }, ["Ver vigilancia hospitalaria"])
         ]),
         rows.length
           ? renderIaasFollowUpCards(rows, date)
-          : h("p", { class: "muted" }, ["Sin pacientes IAAS activos en el censo actual."])
+          : h("p", { class: "muted" }, ["Sin pacientes IAAS o riesgo IAAS activos en el censo actual."])
       ])
     ]);
   }
 
   function iaasFollowUpRows(date) {
     return monitoringRows(date)
-      .filter(item => iaasCountForText(item.epiText) > 0)
+      .filter(item => isIaasFollowUpCandidate(item, date))
       .sort((a, b) => sortByServiceBed(a.row, b.row));
   }
 
@@ -3003,6 +3170,7 @@
     return h("div", { class: "iaas-follow-list" }, rows.map(item => {
       const patient = item.patient || {};
       const active = activeEpisodes(item.row.patientId, date);
+      const reasoning = deriveIaasReasoning(item, date, active);
       const entry = store.dailyRounds[date]?.entries?.[item.row.patientId] || {};
       return h("article", { class: "iaas-follow-card" }, [
         h("div", { class: "iaas-follow-avatar" }, [
@@ -3014,9 +3182,11 @@
           h("small", {}, [item.dxHospital || "Sin diagnóstico hospitalario registrado"])
         ]),
         h("div", { class: "iaas-follow-tags" }, [
-          h("span", { class: "badge epi-iaas" }, [cleanCell(item.epiText) || "IAAS"]),
+          h("span", { class: `badge reasoning-${reasoning.kind}` }, [reasoning.label]),
+          h("span", { class: "badge epi-iaas" }, [cleanCell(item.epiText) || "IAAS/riesgo"]),
           active.length ? h("span", { class: "badge device" }, [`${active.length} invasivo(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos activos"]),
-          entry.iaasAssessment ? h("span", { class: "badge revisado" }, ["Valoración del día"]) : h("span", { class: "badge pendiente" }, ["Pendiente"])
+          entry.iaasAssessment ? h("span", { class: "badge revisado" }, ["Valoración del día"]) : h("span", { class: "badge pendiente" }, ["Pendiente"]),
+          reasoning.detail ? h("small", { class: "iaas-reasoning-detail" }, [reasoning.detail]) : ""
         ]),
         h("div", { class: "iaas-follow-actions" }, [
           h("a", {
@@ -3032,7 +3202,8 @@
   function renderHospitalCensusPage() {
     const date = activeDate();
     const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
-    const visibleRows = rows.filter(censusServiceMatch).filter(censusSearchMatch);
+    const serviceRows = rows.filter(censusServiceMatch);
+    const visibleRows = serviceRows.filter(censusSearchMatch);
     const stats = computeStats(date);
     const epiTotals = censusEpiCounts(rows);
     return h("div", { class: "iaas-page hospital-census-page" }, [
@@ -3080,18 +3251,17 @@
                 placeholder: "Paciente, cama, servicio, diagnostico...",
                 oninput: event => {
                   ui.censusQuery = event.target.value;
-                  ui.focusTarget = "census-search";
-                  renderIaas();
+                  applyCensusSearchDom();
                 }
               })
             ]),
-            h("span", { class: "badge neutral" }, [`${visibleRows.length} de ${rows.length}`])
+            h("span", { class: "badge neutral", "data-census-count": "true", "data-census-total": String(serviceRows.length) }, [`${visibleRows.length} de ${serviceRows.length}`])
           ])
         ]),
-        visibleRows.length ? h("div", { class: "table-wrap census-scroll" }, [
+        serviceRows.length ? h("div", { class: "table-wrap census-scroll" }, [
           h("table", { class: "iaas-table hospital-census-table" }, [
             h("thead", {}, [h("tr", {}, ["Servicio / cama", "Paciente", "Edad / sexo", "Ingreso / estancia", "Estado", "Dx hospitalarios", "Dx epidemiologico", "Observaciones"].map(label => h("th", {}, [label])))]),
-            h("tbody", {}, visibleRows.map(renderHospitalCensusRow))
+            h("tbody", {}, serviceRows.map(renderHospitalCensusRow))
           ])
         ]) : h("div", { class: "empty-inline" }, [
           h("strong", {}, ["Sin coincidencias"]),
@@ -3158,7 +3328,12 @@
     const state = displayState(patient.currentState || row.state || patient.currentRiskLevel || "Sin estado");
     const service = row.service || patient.currentService || "Sin servicio";
     const epi = patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "Sin clasificar";
-    return h("tr", { class: `census-row ${stateClass(state)} ${epiClass(epi)}` }, [
+    return h("tr", {
+      class: `census-row ${stateClass(state)} ${epiClass(epi)}`,
+      "data-census-row": "true",
+      "data-census-search": normalizeText(censusSearchText(item)),
+      hidden: !censusSearchMatch(item)
+    }, [
       h("td", { class: "service-census-cell", "data-label": "Servicio / cama" }, [
         h("div", { class: "service-census-layout" }, [
           h("img", { src: serviceIconAsset(service), alt: "", loading: "lazy" }),
@@ -3217,6 +3392,10 @@
   function censusSearchMatch(item) {
     const query = normalizeText(ui.censusQuery);
     if (!query) return true;
+    return normalizeText(censusSearchText(item)).includes(query);
+  }
+
+  function censusSearchText(item) {
     const { row, patient } = item;
     return [
       row.service,
@@ -3233,7 +3412,21 @@
       patient.currentDiagnosis,
       patient.epidemiologicalDiagnosis,
       patient.observations
-    ].some(value => normalizeText(value).includes(query));
+    ].filter(Boolean).join(" ");
+  }
+
+  function applyCensusSearchDom() {
+    const query = normalizeText(ui.censusQuery);
+    const rows = [...document.querySelectorAll("tr[data-census-row='true']")];
+    let visible = 0;
+    rows.forEach(row => {
+      const match = !query || String(row.dataset.censusSearch || "").includes(query);
+      row.hidden = !match;
+      row.classList.toggle("search-hidden", !match);
+      if (match) visible += 1;
+    });
+    const badge = document.querySelector("[data-census-count]");
+    if (badge) badge.textContent = `${visible} de ${badge.dataset.censusTotal || rows.length}`;
   }
 
   function activeServiceCount(rows) {
@@ -3377,6 +3570,7 @@
           h("button", { class: "iaas-button", onclick: () => closeRound(date) }, ["Cerrar ronda"])
         ])
       ]),
+      renderBedBoard(filtered, date, "preventive"),
       renderPreventivePackagePanel(stats, rows, date),
       renderMetricGrid([
         ["Total", stats.totalPatients, "Pacientes"],
@@ -3469,6 +3663,149 @@
         h("i", { style: `width:${Math.max(4, stats.totalPatients ? (stats.reviewedPatients / stats.totalPatients) * 100 : 4)}%` })
       ])
     ]);
+  }
+
+  function renderBedBoard(rows, date, mode = "preventive") {
+    const items = bedBoardItems(rows, date, mode);
+    const label = mode === "iaas" ? "Mapa de camas IAAS" : "Mapa de camas preventivas";
+    const pending = items.filter(item => item.row && bedTileState(item.row, date, mode).status === "overdue").length;
+    const reviewed = items.filter(item => item.row && bedTileState(item.row, date, mode).status === "reviewed").length;
+    return h("section", { class: `bed-board ${mode}` }, [
+      h("div", { class: "bed-board-head" }, [
+        h("div", {}, [
+          h("h2", {}, [label]),
+          h("p", {}, [mode === "iaas"
+            ? "Toca una cama para abrir la valoración IAAS. Las camas sin riesgo IAAS quedan bloqueadas."
+            : "Toca una cama para abrir el paciente. Las vacías quedan bloqueadas y las atrasadas aparecen en rojo."])
+        ]),
+        h("div", { class: "bed-board-totals" }, [
+          h("span", {}, [`${items.length} cama(s)`]),
+          h("span", {}, [`${reviewed} vistas`]),
+          pending ? h("strong", {}, [`${pending} pendientes`]) : ""
+        ])
+      ]),
+      h("div", { class: "bed-board-legend" }, [
+        h("span", { class: "legend available" }, ["Disponible"]),
+        h("span", { class: "legend vacant" }, ["Desocupada"]),
+        h("span", { class: "legend reviewed" }, ["Vista"]),
+        h("span", { class: "legend overdue" }, ["Pendiente"])
+      ]),
+      renderBedBoardPicker(items, date, mode),
+      h("div", { class: "bed-board-grid" }, items.map(item => renderBedTile(item, date, mode)))
+    ]);
+  }
+
+  function renderBedBoardPicker(items, date, mode) {
+    const selectable = items.filter(item => item.row && !bedTileState(item.row, date, mode).disabled);
+    if (!selectable.length) return "";
+    return h("label", { class: "bed-board-picker" }, [
+      h("span", {}, [mode === "iaas" ? "Ir a cama IAAS" : "Ir a cama preventiva"]),
+      h("select", {
+        onchange: event => {
+          const patientId = event.target.value;
+          if (patientId) location.hash = bedTileHref(date, patientId, mode);
+        }
+      }, [
+        option("", "Seleccionar cama disponible", true),
+        ...selectable.map(item => option(
+          item.row.patientId,
+          `Cama ${item.bed || item.row.bed || "S/C"} · ${patientLabel(store.patients[item.row.patientId] || {}, item.row)}`,
+          false
+        ))
+      ])
+    ]);
+  }
+
+  function bedTileHref(date, patientId, mode) {
+    return mode === "iaas" ? `#/ronda/${date}/paciente/${patientId}/iaas` : `#/ronda/${date}/paciente/${patientId}`;
+  }
+
+  function bedBoardItems(rows, date, mode) {
+    const sorted = [...rows].sort(sortByServiceBed);
+    const serviceNames = unique(sorted.map(row => normalizeService(row.service)).filter(Boolean));
+    if (serviceNames.length !== 1) {
+      return sorted.map(row => ({ bed: row.bed || "S/C", row }));
+    }
+    const numericRows = sorted
+      .map(row => ({ row, number: bedNumberToken(row.bed) }))
+      .filter(item => Number.isFinite(item.number));
+    if (numericRows.length < Math.max(3, Math.floor(sorted.length * 0.6))) {
+      return sorted.map(row => ({ bed: row.bed || "S/C", row }));
+    }
+    const min = Math.min(...numericRows.map(item => item.number));
+    const max = Math.max(...numericRows.map(item => item.number));
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max - min > 80) {
+      return sorted.map(row => ({ bed: row.bed || "S/C", row }));
+    }
+    const byNumber = new Map();
+    numericRows.forEach(item => {
+      if (!byNumber.has(item.number)) byNumber.set(item.number, item.row);
+    });
+    const inferred = [];
+    for (let number = min; number <= max; number += 1) {
+      const row = byNumber.get(number);
+      inferred.push({ bed: row?.bed || String(number), row: row || null });
+    }
+    return inferred;
+  }
+
+  function bedNumberToken(bed) {
+    const match = String(bed || "").match(/\d+/);
+    return match ? Number(match[0]) : null;
+  }
+
+  function renderBedTile(item, date, mode) {
+    const state = bedTileState(item.row, date, mode);
+    const bed = item.bed || item.row?.bed || "S/C";
+    const patient = item.row ? store.patients[item.row.patientId] || {} : null;
+    const content = [
+      h("strong", {}, [bed]),
+      h("span", {}, [state.label]),
+      h("small", {}, [patient ? truncateText(patientLabel(patient, item.row), 24) : "Sin paciente"])
+    ];
+    const attrs = {
+      class: `bed-tile ${state.status}`,
+      title: state.title,
+      "aria-label": `${bed}: ${state.title}`
+    };
+    if (state.disabled) {
+      return h("button", { ...attrs, type: "button", disabled: true }, content);
+    }
+    return h("a", { ...attrs, href: bedTileHref(date, item.row.patientId, mode) }, content);
+  }
+
+  function bedTileState(row, date, mode) {
+    if (!row?.patientId) {
+      return { status: "vacant", disabled: true, label: "Vacía", title: "Cama desocupada" };
+    }
+    if (mode === "iaas") {
+      const item = enrichMonitoringItem({ row, patient: store.patients[row.patientId] || {} }, date);
+      if (!isIaasFollowUpCandidate(item, date)) {
+        return { status: "locked", disabled: true, label: "Sin riesgo", title: "Bloqueada: paciente sin riesgo IAAS definido" };
+      }
+      const reviewed = Boolean(store.dailyRounds[date]?.entries?.[row.patientId]?.iaasAssessment);
+      if (reviewed) return { status: "reviewed", disabled: false, label: "Vista", title: "Valoración IAAS capturada" };
+      const last = lastIaasAssessmentDateForPatient(row.patientId, date);
+      if (!last || daysBetween(last, date) >= 1) return { status: "overdue", disabled: false, label: "Pendiente", title: "Pendiente de valoración IAAS" };
+      return { status: "available", disabled: false, label: "Disponible", title: "Disponible para valoración IAAS" };
+    }
+    const entry = store.dailyRounds[date]?.entries?.[row.patientId];
+    if (entry && ["revisado", "alerta"].includes(entry.status)) {
+      return { status: "reviewed", disabled: false, label: "Vista", title: "Ronda preventiva guardada" };
+    }
+    const last = lastReviewedDateForPatient(row.patientId, date);
+    if (!last || daysBetween(last, date) >= 1) {
+      return { status: "overdue", disabled: false, label: "Pendiente", title: "Pendiente de ronda preventiva" };
+    }
+    return { status: "available", disabled: false, label: "Disponible", title: "Disponible para ronda preventiva" };
+  }
+
+  function lastIaasAssessmentDateForPatient(patientId, throughDate) {
+    return Object.entries(store.dailyRounds || {})
+      .filter(([date, round]) => date <= throughDate && round?.entries?.[patientId]?.iaasAssessment)
+      .map(([date]) => date)
+      .sort()
+      .at(-1) || "";
   }
 
   function renderRoundCard(row, date) {
@@ -3626,6 +3963,10 @@
     const hemodialysis = isHemodialysisService(patient.currentService);
     const hasVentilation = hasVentilationDevice(active);
     const viralOptions = limited ? IAAS_LIMITED_VIRAL_PANEL_TESTS : IAAS_VIRAL_PANEL_TESTS;
+    const mobileSection = IAAS_MOBILE_SECTIONS.some(section => section.key === ui.iaasMobileSection) ? ui.iaasMobileSection : "antibioticos";
+    const sectionBlock = (key, node) => node ? h("div", {
+      class: `iaas-mobile-section iaas-mobile-${key} ${mobileSection === key ? "mobile-active" : ""}`
+    }, [node]) : "";
     return h("section", { class: "iaas-panel iaas-assessment-panel" }, [
       h("div", { class: "iaas-panel-head" }, [
         h("div", {}, [
@@ -3636,16 +3977,17 @@
         ]),
         h("span", { class: "badge epi-iaas" }, ["IAAS"])
       ]),
+      renderIaasMobileSectionTabs(),
       h("div", { class: "iaas-assessment-grid" }, [
-        renderIaasInvasiveSummary(active),
-        renderIaasVitalSigns(date, patientId, assessment, hasVentilation),
-        limited ? "" : renderIaasCbc(date, patientId, assessment),
-        limited ? "" : renderIaasUrinalysis(date, patientId, assessment),
-        renderIaasOtherStudies(date, patientId, assessment, limited, viralOptions),
-        hemodialysis ? renderHemodialysisInfectionPanel(date, patientId, patient, assessment) : "",
-        renderIaasCultures(date, patientId, assessment),
-        renderIaasTreatments(date, patientId, assessment),
-        renderIaasGeneralObservations(date, patientId, assessment)
+        sectionBlock("antibioticos", renderIaasTreatments(date, patientId, assessment)),
+        sectionBlock("cultivos", renderIaasCultures(date, patientId, assessment)),
+        hemodialysis ? sectionBlock("cultivos", renderHemodialysisInfectionPanel(date, patientId, patient, assessment)) : "",
+        sectionBlock("observaciones", renderIaasGeneralObservations(date, patientId, assessment)),
+        sectionBlock("signos", renderIaasVitalSigns(date, patientId, assessment, hasVentilation)),
+        limited ? "" : sectionBlock("biometria", renderIaasCbc(date, patientId, assessment)),
+        limited ? "" : sectionBlock("ego", renderIaasUrinalysis(date, patientId, assessment)),
+        sectionBlock("otros", renderIaasOtherStudies(date, patientId, assessment, limited, viralOptions)),
+        sectionBlock("otros", renderIaasInvasiveSummary(active))
       ]),
       h("div", { class: "iaas-daily-section" }, [
         h("div", { class: "iaas-panel-head compact" }, [
@@ -3659,6 +4001,18 @@
         renderIaasStudyHistory(patient, patientId)
       ])
     ]);
+  }
+
+  function renderIaasMobileSectionTabs() {
+    return h("div", { class: "iaas-mobile-section-tabs", role: "tablist", "aria-label": "Filtro móvil de captura IAAS" }, IAAS_MOBILE_SECTIONS.map(section =>
+      h("button", {
+        class: ui.iaasMobileSection === section.key ? "active" : "",
+        type: "button",
+        role: "tab",
+        "aria-selected": ui.iaasMobileSection === section.key ? "true" : "false",
+        onclick: () => { ui.iaasMobileSection = section.key; renderIaas(); }
+      }, [section.label])
+    ));
   }
 
   function renderIaasInvasiveSummary(active) {
@@ -4004,14 +4358,14 @@
   }
 
   function renderDailyIaasTable(patient, patientId, date) {
-    const saved = new Map(dailyIaasEntries(patientId).map(entry => [entry.date, entry.assessment]));
-    const dates = patientIaasDateRange(patient, date);
+    const saved = dailyIaasAssessmentMap(patientId);
+    const dates = patientIaasDateRange(patient, date, saved);
     const rows = dailyIaasRowsForPatient(patient);
     return h("div", { class: "daily-iaas-scroll" }, [
       h("table", { class: "daily-iaas-table" }, [
         h("thead", {}, [h("tr", {}, [
           h("th", { colspan: "2", class: "daily-iaas-field-head" }, ["Campo"]),
-          ...dates.map(item => h("th", {}, [formatDisplayDate(item)]))
+          ...dates.map(item => h("th", {}, formatIaasColumnHeader(item, patient)))
         ])]),
         h("tbody", {}, rows.map((row, index) => {
           const previous = rows[index - 1];
@@ -4079,7 +4433,7 @@
     const lines = [
       `Signos vitales (${formatDisplayDate(assessment.vitalSigns.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.vitalSigns, [...IAAS_VITAL_FIELDS, ...IAAS_VENTILATION_FIELDS]) || "sin datos"}`,
       !limited ? `Biometría hemática (${formatDisplayDate(assessment.cbc.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.cbc, IAAS_CBC_FIELDS) || "sin datos"}` : "",
-      !limited ? `EGO (${formatDisplayDate(assessment.urinalysis.studyDate || entry.date) || "sin fecha"}): ${summarizeUrinalysis(assessment.urinalysis) || "sin datos"}` : "",
+      !limited ? `Examen general de orina (${formatDisplayDate(assessment.urinalysis.studyDate || entry.date) || "sin fecha"}): ${summarizeUrinalysis(assessment.urinalysis) || "sin datos"}` : "",
       `Otros estudios (${formatDisplayDate(assessment.otherStudies.studyDate || entry.date) || "sin fecha"}): ${summarizeOtherStudies(assessment.otherStudies) || "sin datos"}`,
       hemodialysis ? `Seguimiento infecciones: ${summarizeHemodialysisInfection(assessment.infectionTracking) || "sin datos"}` : "",
       assessment.observations ? `Observaciones IAAS: ${assessment.observations}` : ""
@@ -4115,15 +4469,64 @@
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }
 
-  function patientIaasDateRange(patient, date) {
+  function dailyIaasAssessmentMap(patientId) {
+    const map = new Map();
+    dailyIaasEntries(patientId).forEach(entry => {
+      const assessment = normalizeIaasAssessment(entry.assessment);
+      mergeAssessmentByDate(map, entry.date, assessment);
+      mergeAssessmentByDate(map, assessment.vitalSigns?.studyDate, { vitalSigns: assessment.vitalSigns });
+      mergeAssessmentByDate(map, assessment.cbc?.studyDate, { cbc: assessment.cbc });
+      mergeAssessmentByDate(map, assessment.urinalysis?.studyDate, { urinalysis: assessment.urinalysis });
+      mergeAssessmentByDate(map, assessment.otherStudies?.studyDate, { otherStudies: assessment.otherStudies });
+      mergeAssessmentByDate(map, assessment.infectionTracking?.assessmentDate, { infectionTracking: assessment.infectionTracking });
+      (assessment.cultures || []).forEach(culture => {
+        mergeAssessmentByDate(map, culture.collectionDate || culture.resultDate || entry.date, { cultures: [culture] });
+      });
+      (assessment.treatments || []).forEach(treatment => {
+        mergeAssessmentByDate(map, treatment.startDate || treatment.endDate || entry.date, { treatments: [treatment] });
+      });
+    });
+    return map;
+  }
+
+  function mergeAssessmentByDate(map, date, patch) {
+    const key = normalizeDate(date);
+    if (!key || !patch) return;
+    const current = normalizeIaasAssessment(map.get(key) || {});
+    const next = normalizeIaasAssessment({
+      ...current,
+      ...patch,
+      vitalSigns: { ...current.vitalSigns, ...(patch.vitalSigns || {}) },
+      cbc: { ...current.cbc, ...(patch.cbc || {}) },
+      urinalysis: { ...current.urinalysis, ...(patch.urinalysis || {}) },
+      otherStudies: { ...current.otherStudies, ...(patch.otherStudies || {}) },
+      infectionTracking: { ...current.infectionTracking, ...(patch.infectionTracking || {}) },
+      cultures: [...(current.cultures || []), ...(patch.cultures || [])],
+      treatments: [...(current.treatments || []), ...(patch.treatments || [])],
+      observations: mergeClinicalText(current.observations, patch.observations || "")
+    });
+    map.set(key, next);
+  }
+
+  function patientIaasDateRange(patient, date, saved = new Map()) {
     const start = normalizeDate(patient.admissionDate) || date;
     const end = normalizeDate(date) || isoToday();
     const startDate = new Date(`${start}T00:00:00`);
     const endDate = new Date(`${end}T00:00:00`);
-    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || startDate > endDate) return [end];
-    const out = [];
+    const studyDates = [...saved.keys()].filter(Boolean).sort();
+    if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || startDate > endDate) return unique([...(studyDates || []), end]).sort();
+    const out = studyDates.filter(item => item < start);
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) out.push(toIsoDate(d));
-    return out;
+    return unique(out).sort();
+  }
+
+  function formatIaasColumnHeader(date, patient) {
+    const admission = normalizeDate(patient.admissionDate);
+    const day = admission && date >= admission ? daysBetween(admission, date) : null;
+    return [
+      h("span", {}, [formatDisplayDate(date)]),
+      h("small", {}, [day === null ? "Estudio previo" : `D${day}`])
+    ];
   }
 
   function summarizeSection(section, fields) {
@@ -4192,8 +4595,8 @@
     const start = normalizeDate(treatment.startDate);
     if (!start) return "";
     const end = normalizeDate(treatment.endDate) || normalizeDate(fallbackDate) || isoToday();
-    const days = (daysBetween(start, end) ?? 0) + 1;
-    return `${days} ${days === 1 ? "día" : "días"}`;
+    const days = daysBetween(start, end) ?? 0;
+    return `Día ${days}`;
   }
 
   function hasVentilationDevice(active) {
@@ -4626,13 +5029,96 @@
     const rows = (matrix || []).filter(row => Array.isArray(row) && row.some(cell => cleanCell(cell)));
     if (!rows.length) return [];
     const headerIndex = rows.findIndex(row => looksLikeImportHeader(row.map(cleanCell)));
-    const startIndex = headerIndex >= 0 ? headerIndex : 0;
+    if (headerIndex < 0) return rowsFromHeaderlessMatrix(rows);
+    const startIndex = headerIndex;
     const headers = rows[startIndex].map(header => cleanCell(header));
     return rows.slice(startIndex + 1).map(cells => {
       const row = {};
       headers.forEach((header, index) => row[header] = cells[index] ?? "");
       return row;
     });
+  }
+
+  function rowsFromHeaderlessMatrix(matrix) {
+    const out = [];
+    let currentService = "";
+    (matrix || []).forEach((sourceRow, index) => {
+      const cells = sourceRow.map(cleanCell);
+      const nonEmpty = cells.filter(Boolean);
+      if (!nonEmpty.length) return;
+      const singleService = nonEmpty.length <= 2 ? knownServiceFromText(nonEmpty.join(" ")) : "";
+      if (singleService && !looksLikeBedCell(nonEmpty[0]) && !looksLikePatientNameCell(nonEmpty[0])) {
+        currentService = singleService;
+        return;
+      }
+      const row = headerlessRowToObject(cells, currentService);
+      if (row) {
+        row.__source_row = String(index + 1);
+        out.push(row);
+      }
+    });
+    return out;
+  }
+
+  function headerlessRowToObject(cells, currentService = "") {
+    const values = cells.map(cleanCell);
+    const nonEmpty = values.filter(Boolean);
+    if (nonEmpty.length < 2) return null;
+    const serviceIndex = values.findIndex(value => knownServiceFromText(value));
+    const bedIndex = values.findIndex(looksLikeBedCell);
+    const patientIndex = values.findIndex((value, index) => looksLikePatientNameCell(value) && index !== serviceIndex && index !== bedIndex);
+    const service = serviceIndex >= 0 ? knownServiceFromText(values[serviceIndex]) : currentService;
+    if (patientIndex < 0 && bedIndex < 0) return null;
+
+    const row = {};
+    const first = nonEmpty[0] || "";
+    const second = nonEmpty[1] || "";
+    if (knownServiceFromText(first) && looksLikeBedCell(second)) {
+      row.Servicio = knownServiceFromText(first);
+      row.Cama = second;
+      row.Paciente = nonEmpty[2] || "";
+      row.Sector = nonEmpty[3] || "";
+      row.Edad = nonEmpty[4] || "";
+      row.Sexo = nonEmpty[5] || "";
+      row.Ingreso = nonEmpty[6] || "";
+      row.Estado = nonEmpty[7] || "";
+      row["Dx hospitalario"] = nonEmpty[8] || "";
+      row["Dx epidemiologico"] = nonEmpty[9] || "";
+      row.Observaciones = nonEmpty.slice(10).join(" / ");
+      return row;
+    }
+    if (knownServiceFromText(first) || splitServiceBed(first).bed) {
+      const serviceBed = splitServiceBed(first);
+      row["Servicio/Cama"] = serviceBed.bed ? first : `${knownServiceFromText(first) || first} / ${second}`;
+      row.Paciente = serviceBed.bed ? second : nonEmpty[2] || "";
+      row.Sector = serviceBed.bed ? nonEmpty[2] || "" : nonEmpty[3] || "";
+      row.Edad = serviceBed.bed ? nonEmpty[3] || "" : nonEmpty[4] || "";
+      row.Sexo = serviceBed.bed ? nonEmpty[4] || "" : nonEmpty[5] || "";
+      row.Ingreso = serviceBed.bed ? nonEmpty[5] || "" : nonEmpty[6] || "";
+      row.Estado = serviceBed.bed ? nonEmpty[6] || "" : nonEmpty[7] || "";
+      row["Dx hospitalario"] = serviceBed.bed ? nonEmpty[7] || "" : nonEmpty[8] || "";
+      row["Dx epidemiologico"] = serviceBed.bed ? nonEmpty[8] || "" : nonEmpty[9] || "";
+      row.Observaciones = (serviceBed.bed ? nonEmpty.slice(9) : nonEmpty.slice(10)).join(" / ");
+      return row;
+    }
+    if (patientIndex >= 0) {
+      row.Servicio = service;
+      row.Cama = bedIndex >= 0 ? values[bedIndex] : "";
+      row.Paciente = values[patientIndex];
+      const used = new Set([serviceIndex, bedIndex, patientIndex].filter(index => index >= 0));
+      const rest = values.map((value, index) => used.has(index) ? "" : value).filter(Boolean);
+      row.Sector = rest.find(value => /^[A-Z]{2,8}$/.test(normalizeText(value))) || "";
+      row.Edad = rest.find(value => /^\d{1,3}(\s*AÑOS?)?$/i.test(value)) || "";
+      row.Sexo = rest.find(value => ["M", "F", "MASCULINO", "FEMENINO"].includes(normalizeText(value))) || "";
+      row.Ingreso = rest.find(value => normalizeDate(value) || ["AMB", "NA"].includes(normalizeText(value))) || "";
+      row.Estado = rest.find(value => STATE_OPTIONS.some(option => normalizeText(option) === normalizeText(value))) || "";
+      const diagnosisParts = rest.filter(value => ![row.Sector, row.Edad, row.Sexo, row.Ingreso, row.Estado].includes(value));
+      row["Dx hospitalario"] = diagnosisParts[0] || "";
+      row["Dx epidemiologico"] = diagnosisParts.find(value => epidemiologicalBasesForText(value).length || iaasCountForText(value) > 0) || "";
+      row.Observaciones = diagnosisParts.slice(row["Dx epidemiologico"] ? 1 : 1).join(" / ");
+      return row;
+    }
+    return null;
   }
 
   function loadSheetJs() {
@@ -4710,6 +5196,7 @@
 
   function buildImportPlan(rows, date) {
     const seen = new Map();
+    const uniqueRows = [];
     const newPatients = [];
     const updatedPatients = [];
     const duplicates = [];
@@ -4720,7 +5207,7 @@
     const incomingIds = new Set();
 
     rows.forEach(row => {
-      const patientId = createPatientId(row);
+      const patientId = resolveImportPatientId(row);
       const rowHash = hashNormalizedRow(row);
       row.patientId = patientId;
       row.rowHash = rowHash;
@@ -4728,14 +5215,23 @@
       if (seen.has(patientId)) {
         const previous = seen.get(patientId);
         if (previous.servicio !== row.servicio || previous.cama !== row.cama) {
-          conflicts.push({ patientId, previous, current: row, reason: "Conflicto de cama/servicio en el mismo archivo." });
-        } else {
-          duplicates.push(row);
+          conflicts.push({ patientId, previous, current: row, reason: "Mismo paciente detectado en dos ubicaciones del archivo; se conservará la fila más completa y se dejará auditoría." });
         }
+        const merged = mergeImportRows(previous, row);
+        merged.patientId = patientId;
+        merged.rowHash = hashNormalizedRow(merged);
+        seen.set(patientId, merged);
+        const index = uniqueRows.findIndex(item => item.patientId === patientId);
+        if (index >= 0) uniqueRows[index] = merged;
+        duplicates.push(row);
         return;
       }
       seen.set(patientId, row);
-      if (store.patients[patientId]) updatedPatients.push(row);
+      uniqueRows.push(row);
+    });
+
+    uniqueRows.forEach(row => {
+      if (store.patients[row.patientId]) updatedPatients.push(row);
       else newPatients.push(row);
     });
 
@@ -4744,7 +5240,7 @@
       .map(patientId => store.patients[patientId])
       .filter(Boolean);
 
-    return { date, importBatchId: createImportBatchId(date), rows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing };
+    return { date, importBatchId: createImportBatchId(date), rows: uniqueRows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing };
   }
 
   async function confirmImport() {
@@ -4807,6 +5303,14 @@
           currentDiagnosis: row.diagnostico_actual || null,
           epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || null,
           diagnosisHistory: [{ date: plan.date, value: row.diagnostico_actual || "", source: "import" }],
+          serviceHistory: [{
+            date: row.fecha_ingreso || plan.date,
+            fromService: null,
+            fromBed: null,
+            toService: row.servicio,
+            toBed: row.cama,
+            source: "import"
+          }],
           activePendingIssues: pending,
           currentRiskLevel: riskFromImport(row),
           hospitalizationStatus: "hospitalizado",
@@ -4822,7 +5326,8 @@
         addAudit("PATIENT_CREATED", { patientId: row.patientId, after: store.patients[row.patientId], importBatchId: plan.importBatchId });
       } else {
         const before = clone(previous);
-        const diagnosisChanged = cleanCell(previous.currentDiagnosis) !== cleanCell(row.diagnostico_actual);
+        const diagnosisChanged = cleanCell(row.diagnostico_actual) && cleanCell(previous.currentDiagnosis) !== cleanCell(row.diagnostico_actual);
+        const serviceChanged = cleanCell(previous.currentService) !== cleanCell(row.servicio) || cleanCell(previous.currentBed) !== cleanCell(row.cama);
         previous.currentService = row.servicio;
         previous.currentBed = row.cama;
         previous.patientName = row.patient_name || previous.patientName || null;
@@ -4831,7 +5336,7 @@
         previous.sector = row.sector || previous.sector || null;
         previous.sex = row.sexo || previous.sex;
         previous.age = row.edad ?? previous.age;
-        previous.admissionDate = row.fecha_ingreso || previous.admissionDate;
+        previous.admissionDate = earliestIsoDate(previous.admissionDate, row.fecha_ingreso) || row.fecha_ingreso || previous.admissionDate;
         previous.currentState = row.estado || previous.currentState || null;
         previous.currentDiagnosis = row.diagnostico_actual || previous.currentDiagnosis;
         previous.epidemiologicalDiagnosis = row.dx_epidemiologico || row.riesgo_iaas || previous.epidemiologicalDiagnosis || null;
@@ -4847,6 +5352,19 @@
         if (diagnosisChanged) {
           previous.diagnosisHistory = [...(previous.diagnosisHistory || []), { date: plan.date, value: row.diagnostico_actual || "", source: "import" }];
         }
+        if (serviceChanged) {
+          previous.serviceHistory = [
+            ...(previous.serviceHistory || []),
+            {
+              date: plan.date,
+              fromService: before.currentService || null,
+              fromBed: before.currentBed || null,
+              toService: row.servicio,
+              toBed: row.cama,
+              source: "import"
+            }
+          ].slice(-80);
+        }
         addAudit("PATIENT_UPDATED", { patientId: row.patientId, before, after: previous, importBatchId: plan.importBatchId });
       }
       censusPatients[row.patientId] = {
@@ -4859,7 +5377,7 @@
         sector: row.sector || store.patients[row.patientId]?.sector || null,
         age: row.edad ?? null,
         sex: row.sexo || null,
-        admissionDate: row.fecha_ingreso || null,
+        admissionDate: row.fecha_ingreso || store.patients[row.patientId]?.admissionDate || null,
         state: row.estado || null,
         epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || store.patients[row.patientId]?.epidemiologicalDiagnosis || null,
         diagnosis: row.diagnostico_actual || null,
@@ -4885,6 +5403,7 @@
       patient.updatedAt = now;
       patient.updatedBy = currentUserId();
       addAudit("PATIENT_RECONCILIATION_REQUIRED", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
+      censusPatients[patient.patientId] ||= reconciliationCensusRow(patient, plan);
     });
 
     store.dailyCensus[plan.date] = {
@@ -4893,7 +5412,7 @@
       importedAt: now,
       importedBy: currentUserId(),
       totalRows: plan.rows.length + plan.duplicates.length + plan.conflicts.length,
-      totalPatientsDetected: plan.rows.length,
+      totalPatientsDetected: Object.keys(censusPatients).length,
       totalNewPatients: plan.newPatients.length,
       totalUpdatedPatients: plan.updatedPatients.length,
       totalDuplicatesSkipped: plan.duplicates.length,
@@ -4907,6 +5426,7 @@
     ensureDailyRound(plan.date);
     const entries = {};
     Object.values(censusPatients).forEach(row => {
+      const requiresReconciliation = Boolean(row.reconciliationRequired);
       entries[row.patientId] = store.dailyRounds[plan.date].entries[row.patientId] || {
         entryId: row.patientId,
         patientId: row.patientId,
@@ -4919,17 +5439,46 @@
         noInvasivesConfirmed: false,
         reviewedDevices: [],
         pendingIssuesAdded: [],
-        alertsGenerated: [],
-        status: "pendiente",
+        alertsGenerated: requiresReconciliation ? ["Requiere conciliación"] : [],
+        status: requiresReconciliation ? "incompleto" : "pendiente",
         syncStatus: syncStatusForNewWrite(),
         localSavedAt: null,
         serverConfirmedAt: null,
-        notes: ""
+        notes: requiresReconciliation ? "Paciente ausente en el censo importado; confirmar ubicación o egreso." : ""
       };
     });
     store.dailyRounds[plan.date].entries = entries;
     store.dailyRounds[plan.date].status = "not_started";
     recalculateRound(plan.date);
+  }
+
+  function reconciliationCensusRow(patient, plan) {
+    return {
+      patientId: patient.patientId,
+      service: patient.currentService || "SIN SERVICIO",
+      bed: patient.currentBed || "S/C",
+      patientName: patient.patientName || null,
+      rfc: patient.rfc || patient.hospitalInternalId || null,
+      birthDate: patient.birthDate || null,
+      sector: patient.sector || null,
+      age: patient.age ?? null,
+      sex: patient.sex || null,
+      admissionDate: patient.admissionDate || null,
+      state: patient.currentState || "Requiere conciliación",
+      epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis || null,
+      diagnosis: patient.currentDiagnosis || null,
+      observations: "Paciente activo no encontrado en el censo importado; requiere conciliación manual.",
+      present: false,
+      reconciliationRequired: true,
+      importedFromFile: false,
+      importBatchId: plan.importBatchId,
+      rowHash: `reconciliation-${patient.patientId}-${plan.date}`,
+      reviewedByNursing: false,
+      reviewStatus: "requiere_conciliación",
+      reviewedAt: null,
+      syncStatus: syncStatusForNewWrite(),
+      notes: "Requiere conciliación por ausencia en importación."
+    };
   }
 
   function buildImportWriteOps(plan) {
@@ -4984,9 +5533,9 @@
         deviceType: device.deviceType,
         deviceSubtype: device.deviceSubtype || null,
         anatomicalSite: device.anatomicalSite || null,
-        installationDate: device.installationDate,
+        installationDate: normalizeDate(device.installationDate) || device.installationDate,
         removalDate: null,
-        status: previous ? "reinstalado" : "activo",
+        status: "activo",
         isReinstallation: Boolean(previous),
         previousEpisodeId: previous?.episodeId || null,
         dressingCurrent: nullable(device.dressingCurrent),
@@ -5016,7 +5565,7 @@
       if (!removalDate || !store.deviceEpisodes[episodeId]) return;
       const episode = store.deviceEpisodes[episodeId];
       const before = clone(episode);
-      episode.removalDate = removalDate;
+      episode.removalDate = normalizeDate(removalDate) || removalDate;
       episode.status = "retirado";
       episode.updatedAt = nowIso();
       episode.updatedBy = currentUserId();
@@ -7150,7 +7699,7 @@
     draft.noInvasivesConfirmed = false;
     draft.deviceDrafts = [...(draft.deviceDrafts || []), {
       deviceType: type,
-      installationDate: isoToday(),
+      installationDate: normalizeDate(date) || isoToday(),
       anatomicalSite: "",
       dressingCurrent: null,
       dressingDate: "",
@@ -7189,6 +7738,9 @@
     if (!lines.length) return [];
     const delimiter = detectDelimiter(lines.reduce((best, line) => delimiterScore(line) > delimiterScore(best) ? line : best, lines[0]));
     const headerIndex = lines.findIndex(line => looksLikeImportHeader(splitCsvLine(line, delimiter)));
+    if (headerIndex < 0) {
+      return rowsFromHeaderlessMatrix(lines.map(line => splitCsvLine(line, delimiter)));
+    }
     const startIndex = headerIndex >= 0 ? headerIndex : 0;
     const headers = splitCsvLine(lines[startIndex], delimiter).map(header => header.trim());
     return lines.slice(startIndex + 1).map(line => {
@@ -7207,6 +7759,28 @@
     const canonical = cells.map(canonicalColumn).filter(Boolean);
     const unique = new Set(canonical);
     return unique.size >= 3 && (unique.has("patient_name") || unique.has("patient_id") || unique.has("servicio") || unique.has("servicio_cama"));
+  }
+
+  function knownServiceFromText(value) {
+    const key = normalizeText(value).replace(/\s+/g, " ");
+    if (!key) return "";
+    const exact = SERVICES.find(service => normalizeText(service) === key);
+    if (exact) return exact;
+    return SERVICES.find(service => key.includes(normalizeText(service)) || normalizeText(service).includes(key)) || "";
+  }
+
+  function looksLikeBedCell(value) {
+    const text = normalizeText(value);
+    return Boolean(text && (/^(CAMA|CAM|SILLON|SILLÓN|AIS|A|B|C|UCIA|UCIN|UCIP|CUBICULO|CUBÍCULO|CAMILLA)[\s:-]*[A-Z0-9-]+$/.test(text) || /^\d{1,3}[A-Z-]*$/.test(text)));
+  }
+
+  function looksLikePatientNameCell(value) {
+    const text = cleanCell(value);
+    const normalized = normalizeText(text);
+    if (!text || text.length < 5 || knownServiceFromText(text) || looksLikeBedCell(text)) return false;
+    if (normalizeDate(text) || STATE_OPTIONS.some(option => normalizeText(option) === normalized)) return false;
+    if (/[\/:;]/.test(text) && text.length > 40) return false;
+    return /[A-ZÁÉÍÓÚÑ]{2,}\s+[A-ZÁÉÍÓÚÑ]{2,}/i.test(text);
   }
 
   function splitCsvLine(line, delimiter) {
@@ -7453,6 +8027,7 @@
   function buildAlertsForPatient(patient, episodes, draft) {
     const alerts = [];
     episodes.forEach(ep => {
+      if (isIaasRiskRelevantEpisode(ep)) alerts.push(`Riesgo IAAS: invasivo relevante activo (${ep.deviceType})`);
       if (deviceOver48h(ep, isoToday())) alerts.push(`${ep.deviceType} > 48 h`);
       if (ep.infectionSigns || draft.deviceDrafts?.some(device => device.deviceType === ep.deviceType && device.infectionSigns)) alerts.push(`Alerta IAAS: signos de infección en ${ep.deviceType}`);
       if (ep.dressingCurrent === false) alerts.push(`Curación pendiente: ${ep.deviceType}`);
@@ -7629,6 +8204,7 @@
       const iso = `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
       return validIsoDate(iso) ? iso : "";
     }
+    if (/^\d+(?:\.\d+)?$/.test(text)) return "";
     const d = new Date(text);
     return Number.isFinite(d.getTime()) ? toIsoDate(d) : "";
   }
@@ -7636,6 +8212,14 @@
   function validIsoDate(iso) {
     const d = new Date(`${iso}T00:00:00`);
     return Number.isFinite(d.getTime()) && toIsoDate(d) === iso;
+  }
+
+  function earliestIsoDate(a, b) {
+    const left = normalizeDate(a);
+    const right = normalizeDate(b);
+    if (!left) return right;
+    if (!right) return left;
+    return left <= right ? left : right;
   }
 
   function toIsoDate(date) {
@@ -7668,8 +8252,65 @@
 
   function createPatientId(row) {
     const stable = cleanCell(row.patient_id || row.hospital_internal_id);
-    const fallback = [row.patient_name, row.servicio, row.cama, row.fecha_ingreso || row.fecha_censo].map(cleanCell).join("|");
+    const fallback = [normalizedPatientNameKey(row.patient_name), row.fecha_nacimiento || "", row.sexo || "", row.fecha_ingreso || row.fecha_censo].map(cleanCell).join("|");
     return `px_${hashText(stable || fallback)}`;
+  }
+
+  function resolveImportPatientId(row) {
+    const stable = cleanCell(row.patient_id || row.hospital_internal_id);
+    if (stable) {
+      const exact = Object.values(store.patients || {}).find(patient =>
+        cleanCell(patient.hospitalInternalId) === stable
+        || cleanCell(patient.pseudonymizedId) === stable
+        || cleanCell(patient.displayCode) === stable
+      );
+      return exact?.patientId || `px_${hashText(stable)}`;
+    }
+    const existing = findExistingPatientForImport(row);
+    if (existing) return existing.patientId;
+    return createPatientId(row);
+  }
+
+  function findExistingPatientForImport(row) {
+    const nameKey = normalizedPatientNameKey(row.patient_name);
+    if (!nameKey) return null;
+    const candidates = Object.values(store.patients || {}).filter(patient => normalizedPatientNameKey(patient.patientName) === nameKey);
+    if (!candidates.length) return null;
+    const active = candidates.find(patient => patient.hospitalizationStatus !== "egresado");
+    if (active) return active;
+    const sameAdmission = candidates.find(patient => normalizeDate(patient.admissionDate) && normalizeDate(patient.admissionDate) === normalizeDate(row.fecha_ingreso));
+    if (sameAdmission) return sameAdmission;
+    const sameDemographics = candidates.find(patient =>
+      (row.fecha_nacimiento && normalizeDate(patient.birthDate) === normalizeDate(row.fecha_nacimiento))
+      || (row.sexo && normalizeText(patient.sex) === normalizeText(row.sexo))
+    );
+    return sameDemographics || null;
+  }
+
+  function normalizedPatientNameKey(value) {
+    return normalizeText(value).replace(/[^A-Z0-9]+/g, " ").replace(/\b(DE|DEL|LA|LAS|LOS|Y)\b/g, "").replace(/\s+/g, " ").trim();
+  }
+
+  function mergeImportRows(previous, current) {
+    const merged = { ...previous };
+    Object.entries(current).forEach(([key, value]) => {
+      if (["diagnostico_actual", "dx_epidemiologico", "observaciones", "pendientes"].includes(key)) {
+        merged[key] = mergeClinicalText(merged[key], value);
+      } else if (!isBlankValue(value) || isBlankValue(merged[key])) {
+        merged[key] = value;
+      }
+    });
+    merged.servicio = current.servicio || previous.servicio;
+    merged.cama = current.cama || previous.cama;
+    return merged;
+  }
+
+  function mergeClinicalText(a, b) {
+    const parts = cleanCell(`${a || ""} / ${b || ""}`)
+      .split(/\s+\/\s+|\s*\|\s*|;\s*/)
+      .map(cleanCell)
+      .filter(Boolean);
+    return unique(parts).join(" / ");
   }
 
   function makeDisplayCode(patientId) {

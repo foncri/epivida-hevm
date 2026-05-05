@@ -7342,3 +7342,889 @@ body {
     flex: 1 1 160px;
   }
 }
+
+/* Functional repair 2026-05-04: speed, mobile density and bed boards. */
+.command-shell .iaas-panel,
+.command-shell .iaas-metric,
+.command-shell .round-card,
+.command-shell .device-card,
+.command-shell .device-draft,
+.command-shell .service-filter,
+.command-shell .import-panel,
+.command-shell .round-header,
+.command-shell .follow-hero,
+.command-shell .report-hero,
+.command-shell .census-hero-panel,
+.command-shell .census-table-panel,
+.command-shell .import-preview,
+.command-shell .patient-follow-card,
+.command-shell .empty-chart,
+.command-shell .timeline-row,
+.command-shell .bed-board,
+.command-shell .monitor-census-block {
+  backdrop-filter: none !important;
+  animation: none !important;
+  transition: border-color .12s ease, background .12s ease !important;
+  box-shadow: 0 8px 18px rgba(4, 14, 38, .16) !important;
+}
+
+.command-shell .iaas-panel:hover,
+.command-shell .iaas-metric:hover,
+.command-shell .round-card:hover,
+.command-shell .device-card:hover,
+.command-shell .patient-follow-card:hover {
+  transform: none !important;
+  box-shadow: 0 10px 20px rgba(4, 14, 38, .18) !important;
+}
+
+.command-shell .round-header::after,
+.command-shell .follow-hero::after,
+.command-shell .report-hero::after,
+.command-shell .import-panel::after,
+.command-shell .census-hero-panel::after,
+.command-dashboard::after,
+.iaas-sidebar::before,
+.command-shell .iaas-sidebar::before {
+  display: none !important;
+}
+
+.command-shell .iaas-nav a,
+.command-shell .iaas-nav a.active img,
+.command-dashboard,
+.command-feature-card,
+.command-module-card,
+.command-module-art img {
+  animation: none !important;
+}
+
+.command-shell .round-card,
+.command-shell .iaas-follow-card,
+.command-shell .device-card,
+.command-shell .device-draft,
+.command-shell .monitor-census-block,
+.command-shell .bed-board {
+  contain: layout paint;
+}
+
+.command-shell input,
+.command-shell select,
+.command-shell textarea,
+.command-shell .iaas-assessment-block .field input,
+.command-shell .iaas-assessment-block .field select,
+.command-shell .iaas-assessment-block .field textarea,
+.command-shell .iaas-repeat-row .field input,
+.command-shell .iaas-repeat-row .field select,
+.command-shell .iaas-repeat-row .field textarea {
+  color: #081633 !important;
+  -webkit-text-fill-color: #081633;
+  background: #ffffff !important;
+  border-color: rgba(96, 120, 170, .38) !important;
+}
+
+.command-shell input::placeholder,
+.command-shell textarea::placeholder,
+.command-shell .iaas-assessment-block .field input::placeholder,
+.command-shell .iaas-assessment-block .field textarea::placeholder {
+  color: #72809e !important;
+  -webkit-text-fill-color: #72809e;
+}
+
+.bed-board {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(175, 205, 255, .30);
+  border-radius: 18px;
+  background: rgba(248, 251, 255, .94);
+}
+
+.command-shell .bed-board {
+  color: #0c193d;
+  background: rgba(248, 251, 255, .96);
+}
+
+.bed-board-head,
+.bed-board-totals,
+.bed-board-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bed-board-head {
+  justify-content: space-between;
+}
+
+.bed-board h2 {
+  margin: 0;
+  color: #0c193d !important;
+  font-size: 20px;
+}
+
+.bed-board p {
+  margin: 4px 0 0;
+  color: #526078 !important;
+  font-size: 13px;
+}
+
+.bed-board-totals {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bed-board-totals span,
+.bed-board-totals strong,
+.bed-board-legend .legend {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid rgba(96, 120, 170, .22);
+  border-radius: 999px;
+  color: #0c193d;
+  background: #fff;
+}
+
+.bed-board-totals strong {
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, .30);
+  background: #fee2e2;
+}
+
+.bed-board-legend {
+  flex-wrap: wrap;
+}
+
+.bed-board-legend .legend::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.bed-board-legend .available { color: #22345f; }
+.bed-board-legend .vacant { color: #6b7280; }
+.bed-board-legend .reviewed { color: #047857; }
+.bed-board-legend .overdue { color: #dc2626; }
+
+.bed-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  gap: 8px;
+}
+
+.bed-tile {
+  min-width: 0;
+  min-height: 76px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 1px solid rgba(96, 120, 170, .25);
+  border-radius: 14px;
+  color: #0c193d;
+  text-align: center;
+  text-decoration: none;
+  background: #fff;
+}
+
+.bed-tile strong {
+  color: inherit !important;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.bed-tile span,
+.bed-tile small {
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bed-tile span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.bed-tile small {
+  opacity: .82;
+  font-size: 10px;
+}
+
+.bed-tile.available {
+  background: #ffffff;
+}
+
+.bed-tile.vacant,
+.bed-tile.locked {
+  cursor: not-allowed;
+  color: #f3f4f6;
+  border-color: rgba(75, 85, 99, .42);
+  background: #6b7280;
+}
+
+.bed-tile.locked {
+  background: #4b5563;
+}
+
+.bed-tile.reviewed {
+  color: #052e20;
+  border-color: rgba(4, 120, 87, .40);
+  background: #bbf7d0;
+}
+
+.bed-tile.overdue {
+  color: #fff;
+  border-color: rgba(185, 28, 28, .55);
+  background: #dc2626;
+}
+
+.monitor-census-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.monitor-census-switch button,
+.iaas-mobile-section-tabs button {
+  border: 1px solid rgba(175, 205, 255, .30);
+  border-radius: 16px;
+  color: #0c193d;
+  background: rgba(255,255,255,.94);
+}
+
+.monitor-census-switch button {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  padding: 12px;
+  font-weight: 900;
+}
+
+.monitor-census-switch button.active,
+.iaas-mobile-section-tabs button.active {
+  color: #fff;
+  border-color: rgba(34, 108, 255, .58);
+  background: #2457d6;
+}
+
+.monitor-census-switch strong,
+.monitor-census-switch span {
+  color: inherit !important;
+}
+
+.monitor-census-switch span {
+  font-size: 12px;
+  opacity: .86;
+}
+
+.iaas-mobile-section-tabs {
+  display: none;
+}
+
+.iaas-mobile-section {
+  min-width: 0;
+}
+
+@media screen and (min-width: 901px) {
+  .command-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .command-shell .iaas-sidebar {
+    position: sticky !important;
+    top: 0;
+    z-index: 90;
+    min-height: 0 !important;
+    height: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(150px, auto) minmax(0, 1fr) minmax(160px, auto);
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,.16);
+    border-radius: 0 !important;
+    background: #07152d !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,.24) !important;
+  }
+
+  .command-shell .iaas-brand {
+    min-height: 0 !important;
+    margin: 0 !important;
+  }
+
+  .command-shell .iaas-brand .ev-logo,
+  .command-shell .sidebar-logo {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .command-shell .iaas-brand strong {
+    font-size: 17px !important;
+  }
+
+  .command-shell .iaas-brand span {
+    display: none !important;
+  }
+
+  .command-shell .iaas-nav {
+    display: flex !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    padding: 2px 0 !important;
+    scrollbar-width: thin;
+  }
+
+  .command-shell .iaas-nav a {
+    min-width: 122px !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .command-shell .iaas-nav a:hover,
+  .command-shell .iaas-nav a:focus-visible {
+    transform: none !important;
+  }
+
+  .command-shell .iaas-nav a img {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .command-shell .iaas-nav strong {
+    font-size: 12px !important;
+    line-height: 1.15;
+  }
+
+  .command-shell .iaas-nav small,
+  .command-shell .iaas-sidebar-card {
+    display: none !important;
+  }
+
+  .command-sidebar-sync {
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .command-shell .iaas-main {
+    padding-top: 12px !important;
+  }
+}
+
+.command-shell .round-card,
+.command-shell .iaas-follow-card,
+.command-shell .patient-follow-card,
+.command-shell .monitor-census-block {
+  content-visibility: auto;
+  contain-intrinsic-size: 180px;
+}
+
+@media screen and (max-width: 760px) {
+  html,
+  body,
+  #app,
+  .iaas-shell,
+  .command-shell {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .command-shell {
+    font-size: 13px;
+  }
+
+  .command-shell .iaas-sidebar {
+    position: sticky !important;
+    top: 0;
+    z-index: 95;
+    min-height: 0 !important;
+    height: auto !important;
+    display: grid !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    border-radius: 0 !important;
+    background: #07152d !important;
+    box-shadow: 0 7px 16px rgba(0,0,0,.28) !important;
+  }
+
+  .command-shell .iaas-brand {
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .command-shell .iaas-brand .ev-logo,
+  .command-shell .sidebar-logo {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .command-shell .iaas-brand strong {
+    font-size: 16px !important;
+  }
+
+  .command-shell .iaas-brand span {
+    display: none !important;
+  }
+
+  .command-shell .iaas-nav {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    padding: 0 0 2px !important;
+  }
+
+  .command-shell .iaas-nav a {
+    min-width: 124px !important;
+    grid-template-columns: 22px minmax(0, 1fr) !important;
+    gap: 6px !important;
+    padding: 6px 7px !important;
+    border-radius: 11px !important;
+  }
+
+  .command-shell .iaas-nav a img {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .command-shell .iaas-nav strong {
+    font-size: 10.5px !important;
+    line-height: 1.1 !important;
+  }
+
+  .command-shell .iaas-nav small,
+  .command-shell .iaas-sidebar-card {
+    display: none !important;
+  }
+
+  .command-sidebar-sync {
+    min-height: 38px !important;
+    grid-template-columns: 28px minmax(0, 1fr) 8px !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  .command-sidebar-sync .sync-shield {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 10px !important;
+  }
+
+  .command-sidebar-sync strong {
+    font-size: 12px !important;
+  }
+
+  .command-sidebar-sync i {
+    width: 8px !important;
+    height: 8px !important;
+  }
+
+  .command-shell .iaas-topbar,
+  .command-topbar {
+    display: grid !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    border-radius: 14px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .command-shell .iaas-topbar > div:first-child strong,
+  .command-date-cluster strong {
+    font-size: 15px !important;
+    line-height: 1.1;
+  }
+
+  .command-shell .iaas-topbar-actions,
+  .command-actions {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .command-shell .iaas-topbar-actions .iaas-button,
+  .command-shell .iaas-topbar-actions .sync,
+  .command-actions .iaas-button,
+  .command-actions .sync {
+    flex: 1 1 110px !important;
+    width: auto !important;
+  }
+
+  .command-shell .iaas-main {
+    padding: 8px !important;
+  }
+
+  .command-shell .iaas-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    padding: 12px !important;
+    gap: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .command-shell h1,
+  .command-heading h1 {
+    font-size: 24px !important;
+    line-height: 1.05;
+  }
+
+  .command-shell h2,
+  .command-shell .iaas-panel h2 {
+    font-size: 18px !important;
+    line-height: 1.12;
+  }
+
+  .command-shell h3,
+  .command-shell .iaas-panel h3 {
+    font-size: 15px !important;
+    line-height: 1.15;
+  }
+
+  .command-shell p,
+  .command-shell small,
+  .command-shell .round-card-main span,
+  .command-shell .round-card-main small {
+    font-size: 12px !important;
+  }
+
+  .command-shell .iaas-panel,
+  .command-shell .round-card,
+  .command-shell .device-card,
+  .command-shell .device-draft,
+  .command-shell .service-filter,
+  .command-shell .import-panel,
+  .command-shell .round-header,
+  .command-shell .follow-hero,
+  .command-shell .report-hero,
+  .command-shell .bed-board {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .command-shell .iaas-button,
+  .command-shell .quick-device,
+  .command-shell button,
+  .command-shell .sync {
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .command-shell input,
+  .command-shell select,
+  .command-shell textarea {
+    min-height: 38px !important;
+    padding: 8px 9px !important;
+    font-size: 13px !important;
+  }
+
+  .command-shell .field {
+    gap: 5px !important;
+  }
+
+  .command-shell .patient-sticky-summary {
+    position: static !important;
+    display: grid !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  .command-shell .patient-sticky-summary h1 {
+    font-size: 22px !important;
+    line-height: 1.08 !important;
+  }
+
+  .command-shell .patient-sticky-summary p {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .command-shell .patient-sticky-summary .risk {
+    min-height: 28px !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    padding: 6px 12px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+  }
+
+  .command-shell .back-link {
+    font-size: 12px !important;
+  }
+
+  .command-shell .patient-round-modes {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .command-shell .round-mode-card {
+    min-height: 68px !important;
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .command-shell .round-mode-card img {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 12px !important;
+  }
+
+  .command-shell .round-mode-card span {
+    font-size: 13px !important;
+    line-height: 1.12 !important;
+  }
+
+  .command-shell .round-mode-card small {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .command-shell .round-save-bar {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    border-radius: 14px 14px 0 0 !important;
+    background: rgba(248, 251, 255, .96) !important;
+  }
+
+  .command-shell .round-save-bar .iaas-button {
+    width: 100% !important;
+    min-height: 36px !important;
+    padding: 7px 8px !important;
+    font-size: 11px !important;
+    line-height: 1.08 !important;
+    white-space: normal !important;
+  }
+
+  .command-shell .iaas-field-grid,
+  .command-shell .iaas-repeat-grid,
+  .command-shell .device-draft-grid,
+  .command-shell .monitor-filter-row,
+  .command-shell .monitor-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .bed-board-head,
+  .bed-board-totals {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bed-board {
+    width: calc(100vw - 44px);
+    max-width: calc(100vw - 44px);
+    overflow: hidden;
+  }
+
+  .bed-board p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .bed-board-legend {
+    width: calc(100vw - 76px);
+    max-width: calc(100vw - 76px);
+  }
+
+  .bed-board-grid {
+    width: calc(100vw - 76px);
+    max-width: calc(100vw - 76px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .bed-tile {
+    min-height: 62px;
+    border-radius: 11px;
+    padding: 6px 4px;
+  }
+
+  .bed-tile strong {
+    font-size: 15px;
+  }
+
+  .bed-tile span {
+    font-size: 9.5px;
+  }
+
+  .bed-tile small {
+    display: none;
+  }
+
+  .iaas-mobile-section-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    overflow-x: visible;
+    padding-bottom: 4px;
+  }
+
+  .iaas-mobile-section-tabs button {
+    flex: 1 1 calc(50% - 7px);
+    min-height: 36px !important;
+    padding: 8px 10px !important;
+    border-radius: 999px;
+    font-size: 11px !important;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .iaas-assessment-grid {
+    display: block !important;
+  }
+
+  .iaas-mobile-section {
+    display: none;
+  }
+
+  .iaas-mobile-section.mobile-active {
+    display: block;
+  }
+
+  .monitor-census-switch {
+    gap: 8px;
+  }
+
+  .monitor-census-switch button {
+    min-height: 58px;
+    padding: 9px;
+    border-radius: 13px;
+  }
+
+  .monitor-census-switch strong {
+    font-size: 12px;
+  }
+
+  .monitor-census-switch span {
+    font-size: 11px;
+  }
+}
+
+/* Final workflow repair 2026-05-05: faster typing, bed selectors and low-cost motion. */
+.command-shell,
+body:has(.command-shell),
+.command-shell .iaas-main {
+  animation: none !important;
+}
+
+.command-shell .iaas-sidebar,
+.command-shell .iaas-topbar,
+.command-topbar,
+.command-sidebar-sync,
+.command-shell .sync,
+.command-shell .iaas-button,
+.command-module-card,
+.command-module-meta span,
+.command-panel,
+.command-shell .iaas-panel {
+  backdrop-filter: none !important;
+}
+
+.command-shell .iaas-topbar::after,
+.command-topbar::after,
+.command-panel::after,
+.command-module-card::before,
+.command-module-art::before {
+  display: none !important;
+}
+
+.command-module-track {
+  transition: none !important;
+  will-change: auto !important;
+}
+
+.command-module-card {
+  background:
+    radial-gradient(circle at 84% 18%, rgba(34, 108, 255, .24), transparent 28%),
+    linear-gradient(115deg, #07152d, #12305f 58%, #172554) !important;
+}
+
+.command-module-art img {
+  filter: none !important;
+  transition: none !important;
+}
+
+.bed-board-picker {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.bed-board-picker span {
+  color: #31415f !important;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.bed-board-picker select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(96, 120, 170, .32);
+  border-radius: 12px;
+  padding: 8px 10px;
+  color: #081633 !important;
+  background: #fff !important;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.iaas-reasoning-detail {
+  flex: 1 0 100%;
+  display: block;
+  color: rgba(232, 241, 255, .78) !important;
+  font-size: 12px;
+  line-height: 1.28;
+}
+
+.census-row.search-hidden {
+  display: none !important;
+}
+
+.iaas-mobile-section-tabs button {
+  display: none;
+}
+
+@media screen and (max-width: 760px) {
+  .bed-board-picker {
+    max-width: 100%;
+  }
+
+  .bed-board-picker select {
+    min-height: 38px;
+    font-size: 12px;
+  }
+
+  .iaas-reasoning-detail {
+    font-size: 11px;
+  }
+
+  .iaas-mobile-section-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+  }
+}
