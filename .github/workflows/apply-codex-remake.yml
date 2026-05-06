@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply:
-    if: ${{ !contains(github.event.head_commit.message, 'Apply Codex remake patch') }}
+    if: ${{ !contains(github.event.head_commit.message, 'Remake preventive packages workflow') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,18 @@ jobs:
           const fs = require('fs');
           const zlib = require('zlib');
           const crypto = require('crypto');
-          const payloadB64 = fs.readFileSync('.codex-upload/remake-paquetes.patch.gz.b64', 'utf8').replace(/\s+/g, '');
+          const expectedPayloadSha = 'd8ac7b58ae2631d015e4a51aad44f8d861eabff7fbe63ce98c1de4f297294a48';
+          const hash = (text) => crypto.createHash('sha256').update(text).digest('hex');
+          const repairPayload = (raw) => {
+            const payload = raw.replace(/\s+/g, '');
+            if (hash(payload) === expectedPayloadSha) return payload;
+            for (let i = 0; i < payload.length; i += 1) {
+              const candidate = payload.slice(0, i) + payload.slice(i + 1);
+              if (hash(candidate) === expectedPayloadSha) return candidate;
+            }
+            throw new Error(`Payload checksum mismatch: ${hash(payload)} (${payload.length} chars)`);
+          };
+          const payloadB64 = repairPayload(fs.readFileSync('.codex-upload/remake-paquetes.patch.gz.b64', 'utf8'));
           const payload = JSON.parse(zlib.gunzipSync(Buffer.from(payloadB64, 'base64')).toString('utf8'));
           for (const patch of payload.patches) {
             const original = fs.readFileSync(patch.path, 'utf8');
