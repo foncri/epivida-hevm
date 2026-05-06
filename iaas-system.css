@@ -592,6 +592,28 @@
   min-width: 520px;
 }
 
+.iaas-table.import-census-table {
+  min-width: 1780px;
+}
+
+.iaas-table.import-census-table th,
+.iaas-table.import-census-table td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+.iaas-table.import-census-table th:nth-child(12),
+.iaas-table.import-census-table td:nth-child(12) {
+  min-width: 360px;
+}
+
+.iaas-table.import-census-table th:nth-child(13),
+.iaas-table.import-census-table td:nth-child(13),
+.iaas-table.import-census-table th:nth-child(14),
+.iaas-table.import-census-table td:nth-child(14) {
+  min-width: 240px;
+}
+
 .iaas-table th,
 .iaas-table td {
   border-bottom: 1px solid rgba(216, 223, 240, .92);
@@ -624,6 +646,11 @@
   gap: 8px;
 }
 
+.round-service-filter {
+  align-items: center;
+  padding: 10px;
+}
+
 .service-filter button {
   min-height: 36px;
   border-radius: 999px;
@@ -633,12 +660,17 @@
   background: #fff;
   font-weight: 900;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .service-filter button.active {
   color: #fff;
   border-color: transparent;
   background: linear-gradient(135deg, #4c5cff, #813eff);
+}
+
+.round-service-filter button.empty:not(.active) {
+  opacity: .62;
 }
 
 .round-header,
@@ -789,6 +821,59 @@
   font-size: 12px;
 }
 
+.compact-device-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  align-items: stretch;
+}
+
+.compact-device-card {
+  min-height: 190px;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 8px;
+  border-radius: 14px;
+}
+
+.compact-device-card.active {
+  border-color: rgba(239, 68, 68, .45);
+  background: #fff7f8;
+}
+
+.compact-device-card.removed {
+  border-color: rgba(14, 116, 184, .42);
+  background: #eff8ff;
+}
+
+.compact-device-card strong {
+  color: #dc2626;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.compact-device-card.removed strong {
+  color: #1976b9;
+}
+
+.compact-device-card em {
+  width: max-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #7f1d1d;
+  background: #fee2e2;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.compact-device-card.removed em {
+  color: #075985;
+  background: #dff2ff;
+}
+
+.compact-date {
+  margin-top: 4px;
+}
+
 .device-draft-head {
   display: flex;
   align-items: center;
@@ -819,6 +904,111 @@
   background: linear-gradient(180deg, #fff, #f8faff);
   cursor: pointer;
   font-weight: 900;
+}
+
+.package-selector-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.package-selector {
+  min-height: 56px;
+  background: linear-gradient(180deg, #fff, #edf5ff);
+}
+
+.package-drafts {
+  gap: 14px;
+}
+
+.package-draft {
+  display: grid;
+  gap: 14px;
+  border-radius: 16px;
+}
+
+.package-draft .device-draft-head span {
+  display: block;
+  color: #60709b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.package-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.button-group-field,
+.check-selector {
+  display: grid;
+  gap: 7px;
+}
+
+.button-group-field > span,
+.check-selector > span,
+.compliance-box span {
+  color: #24366f;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.button-chip-row,
+.button-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.button-chip-row button,
+.button-segment button {
+  min-height: 34px;
+  border: 1px solid rgba(204, 214, 235, .95);
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: #172660;
+  background: rgba(244, 248, 255, .92);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.button-chip-row button.selected,
+.button-segment button.active {
+  color: #0b1848;
+  border-color: rgba(255,255,255,.95);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(24, 50, 102, .16);
+}
+
+.preventive-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.check-selector {
+  padding: 10px;
+  border: 1px solid rgba(216, 223, 240, .8);
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.compliance-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(34, 108, 255, .20);
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(34,108,255,.08), rgba(45,212,191,.08));
+}
+
+.compliance-box strong {
+  color: #0b1848;
+  font-size: 22px;
+}
+
+.package-date-grid {
+  margin-top: 2px;
 }
 
 .round-save-bar {
@@ -972,6 +1162,71 @@
   font-size: 11px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.discharge-review-panel {
+  display: grid;
+  gap: 14px;
+  border-color: rgba(245, 158, 11, .55);
+  background: linear-gradient(180deg, rgba(255, 251, 235, .96), rgba(255, 255, 255, .92));
+}
+
+.discharge-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.discharge-review-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, .9fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 13px;
+  border: 1px solid rgba(245, 158, 11, .38);
+  border-radius: 16px;
+  background: rgba(255,255,255,.84);
+}
+
+.discharge-review-main,
+.discharge-review-fields label {
+  display: grid;
+  gap: 5px;
+}
+
+.discharge-review-main strong {
+  color: #10194a;
+  font-size: 14px;
+}
+
+.discharge-review-main span,
+.discharge-review-main small,
+.discharge-review-fields span {
+  color: #66759a;
+  font-size: 12px;
+}
+
+.discharge-review-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(132px, .8fr);
+  gap: 9px;
+}
+
+.discharge-review-fields select,
+.discharge-review-fields input {
+  min-height: 38px;
+  border: 1px solid rgba(204, 214, 235, .95);
+  border-radius: 12px;
+  padding: 8px 10px;
+  color: #172660;
+  background: #fff;
+  font-weight: 850;
+}
+
+.discharge-review-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .round-dot {
@@ -6460,13 +6715,11 @@ body {
     border: 1px solid rgba(255,255,255,.20);
     border-top: 0;
     border-radius: 0 0 28px 28px;
-    background:
-      linear-gradient(90deg, rgba(4, 16, 42, .96), rgba(21, 34, 94, .88) 43%, rgba(49, 34, 105, .76) 71%, rgba(236, 63, 145, .18)),
-      url("./assets/epivida-pro/backgrounds/extra-medical-hud-dashboard.webp") right top / cover no-repeat;
+    background: linear-gradient(90deg, rgba(4, 16, 42, .96), rgba(21, 34, 94, .88) 43%, rgba(49, 34, 105, .76) 71%, rgba(236, 63, 145, .18));
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.12),
       0 24px 60px rgba(0,0,0,.30);
-    animation: riseIn .7s cubic-bezier(.22, 1, .36, 1) both, dashboardAtmosphere 20s ease-in-out infinite alternate;
+    animation: riseIn .28s cubic-bezier(.22, 1, .36, 1) both;
   }
 
   .command-shell .iaas-panel,
@@ -7916,6 +8169,17 @@ body {
   .command-shell .bed-board {
     padding: 12px !important;
     border-radius: 14px !important;
+  }
+
+  .round-service-filter {
+    gap: 6px !important;
+  }
+
+  .round-service-filter button {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    line-height: 1.08;
+    white-space: normal;
   }
 
   .command-shell .iaas-button,

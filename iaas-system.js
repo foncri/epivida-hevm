@@ -189,6 +189,32 @@
     "URGENCIAS",
     "AMBULATORIO"
   ];
+  const ROUND_SERVICE_FILTERS = [
+    { value: "Todos", label: "TODOS" },
+    { value: "MEDICINA INTERNA", label: "MEDICINA INTERNA" },
+    { value: "CIRUGÍA Y TRAUMATOLOGÍA", label: "CIRUGÍA Y TRAUMATOLOGÍA" },
+    { value: "PEDIATRÍA", label: "PEDIATRÍA" },
+    { value: "CUNEROS", label: "CUNEROS" },
+    { value: "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", label: "UCIN" },
+    { value: "HEMODIÁLISIS", label: "HEMODIÁLISIS" },
+    { value: "ONCOLOGÍA", label: "ONCOLOGÍA" },
+    { value: "GINECOLOGÍA Y OBSTETRICIA", label: "GINECOLOGÍA Y OBSTETRICIA" },
+    { value: "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS", label: "UCIP" },
+    { value: "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", label: "UCIA" },
+    { value: "URGENCIAS", label: "URGENCIAS" },
+    { value: "AMBULATORIO", label: "AMBULATORIO" }
+  ];
+  const DISCHARGE_TYPES = [
+    "ALTA HOSPITALARIA POR MEJORÍA",
+    "ALTA HOSPITALARIA VOLUNTARIA",
+    "ALTA HOSPITALARIA POR MÁXIMO BENEFICIO",
+    "ALTA HOSPITALARIA POR TRASLADO",
+    "ALTA HOSPITALARIA NO AUTORIZADA",
+    "DEFUNCIÓN"
+  ];
+  const PROBABLE_DISCHARGE_MESSAGE = "REVISAR ALTA DEL PACIENTE Y SU PROBABLE CAUSA";
+  const REPORTED_DISCHARGE_MESSAGE = "VERIFICAR SI ESTÁ CORRECTA EL ALTA HOSPITALARIA DEL PACIENTE ENCONTRADO";
+  const PROTECTED_AMBULATORY_SERVICES = ["HEMODIÁLISIS", "ONCOLOGÍA"];
   const SECTOR_OPTIONS = [
     { value: "MAG", label: "MAGISTERIO", short: "MAG" },
     { value: "BUR", label: "BUROCRACIA", short: "BUR" },
@@ -274,6 +300,60 @@
     "Nutrición parenteral",
     "Otro"
   ];
+  const PREVENTIVE_PACKAGE_TYPES = ["ITS - CC", "ITU - CU", "NAVM", "ISQ", "P.E. Y P.B.M.T.", "ESPECIAL"];
+  const YES_NO_NA = ["SÍ", "NO", "NA"];
+  const FRENCH_OPTIONS = ["3 Fr", "4 Fr", "5 Fr", "6 Fr", "7 Fr", "8 Fr", "9 Fr", "10 Fr", "12 Fr", "14 Fr", "16 Fr", "18 Fr", "20 Fr", "22 Fr", "24 Fr"];
+  const ITS_DEVICE_TYPES = ["CVPC", "CVC", "PICC", "CATT HD", "C. PUERTO", "ONFALOCLISIS"];
+  const ITU_MATERIAL_TYPES = ["SILICÓN", "LÁTEX"];
+  const ITU_DEVICE_STATES = ["A DERIVACIÓN", "CIRCUITO CERRADO"];
+  const NAVM_DEVICE_TYPES = ["PUNTAS NASALES", "CÁNULA NASAL", "MASCARILLA RESERVORIO", "COT", "CET", "INTUBACIÓN OROTRAQUEAL", "INTUBACIÓN ENDOTRAQUEAL", "TRAQUEOSTOMÍA", "CPAP", "BPAP"];
+  const NAVM_ORAL_HYGIENE_TYPES = ["CLORHEXIDINA", "SALINA", "CEPILLO DENTAL"];
+  const SPECIAL_DEVICE_TYPES = ["SONDA NASOGÁSTRICA", "SONDA OROGÁSTRICA", "GASTROSTOMÍA", "COLOSTOMÍA", "DRENOVAC", "PLEUROVAC"];
+  const PREVENTIVE_CHECKS = {
+    "ITS - CC": [
+      ["dailyReview", "REGISTRO REVISIÓN DIARIA"],
+      ["asepticDressing", "CURACIÓN ASÉPTICA DE CATÉTER"],
+      ["correctOpening", "APERTURA CORRECTA EN CASO DE INTERRUMPIR CONEXIÓN"],
+      ["infusionSystemChange", "CAMBIO SISTEMA DE INFUSIÓN"],
+      ["evolutionNote", "NOTA DE EVOLUCIÓN VIGENTE"]
+    ],
+    "ITU - CU": [
+      ["hasLabel", "CON MEMBRETE"],
+      ["sexMatch", "DE ACUERDO A SEXO"],
+      ["genitalHygiene", "HIGIENE GENITAL"],
+      ["unobstructedDrainage", "DRENAJE SIN OBSTRUCCIÓN"],
+      ["correctBagLevel", "CORRECTO NIVEL BOLSA COLECTORA"],
+      ["closedSystem", "SISTEMA SIN DESCONEXIÓN"],
+      ["evolutionNote", "NOTA DE EVOLUCIÓN"],
+      ["urineCharacteristics", "REGISTRO CARACTERÍSTICAS DE LA ORINA"],
+      ["installationDaysRecord", "REGISTRO DÍAS DE INSTALACIÓN"]
+    ],
+    NAVM: [
+      ["asepticIntubation", "INTUBACIÓN ASÉPTICA"],
+      ["patientPosition", "POSICIÓN ADECUADA DEL PACIENTE"],
+      ["sedationInterruption", "REGISTRO DE POSIBLE INTERRUPCIÓN DE SEDACIÓN"],
+      ["possibleRemoval", "REGISTRO DE POSIBLE RETIRO VM"],
+      ["closedSuction", "ASPIRACIÓN DE SECRECIONES CON CIRCUITO CERRADO"],
+      ["oralHygiene", "HIGIENE ORAL"],
+      ["humidity", "HUMEDAD ACTIVA/PASIVA"]
+    ],
+    ISQ: [
+      ["preSurgicalProphylaxis", "PROFILAXIS PREQUIRÚRGICA ADECUADA"],
+      ["preSurgicalHairRemoval", "RASURADO ADECUADO PREQUIRÚRGICO"],
+      ["glucoseMonitoring", "MONITOREO GLUCÉMICO"],
+      ["temperature", "TEMPERATURA MAYOR A 35.5 °C"],
+      ["dressing", "HERIDA CON APÓSITO"]
+    ],
+    "P.E. Y P.B.M.T.": [
+      ["precautionAssignment", "ASIGNACIÓN MEDIDAS DE PRECAUCIÓN"],
+      ["precautionUpdate", "ACTUALIZACIÓN MEDIDAS DE PRECAUCIÓN"],
+      ["precautionRemoval", "RETIRO MEDIDAS DE PRECAUCIÓN"],
+      ["supplies", "INSUMOS"],
+      ["education", "EDUCACIÓN"],
+      ["congruentPrescription", "PRESCRIPCIÓN Y ACCIÓN CONGRUENTE"],
+      ["precautionCards", "TARJETAS DE PRECAUCIÓN ADECUADAS"]
+    ]
+  };
 
   const NON_IAAS_RISK_DEVICE_TYPES = new Set([
     "Catéter periférico",
@@ -421,21 +501,40 @@
   ];
 
   const REQUIRED_COLUMNS = [
-    "patient_id o paciente",
-    "fecha_censo",
-    "servicio/cama o servicio + cama",
+    "servicio",
+    "cama",
+    "paciente",
+    "fecha_nacimiento",
     "edad",
+    "sector",
+    "rfc",
     "sexo",
     "fecha_ingreso",
+    "deih",
     "estado",
-    "diagnostico_actual",
-    "dx_epidemiologico",
-    "observaciones"
+    "diagnosticos_hospitalarios",
+    "observaciones_y_pendientes"
+  ];
+
+  const IMPORT_REQUIRED_LABELS = [
+    "Servicio",
+    "Cama",
+    "Paciente",
+    "Fecha de nacimiento",
+    "Edad",
+    "Sector",
+    "RFC",
+    "Sexo",
+    "Ingreso",
+    "DEIH",
+    "Estado",
+    "Dx hospitalarios",
+    "Observaciones y pendientes"
   ];
 
   const COLUMN_ALIASES = {
     patient_id: ["patient_id", "paciente_id", "id_paciente", "expediente", "id", "folio", "registro", "n_expediente", "no_expediente", "numero_expediente", "nss"],
-    patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre", "nombre_completo", "nombre_y_apellidos", "paciente_nombre"],
+    patient_name: ["patient_name", "paciente", "nombre_paciente", "nombre del paciente", "nombre", "nombre_completo", "nombre_y_apellidos", "paciente_nombre"],
     rfc: ["rfc"],
     fecha_nacimiento: ["fecha_nacimiento", "nacimiento", "fecha_de_nacimiento"],
     fecha_censo: ["fecha_censo", "fecha", "censo_fecha", "fecha_del_censo", "dia_censo"],
@@ -445,14 +544,14 @@
     sector: ["sector", "derechohabiencia", "derecho_habiencia", "tipo_derechohabiente"],
     edad: ["edad"],
     sexo: ["sexo", "genero", "género"],
-    fecha_ingreso: ["fecha_ingreso", "ingreso", "f_ingreso", "fecha de ingreso", "fecha_ingreso_hospitalario"],
-    dx_epidemiologico: ["dx_epidemiologico", "dx_epidemiológico", "dx epidemiologico", "dx epidemiológico", "diagnostico_epidemiologico", "diagnóstico_epidemiológico", "clasificacion_epidemiologica", "clasificación_epidemiológica", "dx_epi", "clasificacion"],
+    fecha_ingreso: ["fecha_ingreso", "ingreso", "f_ingreso", "fecha ingreso", "fecha de ingreso", "fecha_ingreso_hospitalario"],
+    deih: ["deih", "d.e.i.h", "dias_estancia", "días_estancia", "dias de estancia", "días de estancia", "estancia"],
     estado: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clínico"],
-    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios", "diagnostico_hospitalario", "diagnóstico hospitalario", "padecimiento"],
+    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico actual", "diagnóstico actual", "diagnostico de ingreso", "diagnóstico de ingreso", "diagnostico ingreso", "diagnóstico ingreso", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios", "diagnostico_hospitalario", "diagnóstico hospitalario", "padecimiento"],
     pendientes: ["pendientes", "pendiente", "observaciones_pendientes"],
     hospital_internal_id: ["hospital_internal_id", "id_hospitalario", "registro", "n_expediente"],
     riesgo_iaas: ["riesgo_iaas", "riesgo", "clasificacion_iaas", "clasificación_iaas"],
-    observaciones: ["observaciones", "obs"],
+    observaciones: ["observaciones", "obs", "observaciones_pendientes", "observaciones y pendientes"],
     medico_tratante: ["medico_tratante", "médico_tratante", "medico", "médico"],
     piso: ["piso"],
     aislamiento: ["aislamiento"],
@@ -492,6 +591,9 @@
     dashboardSlidePausedUntil: 0,
     dashboardSlideTimer: null,
     renderTimer: null,
+    renderCache: null,
+    draftSaveTimer: null,
+    draftsDirty: false,
     calendarView: "week",
     calendarDate: "",
     calendarDraftDate: "",
@@ -550,6 +652,7 @@
     flashIaas("Sin conexión. Los cambios se guardarán localmente.");
     renderIaas();
   });
+  window.addEventListener("beforeunload", flushDraftSave);
 
   boot();
 
@@ -974,9 +1077,27 @@
       window.clearTimeout(ui.renderTimer);
       ui.renderTimer = null;
     }
-    recalculateRound(activeDate());
-    app.replaceChildren(renderShell());
-    restoreFocusedControl();
+    const date = activeDate();
+    const previousCache = ui.renderCache;
+    ui.renderCache = createRenderCache();
+    try {
+      recalculateRound(date);
+      app.replaceChildren(renderShell());
+      restoreFocusedControl();
+    } finally {
+      ui.renderCache = previousCache;
+    }
+  }
+
+  function createRenderCache() {
+    return {
+      deviceEpisodes: Object.values(store.deviceEpisodes || {}),
+      activeEpisodes: new Map(),
+      patientEpisodes: new Map(),
+      censusRows: new Map(),
+      censusDates: new Map(),
+      stats: new Map()
+    };
   }
 
   function scheduleRenderIaas(delay = 80) {
@@ -1186,6 +1307,7 @@
     if (page === "importar-censo") return renderImportPage();
     if (page === "ronda" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3], parts[4] || null);
     if (page === "ronda") return renderRoundPage(parts[1] || activeDate());
+    if (page === "seguimiento-iaas" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3], "iaas");
     if (page === "seguimiento-iaas") return renderIaasFollowUpHub();
     if (page === "pacientes" && parts[2] === "seguimiento") return renderPatientFollowUp(parts[1]);
     if (page === "reporte-diario") return renderReportsPage();
@@ -1479,7 +1601,8 @@
     const tags = epidemiologicalTagsForItem(item);
     const bases = epidemiologicalBasesForText(epiText);
     const dxHospital = patient.currentDiagnosis || row.diagnosis || "";
-    const observations = patient.observations || row.observations || row.notes || "";
+    const dischargeText = dischargePrintTextFor({ patient, row });
+    const observations = dischargeText || patient.observations || row.observations || row.notes || "";
     const inferredRiskDevices = inferredRiskDevicesForText(`${dxHospital} ${epiText} ${observations}`);
     return {
       ...item,
@@ -1501,7 +1624,12 @@
       inferredRiskDevices,
       hasEpidemiologicalTag: tags.length > 0 || bases.length > 0,
       rfc: patient.rfc || patient.hospitalInternalId || row.rfc || "",
-      birthDate: patient.birthDate || patient.fechaNacimiento || row.birthDate || ""
+      birthDate: patient.birthDate || patient.fechaNacimiento || row.birthDate || "",
+      dischargeType: patient.dischargeType || row.dischargeType || "",
+      dischargeDate: patient.dischargeDate || row.dischargeDate || "",
+      dischargeStatus: patient.dischargeStatus || row.dischargeStatus || "",
+      dischargePrintText: dischargeText,
+      importAlerts: row.importAlerts || []
     };
   }
 
@@ -1551,8 +1679,8 @@
     const sex = ui[`${prefix}Sex`];
     const diagnosis = ui[`${prefix}Diagnosis`];
     return items
-      .filter(item => service === "Todos" || normalizeText(item.service) === normalizeText(service))
-      .filter(item => sector === "Todos" || normalizeText(item.sector) === normalizeText(sector))
+      .filter(item => serviceMatchesFilter(item.service, service))
+      .filter(item => sector === "Todos" || sectorMatches(item.sector, sector))
       .filter(item => ageRange === "Todos" || ageRangeMatches(item.age, ageRange))
       .filter(item => sex === "Todos" || normalizeText(formatSex(item.sex)) === normalizeText(sex))
       .filter(item => diagnosis === "Todos" || item.epiBases.some(base => normalizeText(base) === normalizeText(diagnosis)))
@@ -2271,13 +2399,8 @@
   }
 
   function isIaasFollowUpCandidate(item, date) {
-    const patientId = item?.row?.patientId;
-    const epiText = item?.epiText || "";
-    if (iaasCountForText(epiText) > 0) return true;
-    if (normalizeText(epiText).includes("RIESGO IAAS")) return true;
-    if (patientId && hasIaasRiskFromDevices(patientId, date, item)) return true;
-    const entry = store.dailyRounds[date]?.entries?.[patientId] || {};
-    return (entry.alertsGenerated || []).some(alert => normalizeText(alert).includes("IAAS"));
+    const epiText = normalizeText(item?.epiText || "");
+    return epiText.includes("IAAS");
   }
 
   function deriveIaasReasoning(item, date, active) {
@@ -3171,11 +3294,11 @@
     const pendingValuations = rows.filter(item => !store.dailyRounds[date]?.entries?.[item.row.patientId]?.iaasAssessment).length;
     const cultures = rows.filter(item => normalizeText(`${item.patient.cultureStatus || item.row.cultureStatus || ""} ${item.patient.observations || item.row.observations || ""}`).includes("CULT")).length;
     return h("div", { class: "iaas-page follow-up-hub" }, [
-      renderBedBoard(getCensusRows(date).sort(sortByServiceBed), date, "iaas"),
+      renderBedBoard(rows.map(item => item.row).sort(sortByServiceBed), date, "iaas"),
       h("section", { class: "iaas-panel follow-hero" }, [
         h("div", {}, [
           h("h1", {}, ["Seguimiento IAAS"]),
-          h("p", {}, ["Seguimiento diario para pacientes con IAAS activa, riesgo IAAS por invasivos relevantes o infección que requiere descartar relación con la atención. La valoración integra invasivos, signos vitales, laboratorios, cultivos, tratamiento, bitácora diaria y gráfica de temperatura."])
+          h("p", {}, ["Seguimiento diario para pacientes con diagnóstico epidemiológico IAAS, Riesgo IAAS, No IAAS, IAAS importada o variantes relacionadas. La valoración integra invasivos, signos vitales, laboratorios, cultivos, tratamiento, bitácora diaria y gráfica de temperatura."])
         ]),
         h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" })
       ]),
@@ -3189,7 +3312,7 @@
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
             h("h2", {}, ["Pacientes IAAS para valoración"]),
-            h("p", {}, ["Se muestran pacientes con IAAS, riesgo IAAS por invasivos relevantes o alerta IAAS diaria. La revisión abre directamente la pestaña de valoración por IAAS."])
+            h("p", {}, ["Se muestran solo pacientes cuyo diagnóstico epidemiológico contiene IAAS. La revisión abre directamente su seguimiento clínico epidemiológico."])
           ]),
           h("a", { href: "#/censo-hospitalario" }, ["Ver vigilancia hospitalaria"])
         ]),
@@ -3234,7 +3357,7 @@
         h("div", { class: "iaas-follow-actions" }, [
           h("a", {
             class: "iaas-button primary",
-            href: `#/ronda/${date}/paciente/${item.row.patientId}/iaas`
+            href: `#/seguimiento-iaas/${date}/paciente/${item.row.patientId}`
           }, ["Revisar"]),
           h("a", { class: "iaas-button ghost", href: `#/pacientes/${item.row.patientId}/seguimiento` }, ["Historial"])
         ])
@@ -3371,6 +3494,7 @@
     const state = displayState(patient.currentState || row.state || patient.currentRiskLevel || "Sin estado");
     const service = row.service || patient.currentService || "Sin servicio";
     const epi = patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis || "Sin clasificar";
+    const dischargeText = dischargePrintTextFor({ patient, row });
     return h("tr", {
       class: `census-row ${stateClass(state)} ${epiClass(epi)}`,
       "data-census-row": "true",
@@ -3392,15 +3516,17 @@
       h("td", { "data-label": "Estado" }, [h("span", { class: `badge ${stateClass(state)}` }, [state])]),
       h("td", { "data-label": "Dx hospitalarios" }, [truncateText(patient.currentDiagnosis || row.diagnosis || "Sin diagnostico", 170)]),
       h("td", { "data-label": "Dx epidemiologico" }, [h("span", { class: `badge ${epiClass(epi)}` }, [truncateText(epi, 70)])]),
-      h("td", { "data-label": "Observaciones" }, [truncateText(patient.observations || row.observations || row.notes || "", 130)])
+      h("td", { "data-label": "Observaciones" }, [truncateText(dischargeText || patient.observations || row.observations || row.notes || "", 130)])
     ]);
   }
 
   function renderCensusServiceAtlas(rows) {
     const totals = new Map();
     rows.forEach(({ row, patient }) => {
-      const service = normalizeService(row.service || patient.currentService || "");
-      totals.set(service, (totals.get(service) || 0) + 1);
+      const parts = serviceParts(row.service || patient.currentService || "");
+      (parts.length ? parts : [normalizeService(row.service || patient.currentService || "")]).filter(Boolean).forEach(service => {
+        totals.set(service, (totals.get(service) || 0) + 1);
+      });
     });
     const activeRows = ui.censusService === "Todos" ? rows : rows.filter(censusServiceMatch);
     return h("section", { class: "service-atlas" }, [
@@ -3429,7 +3555,7 @@
 
   function censusServiceMatch(item) {
     if (ui.censusService === "Todos") return true;
-    return normalizeText(item.row.service || item.patient.currentService) === normalizeText(ui.censusService);
+    return serviceMatchesFilter(item.row.service || item.patient.currentService, ui.censusService);
   }
 
   function censusSearchMatch(item) {
@@ -3497,13 +3623,13 @@
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
             h("h1", {}, ["Base de Datos"]),
-            h("p", {}, ["Pega desde Excel/Google Sheets como ruta principal, o carga CSV/XLSX como respaldo. La importación valida, deduplica, concilia y luego guarda."])
+            h("p", {}, ["Pega desde Excel/Google Sheets como ruta principal, o carga CSV/XLSX como respaldo. La importación interpreta censos hospitalarios con columnas extra, valida, deduplica, concilia y luego guarda."])
           ]),
           h("span", { class: "badge" }, ["Sin IA pagada"])
         ]),
         h("div", { class: "import-recommendation" }, [
           h("strong", {}, ["Recomendado para mañana: copiar y pegar"]),
-          h("span", {}, ["Es el flujo más estable en móvil y escritorio: no depende del lector externo de XLSX y acepta el formato humano del censo con Servicio/Cama, Paciente, Dx hospitalario y Observaciones."])
+          h("span", {}, ["Es el flujo más estable en móvil y escritorio: acepta el formato humano del censo, ignora columnas administrativas y conserva Servicio, Cama, Paciente, nacimiento, edad, sector, RFC, sexo, ingreso, DEIH, estado, Dx hospitalarios y Observaciones/Pendientes."])
         ]),
         h("div", { class: "import-controls" }, [
           h("label", { class: "field" }, [
@@ -3519,7 +3645,7 @@
             h("span", {}, ["Pegar tabla del censo"]),
             h("textarea", {
               id: "import-text",
-              placeholder: "Servicio/Cama\tPaciente\tSector\tEdad\tSexo\tIngreso\tEstado\tDx hospitalario\tDx epidemiologico\tObservaciones",
+              placeholder: "Pega aquí el censo completo del hospital, incluso si trae encabezados, guardias, hora, médico, pendientes o columnas extra.",
               oninput: event => { ui.importText = event.target.value; }
             }, [ui.importText])
           ]),
@@ -3541,14 +3667,30 @@
 
   function renderImportHelp() {
     return h("section", { class: "import-help" }, [
-      h("h3", {}, ["Columnas requeridas"]),
-      h("div", { class: "chip-row" }, REQUIRED_COLUMNS.map(col => h("span", { class: "chip" }, [col]))),
-      h("p", {}, ["También acepta variantes como expediente, folio, dx, ingreso, área, departamento, observaciones_pendientes. Los pacientes ausentes no se eliminan: se marcan para conciliación."])
+      h("h3", {}, ["Campos que intenta reconocer"]),
+      h("div", { class: "chip-row" }, IMPORT_REQUIRED_LABELS.map(col => h("span", { class: "chip" }, [col]))),
+      h("p", {}, ["También acepta censos sin encabezados limpios: lee el servicio desde el título, limpia abreviaturas de cama, expande sector/sexo y deja pendientes cuando falte algún dato. El Dx epidemiológico no se importa porque pertenece al seguimiento de epidemiología."])
     ]);
   }
 
   function renderImportPreview(draft) {
     const s = draft.summary;
+    const columns = [
+      ["Servicio", row => row.servicio || "PENDIENTE"],
+      ["Cama", row => row.cama || "PENDIENTE"],
+      ["Paciente", row => row.patient_name || row.patient_id || "PENDIENTE"],
+      ["Fecha nacimiento", row => formatDisplayDate(row.fecha_nacimiento) || "PENDIENTE"],
+      ["Edad", row => row.edad ?? "PENDIENTE"],
+      ["Sector", row => row.sector || "PENDIENTE"],
+      ["RFC", row => row.rfc || "PENDIENTE"],
+      ["Sexo", row => row.sexo || "PENDIENTE"],
+      ["Ingreso", row => formatDisplayDate(row.fecha_ingreso) || (isAmbulatoryStayService(row.servicio) ? "AMB" : "PENDIENTE")],
+      ["DEIH", row => row.deih ?? (isAmbulatoryStayService(row.servicio) ? "NA" : "PENDIENTE")],
+      ["Estado", row => row.estado || "PENDIENTE"],
+      ["Dx hospitalarios", row => truncateText(row.diagnostico_actual || "PENDIENTE", 120)],
+      ["Observaciones y pendientes", row => row.observaciones || "SP"],
+      ["Errores/avisos", row => [...(row.__errors || []), ...(row.__warnings || [])].join(" | ")]
+    ];
     return h("section", { class: "import-preview" }, [
       renderMetricGrid([
         ["Total filas", s.totalRows, "Leídas"],
@@ -3558,7 +3700,9 @@
         ["Nuevos", s.newPatients, "Crear pacientes"],
         ["Actualizados", s.updatedPatients, "Sin duplicar"],
         ["Duplicados", s.duplicates, "Omitidos"],
-        ["Conflictos", s.conflicts, "Requiere resolución"]
+        ["Conflictos", s.conflicts, "Requiere resolución"],
+        ["Altas probables", s.probableDischarges || 0, "Verificar"],
+        ["Altas reportadas", s.reportedDischarges || 0, "Pendientes"]
       ], "compact"),
       h("div", { class: "import-preview-actions" }, [
         h("button", { class: "iaas-button ghost", onclick: downloadImportErrors }, ["Descargar errores de importación"]),
@@ -3566,16 +3710,10 @@
       ]),
       renderImportIssues(draft),
       h("div", { class: "table-wrap" }, [
-        h("table", { class: "iaas-table" }, [
-          h("thead", {}, [h("tr", {}, ["Estado", "Paciente/ID", "Servicio", "Cama", "Ingreso", "Dx", "Errores/avisos"].map(label => h("th", {}, [label])))]),
+        h("table", { class: "iaas-table import-census-table" }, [
+          h("thead", {}, [h("tr", {}, columns.map(([label]) => h("th", {}, [label])))]),
           h("tbody", {}, draft.rows.slice(0, 30).map(row => h("tr", { class: row.errors.length ? "has-error" : row.warnings.length ? "has-warning" : "" }, [
-            h("td", {}, [row.errors.length ? "Error" : row.warnings.length ? "Advertencia" : "Válida"]),
-            h("td", {}, [row.normalized.patient_name || row.normalized.patient_id || ""]),
-            h("td", {}, [row.normalized.servicio || ""]),
-            h("td", {}, [row.normalized.cama || ""]),
-            h("td", {}, [row.normalized.fecha_ingreso || ""]),
-            h("td", {}, [truncateText(row.normalized.diagnostico_actual || "", 90)]),
-            h("td", {}, [[...row.errors, ...row.warnings].join(" | ")])
+            ...columns.map(([, valueFor]) => h("td", {}, [valueFor({ ...row.normalized, __errors: row.errors, __warnings: row.warnings })]))
           ])))
         ])
       ])
@@ -3584,12 +3722,14 @@
 
   function renderImportIssues(draft) {
     const missing = draft.reconciliationMissing || [];
-    if (!draft.conflicts.length && !missing.length) {
+    const reported = draft.reportedDischarges || [];
+    const automatic = draft.automaticDischarges || [];
+    if (!draft.conflicts.length && !missing.length && !reported.length && !automatic.length) {
       return h("div", { class: "notice ok" }, ["Sin conflictos críticos."]);
     }
     return h("div", { class: "notice warn" }, [
       h("strong", {}, ["Revisión necesaria"]),
-      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Pacientes activos ausentes del censo importado: ${missing.length}.`])
+      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Altas probables por ausencia: ${missing.length}. Altas encontradas en pendientes: ${reported.length}. Altas automáticas del día anterior: ${automatic.length}.`])
     ]);
   }
 
@@ -3597,9 +3737,10 @@
     ensureDailyRound(date);
     const round = store.dailyRounds[date];
     const rows = getCensusRows(date);
-    const services = ["Todos", ...SERVICES.filter(service => rows.some(row => row.service === service))];
+    const serviceValues = new Set(ROUND_SERVICE_FILTERS.map(filter => filter.value));
+    if (!serviceValues.has(ui.selectedService)) ui.selectedService = "Todos";
     const filtered = rows
-      .filter(row => ui.selectedService === "Todos" || row.service === ui.selectedService)
+      .filter(row => serviceMatchesFilter(row.service, ui.selectedService))
       .sort(sortByServiceBed);
     const stats = computeStats(date);
     return h("div", { class: "iaas-page round-page" }, [
@@ -3613,6 +3754,7 @@
           h("button", { class: "iaas-button", onclick: () => closeRound(date) }, ["Cerrar ronda"])
         ])
       ]),
+      renderRoundServiceFilters(rows),
       renderBedBoard(filtered, date, "preventive"),
       renderPreventivePackagePanel(stats, rows, date),
       renderMetricGrid([
@@ -3623,12 +3765,91 @@
         ["Alertas", stats.activeAlerts, "Alerta IAAS"],
         ["Sync pendiente", pendingQueue().length, "Pendiente de sincronizar"]
       ], "compact"),
-      h("section", { class: "service-filter" }, services.map(service =>
-        h("button", { class: ui.selectedService === service ? "active" : "", onclick: () => { ui.selectedService = service; renderIaas(); } }, [service])
-      )),
       renderRoundWorklistSummary(rows, filtered, stats, date),
+      renderDischargeReviewPanel(date),
       h("section", { class: "round-list" }, filtered.map(row => renderRoundCard(row, date)))
     ]);
+  }
+
+  function renderRoundServiceFilters(rows) {
+    const counts = rows.reduce((map, row) => {
+      const parts = serviceParts(row.service);
+      (parts.length ? parts : [normalizeService(row.service)]).filter(Boolean).forEach(service => {
+        map.set(service, (map.get(service) || 0) + 1);
+      });
+      return map;
+    }, new Map());
+    return h("section", { class: "service-filter round-service-filter", "aria-label": "Filtrar camas por servicio" }, ROUND_SERVICE_FILTERS.map(filter => {
+      const active = ui.selectedService === filter.value;
+      const count = filter.value === "Todos" ? rows.length : counts.get(filter.value) || 0;
+      return h("button", {
+        class: `${active ? "active" : ""}${count ? "" : " empty"}`.trim(),
+        type: "button",
+        title: `${filter.value === "Todos" ? "Todos los servicios" : filter.value}: ${count} cama(s)`,
+        "aria-pressed": active ? "true" : "false",
+        onclick: () => {
+          ui.selectedService = filter.value;
+          renderIaas();
+        }
+      }, [filter.label]);
+    }));
+  }
+
+  function renderDischargeReviewPanel(date) {
+    const rows = getCensusRows(date)
+      .filter(row => {
+        const patient = store.patients[row.patientId] || {};
+        return row.dischargeReviewRequired
+          || row.probableDischarge
+          || row.dischargeReported
+          || ["alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus);
+      })
+      .sort(sortByServiceBed);
+    if (!rows.length) return "";
+    return h("section", { class: "iaas-panel discharge-review-panel" }, [
+      h("div", { class: "panel-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Altas por verificar"]),
+          h("p", {}, ["Pacientes ausentes, reportados con alta o encontrados en otro servicio."])
+        ]),
+        h("span", { class: "badge warn" }, [`${rows.length} pendiente(s)`])
+      ]),
+      h("div", { class: "discharge-review-list" }, rows.map(row => renderDischargeReviewCard(row, date)))
+    ]);
+  }
+
+  function renderDischargeReviewCard(row, date) {
+    const patient = store.patients[row.patientId] || {};
+    const alerts = mergeUnique(row.importAlerts || [], patient.activePendingIssues || [])
+      .filter(item => [PROBABLE_DISCHARGE_MESSAGE, REPORTED_DISCHARGE_MESSAGE].includes(item) || normalizeText(item).includes("MOVIDO") || normalizeText(item).includes("ALTA"));
+    const safeId = safeDomId(row.patientId);
+    const selectedType = patient.dischargeType || row.dischargeType || DISCHARGE_TYPES[0];
+    const selectedDate = normalizeDate(patient.dischargeDate || row.dischargeDate) || date;
+    return h("article", { class: "discharge-review-card" }, [
+      h("div", { class: "discharge-review-main" }, [
+        h("strong", {}, [patientLabel(patient, row).toUpperCase()]),
+        h("span", {}, [`${row.service || patient.currentService || "SIN SERVICIO"} · cama ${row.bed || patient.currentBed || "S/C"}`]),
+        h("small", {}, [alerts.length ? alerts.join(" | ") : "Revisar situación actual del paciente."])
+      ]),
+      h("div", { class: "discharge-review-fields" }, [
+        h("label", {}, [
+          h("span", {}, ["Tipo de alta"]),
+          h("select", { id: `discharge-type-${safeId}` }, DISCHARGE_TYPES.map(type => option(type, type, normalizeText(type) === normalizeText(selectedType))))
+        ]),
+        h("label", {}, [
+          h("span", {}, ["Fecha de alta"]),
+          h("input", { id: `discharge-date-${safeId}`, type: "date", value: selectedDate })
+        ])
+      ]),
+      h("div", { class: "discharge-review-actions" }, [
+        h("button", { class: "iaas-button primary", onclick: () => confirmHospitalDischarge(date, row.patientId) }, ["Confirmar alta"]),
+        h("button", { class: "iaas-button ghost", onclick: () => markPatientStillHospitalized(date, row.patientId) }, ["Sigue hospitalizado"])
+      ])
+    ]);
+  }
+
+  function safeDomId(value) {
+    return String(value || "").replace(/[^a-zA-Z0-9_-]+/g, "-");
   }
 
   function renderPreventivePackagePanel(stats, rows, date) {
@@ -3760,7 +3981,7 @@
   }
 
   function bedTileHref(date, patientId, mode) {
-    return mode === "iaas" ? `#/ronda/${date}/paciente/${patientId}/iaas` : `#/ronda/${date}/paciente/${patientId}`;
+    return mode === "iaas" ? `#/seguimiento-iaas/${date}/paciente/${patientId}` : `#/ronda/${date}/paciente/${patientId}`;
   }
 
   function bedBoardItems(rows, date, mode) {
@@ -3910,17 +4131,17 @@
     const draft = getReviewDraft(date, patientId, section);
     const active = activeEpisodes(patientId, date);
     const stay = isAmbulatoryStayService(patient.currentService) ? "Ambulatorio" : `${daysBetween(patient.admissionDate, date) ?? "NA"} días`;
+    const backHref = section === "iaas" ? "#/seguimiento-iaas" : `#/ronda/${date}`;
     return h("div", { class: "iaas-page patient-round" }, [
       h("section", { class: "iaas-panel patient-sticky-summary" }, [
         h("div", {}, [
-          h("a", { href: draft.activeRoundSection === "iaas" ? "#/seguimiento-iaas" : `#/ronda/${date}`, class: "back-link" }, ["Volver al servicio"]),
+          h("a", { href: backHref, class: "back-link" }, ["Volver al servicio"]),
           h("h1", {}, [`Cama ${patient.currentBed} · ${patientLabel(patient)}`]),
           h("p", {}, [`${patient.currentService} · Estancia: ${stay}`])
         ]),
         h("span", { class: `risk ${riskClass(patient.currentRiskLevel)}` }, [patient.currentRiskLevel || "Sin riesgo"])
       ]),
-      renderRoundModeTiles(date, patientId, draft),
-      ...(draft.activeRoundSection === "iaas"
+      ...(section === "iaas"
         ? [renderIaasAssessmentPanel(date, patientId, patient, active, draft)]
         : renderPreventiveReviewSections(date, patientId, patient, active, draft)),
       h("div", { class: "round-save-bar" }, [
@@ -3932,59 +4153,32 @@
     ]);
   }
 
-  function renderRoundModeTiles(date, patientId, draft) {
-    return h("section", { class: "patient-round-modes" }, [
-      h("button", {
-        class: `round-mode-card ${draft.activeRoundSection === "preventive" ? "active" : ""}`,
-        type: "button",
-        onclick: () => setRoundPatientSection(date, patientId, "preventive")
-      }, [
-        h("img", { src: `${PRO_ASSET}/icons/icon-seguridad.webp`, alt: "", loading: "lazy" }),
-        h("span", {}, ["REVISIÓN PAQUETES PREVENTIVOS"]),
-        h("small", {}, ["Ronda de invasivos y paquetes"])
-      ]),
-      h("button", {
-        class: `round-mode-card iaas-mode ${draft.activeRoundSection === "iaas" ? "active" : ""}`,
-        type: "button",
-        onclick: () => setRoundPatientSection(date, patientId, "iaas")
-      }, [
-        h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_microscope_with_virus_and_heartbeat.webp`, alt: "", loading: "lazy" }),
-        h("span", {}, ["VALORACIÓN POR IAAS"]),
-        h("small", {}, ["Registro clínico epidemiológico diario"])
-      ])
-    ]);
-  }
-
-  function setRoundPatientSection(date, patientId, activeRoundSection) {
-    updateDraft(date, patientId, { activeRoundSection });
-    const target = activeRoundSection === "iaas"
-      ? `#/ronda/${date}/paciente/${patientId}/iaas`
-      : `#/ronda/${date}/paciente/${patientId}`;
-    if (location.hash !== target) {
-      location.hash = target;
-    } else {
-      renderIaas();
-    }
-  }
-
   function renderPreventiveReviewSections(date, patientId, patient, active, draft) {
+    const deviceCards = preventiveDeviceCards(active, draft, date);
+    const hasAnyInvasive = active.length > 0 || (draft.deviceDrafts || []).some(packageCreatesDevice);
     return [
       h("section", { class: "iaas-panel" }, [
-        h("h2", {}, ["Resumen del paciente"]),
-        h("p", {}, [patient.currentDiagnosis || "Sin diagnóstico registrado."]),
-        patient.activePendingIssues?.length ? h("div", { class: "pending-list" }, patient.activePendingIssues.map(issue => h("span", {}, [issue]))) : h("p", { class: "muted" }, ["Sin pendientes activos registrados."])
+        h("div", { class: "iaas-panel-head compact" }, [
+          h("div", {}, [
+            h("h2", {}, ["Dispositivos invasivos actuales"]),
+            h("p", {}, ["Vista compacta para revisar tipo, French, instalación, retiro y días de invasivo."])
+          ]),
+          hasAnyInvasive ? h("span", { class: "badge device" }, [`${active.length} registrado(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos"])
+        ]),
+        deviceCards.length ? h("div", { class: "device-list compact-device-grid" }, deviceCards.map(ep => renderActiveDevice(ep, draft, date))) : h("p", { class: "muted" }, ["No hay invasivos activos capturados."]),
+        !hasAnyInvasive ? h("button", { class: draft.noInvasivesConfirmed ? "iaas-button primary" : "iaas-button", onclick: () => toggleNoInvasives(date, patientId) }, [draft.noInvasivesConfirmed ? "Sin invasivos confirmado" : "Confirmar sin invasivos"]) : ""
       ]),
       h("section", { class: "iaas-panel" }, [
-        h("h2", {}, ["Dispositivos invasivos actuales"]),
-        active.length ? h("div", { class: "device-list" }, active.map(ep => renderActiveDevice(ep, draft))) : h("p", { class: "muted" }, ["No hay invasivos activos capturados."]),
-        h("button", { class: draft.noInvasivesConfirmed ? "iaas-button primary" : "iaas-button", onclick: () => toggleNoInvasives(date, patientId) }, ["Sin invasivos"])
-      ]),
-      h("section", { class: "iaas-panel" }, [
-        h("h2", {}, ["Agregar dispositivo"]),
-        h("div", { class: "quick-device-grid" }, DEVICE_TYPES.map(type =>
-          h("button", { class: "quick-device", onclick: () => addDeviceDraft(date, patientId, type) }, [`+ ${type}`])
+        h("div", { class: "iaas-panel-head compact" }, [
+          h("div", {}, [
+            h("h2", {}, ["Agregar paquete preventivo"]),
+            h("p", {}, ["Selecciona el paquete y captura solo los criterios necesarios para enfermería."])
+          ])
+        ]),
+        h("div", { class: "quick-device-grid package-selector-grid" }, PREVENTIVE_PACKAGE_TYPES.map(type =>
+          h("button", { class: "quick-device package-selector", onclick: () => addDeviceDraft(date, patientId, type) }, [type])
         )),
-        draft.deviceDrafts?.length ? h("div", { class: "device-drafts" }, draft.deviceDrafts.map((device, index) => renderDeviceDraft(date, patientId, device, index))) : ""
+        draft.deviceDrafts?.length ? h("div", { class: "device-drafts package-drafts" }, draft.deviceDrafts.map((device, index) => renderDeviceDraft(date, patientId, device, index))) : ""
       ]),
       h("section", { class: "iaas-panel" }, [
         h("h2", {}, ["Pendientes y observaciones"]),
@@ -4000,6 +4194,77 @@
     ];
   }
 
+  function preventiveDeviceCards(active, draft, date) {
+    const removalDrafts = draft.removals || {};
+    return [...active].sort((a, b) => {
+      const aRemoved = Boolean(removalDrafts[a.episodeId] || a.removalDate);
+      const bRemoved = Boolean(removalDrafts[b.episodeId] || b.removalDate);
+      if (aRemoved !== bRemoved) return aRemoved ? 1 : -1;
+      return invasiveDays(b, date, removalDrafts[b.episodeId]) - invasiveDays(a, date, removalDrafts[a.episodeId])
+        || String(a.deviceType || "").localeCompare(String(b.deviceType || ""), "es");
+    });
+  }
+
+  function invasiveDays(ep, date, draftRemoval = "") {
+    const end = normalizeDate(draftRemoval) || normalizeDate(ep.removalDate) || normalizeDate(date) || isoToday();
+    return daysBetween(ep.installationDate, end) ?? 0;
+  }
+
+  function packageCreatesDevice(device) {
+    const type = typeof device === "string" ? device : device?.packageType;
+    return !["ISQ", "P.E. Y P.B.M.T."].includes(type);
+  }
+
+  function defaultPreventiveDevice(packageType) {
+    return {
+      packageType,
+      createsDevice: packageCreatesDevice(packageType),
+      deviceType: packageType === "ITS - CC" ? "CVPC"
+        : packageType === "ITU - CU" ? "Sonda Foley"
+          : packageType === "NAVM" ? "PUNTAS NASALES"
+            : packageType === "ESPECIAL" ? "SONDA NASOGÁSTRICA"
+              : packageType,
+      deviceSubtype: "",
+      material: packageType === "ITU - CU" ? "SILICÓN" : "",
+      deviceState: packageType === "ITU - CU" ? "CIRCUITO CERRADO" : "",
+      french: "",
+      installationDate: packageCreatesDevice(packageType) ? "" : "",
+      removalDate: "",
+      preventiveChecks: {},
+      oralHygieneMethod: "",
+      observations: "",
+      notes: ""
+    };
+  }
+
+  function preventiveCompliance(checks = {}) {
+    const values = Object.values(checks).map(normalizeText).filter(value => value === "SÍ" || value === "SI" || value === "NO");
+    if (!values.length) return "";
+    const yes = values.filter(value => value === "SÍ" || value === "SI").length;
+    return `${Math.round((yes / values.length) * 100)}%`;
+  }
+
+  function deviceDisplayName(device = {}) {
+    return [device.deviceType, device.deviceSubtype].map(cleanCell).filter(Boolean).join(" · ") || device.packageType || "Dispositivo";
+  }
+
+  function packageReviewSummary(device = {}) {
+    const checks = PREVENTIVE_CHECKS[device.packageType] || [];
+    return {
+      packageType: device.packageType || "",
+      deviceType: deviceDisplayName(device),
+      material: device.material || "",
+      deviceState: device.deviceState || "",
+      french: device.french || "",
+      installationDate: device.installationDate || "",
+      removalDate: device.removalDate || "",
+      preventiveChecks: device.preventiveChecks || {},
+      compliance: preventiveCompliance(device.preventiveChecks || {}),
+      observations: device.observations || "",
+      reviewedFields: checks.map(([key, label]) => ({ key, label, value: device.preventiveChecks?.[key] || "" }))
+    };
+  }
+
   function renderIaasAssessmentPanel(date, patientId, patient, active, draft) {
     const assessment = normalizeIaasAssessment(draft.iaasAssessment);
     const limited = isLimitedIaasAssessmentService(patient.currentService);
@@ -4013,7 +4278,7 @@
     return h("section", { class: "iaas-panel iaas-assessment-panel" }, [
       h("div", { class: "iaas-panel-head" }, [
         h("div", {}, [
-          h("h2", {}, ["Valoración por IAAS"]),
+          h("h2", {}, ["Seguimiento clínico IAAS"]),
           h("p", {}, [limited
             ? "Paciente de servicio ambulatorio: se limita a invasivos, signos vitales, panel viral, cultivos y tratamiento."
             : "Registro diario de signos vitales, laboratorio, orina, cultivos, tratamiento y evolución."])
@@ -4675,60 +4940,130 @@
     return unique(signals);
   }
 
-  function renderActiveDevice(ep, draft) {
-    return h("article", { class: "device-card" }, [
-      h("div", {}, [
-        h("strong", {}, [ep.deviceType]),
-        h("span", {}, [`Instalación: ${ep.installationDate || "Datos incompletos"}`]),
-        ep.dressingCurrent === false ? h("span", { class: "badge alert" }, ["Curación pendiente"]) : ""
-      ]),
-      h("label", { class: "field inline" }, [
+  function renderActiveDevice(ep, draft, date) {
+    const removalDraft = draft.removals?.[ep.episodeId] || "";
+    const removed = Boolean(removalDraft || ep.removalDate);
+    const endDate = removalDraft || ep.removalDate || "";
+    const days = invasiveDays(ep, date, removalDraft);
+    return h("article", { class: `device-card compact-device-card ${removed ? "removed" : "active"}` }, [
+      h("strong", {}, [deviceDisplayName(ep)]),
+      h("span", {}, [`French: ${ep.french || ep.deviceFrench || "S/D"}`]),
+      h("span", {}, [`Instalación: ${formatDisplayDate(ep.installationDate) || "S/D"}`]),
+      h("span", {}, [`Retiro: ${formatDisplayDate(endDate) || "Activo"}`]),
+      h("em", {}, [`${days} día${days === 1 ? "" : "s"}`]),
+      h("label", { class: "field compact-date" }, [
         h("span", {}, ["Fecha de retiro"]),
         h("input", {
           type: "date",
-          value: draft.removals?.[ep.episodeId] || "",
-          oninput: event => updateRemovalDraft(draft, ep.episodeId, event.target.value)
+          value: removalDraft || normalizeDate(ep.removalDate) || "",
+          oninput: event => updateRemovalDraft(draft, ep.episodeId, event.target.value),
+          onchange: () => renderIaas()
         })
       ])
     ]);
   }
 
   function renderDeviceDraft(date, patientId, device, index) {
-    const update = patch => {
-      const draft = getReviewDraft(date, patientId);
-      draft.deviceDrafts[index] = { ...draft.deviceDrafts[index], ...patch };
-      setReviewDraft(date, patientId, draft);
-      renderIaas();
-    };
-    return h("article", { class: "device-draft" }, [
+    const update = (patch, rerender = true) => updateDeviceDraft(date, patientId, index, patch, rerender);
+    const packageType = device.packageType || device.deviceType;
+    const checks = PREVENTIVE_CHECKS[packageType] || [];
+    return h("article", { class: `device-draft package-draft ${riskClass(packageType)}` }, [
       h("div", { class: "device-draft-head" }, [
-        h("strong", {}, [device.deviceType]),
+        h("div", {}, [
+          h("strong", {}, [packageType]),
+          h("span", {}, [packageCreatesDevice(device) ? "Registro de invasivo y paquete preventivo" : "Registro de paquete preventivo"])
+        ]),
         h("button", { class: "icon-text", onclick: () => removeDeviceDraft(date, patientId, index) }, ["Quitar"])
       ]),
-      h("div", { class: "form-grid compact" }, [
-        h("label", { class: "field" }, [h("span", {}, ["Fecha instalación"]), h("input", { type: "date", value: device.installationDate || "", oninput: event => update({ installationDate: event.target.value }) })]),
-        h("label", { class: "field" }, [h("span", {}, ["Sitio anatómico"]), h("input", { value: device.anatomicalSite || "", oninput: event => update({ anatomicalSite: event.target.value }) })]),
-        h("label", { class: "field" }, [h("span", {}, ["Curación vigente"]), h("select", { onchange: event => update({ dressingCurrent: parseNullableBoolean(event.target.value) }) }, [
-          option("", "No valorado", device.dressingCurrent === null || device.dressingCurrent === undefined),
-          option("true", "Sí", device.dressingCurrent === true),
-          option("false", "No", device.dressingCurrent === false)
-        ])]),
-        h("label", { class: "field" }, [h("span", {}, ["Fecha curación"]), h("input", { type: "date", value: device.dressingDate || "", oninput: event => update({ dressingDate: event.target.value }) })]),
-        h("label", { class: "field" }, [h("span", {}, ["Cuidado"]), h("select", { onchange: event => update({ careStatus: event.target.value || null }) }, [
-          option("", "No valorado", !device.careStatus),
-          option("adecuado", "Adecuado", device.careStatus === "adecuado"),
-          option("inadecuado", "Inadecuado", device.careStatus === "inadecuado")
-        ])]),
-        h("label", { class: "field" }, [h("span", {}, ["Signos de infección"]), h("select", { onchange: event => update({ infectionSigns: parseNullableBoolean(event.target.value) }) }, [
-          option("", "No valorado", device.infectionSigns === null || device.infectionSigns === undefined),
-          option("true", "Sí", device.infectionSigns === true),
-          option("false", "No", device.infectionSigns === false)
-        ])])
-      ]),
-      device.infectionSigns ? h("label", { class: "field" }, [
-        h("span", {}, ["Descripción de signos"]),
-        h("input", { value: device.infectionSignsDescription || "", oninput: event => update({ infectionSignsDescription: event.target.value }) })
+      renderPackageSpecificFields(date, patientId, device, index),
+      checks.length ? h("div", { class: "preventive-check-grid" }, checks.map(([key, label]) =>
+        renderCheckSelector(label, device.preventiveChecks?.[key], value => update({ preventiveChecks: { ...(device.preventiveChecks || {}), [key]: value } }))
+      )) : "",
+      packageType === "NAVM" ? renderButtonGroup("Método higiene oral", NAVM_ORAL_HYGIENE_TYPES, device.oralHygieneMethod, value => update({ oralHygieneMethod: value })) : "",
+      checks.length ? h("div", { class: "compliance-box" }, [
+        h("span", {}, ["% cumplimiento"]),
+        h("strong", {}, [preventiveCompliance(device.preventiveChecks || {}) || "Pendiente"])
+      ]) : "",
+      h("label", { class: "field full" }, [
+        h("span", {}, ["Observaciones"]),
+        h("textarea", { value: device.observations || "", oninput: event => update({ observations: event.target.value }, false) })
+      ])
+    ]);
+  }
+
+  function renderPackageSpecificFields(date, patientId, device, index) {
+    const update = (patch, rerender = true) => updateDeviceDraft(date, patientId, index, patch, rerender);
+    const type = device.packageType || "";
+    if (type === "ITS - CC") {
+      return h("div", { class: "package-fields" }, [
+        renderButtonGroup("Tipo de invasivo", ITS_DEVICE_TYPES, device.deviceType, value => update({ deviceType: value, deviceSubtype: value === "CATT HD" ? device.deviceSubtype : "" })),
+        device.deviceType === "CATT HD" ? renderButtonGroup("Tipo CATT HD", ["PERMACATH", "MAHURKAR"], device.deviceSubtype, value => update({ deviceSubtype: value })) : "",
+        renderButtonGroup("French", FRENCH_OPTIONS, device.french, value => update({ french: value })),
+        renderPackageDates(device, update, true)
+      ]);
+    }
+    if (type === "ITU - CU") {
+      return h("div", { class: "package-fields" }, [
+        renderButtonGroup("Tipo de material", ITU_MATERIAL_TYPES, device.material, value => update({ material: value })),
+        renderButtonGroup("Estado", ITU_DEVICE_STATES, device.deviceState, value => update({ deviceState: value })),
+        renderButtonGroup("French", FRENCH_OPTIONS, device.french, value => update({ french: value })),
+        renderPackageDates(device, update, true)
+      ]);
+    }
+    if (type === "NAVM") {
+      return h("div", { class: "package-fields" }, [
+        renderButtonGroup("Tipo de dispositivo", NAVM_DEVICE_TYPES, device.deviceType, value => update({ deviceType: value })),
+        renderButtonGroup("French", FRENCH_OPTIONS, device.french, value => update({ french: value })),
+        renderPackageDates(device, update, true)
+      ]);
+    }
+    if (type === "ESPECIAL") {
+      return h("div", { class: "package-fields" }, [
+        renderButtonGroup("Invasivo especial", SPECIAL_DEVICE_TYPES, device.deviceType, value => update({ deviceType: value })),
+        renderPackageDates(device, update, true)
+      ]);
+    }
+    return h("div", { class: "package-fields" }, [
+      renderPackageDates(device, update, false)
+    ]);
+  }
+
+  function renderPackageDates(device, update, showInstallation) {
+    return h("div", { class: "form-grid compact package-date-grid" }, [
+      showInstallation ? h("label", { class: "field" }, [
+        h("span", {}, ["Fecha de instalación"]),
+        h("input", { type: "date", value: normalizeDate(device.installationDate) || "", oninput: event => update({ installationDate: event.target.value }, false) })
+      ]) : "",
+      showInstallation ? h("label", { class: "field" }, [
+        h("span", {}, ["Fecha de retiro"]),
+        h("input", { type: "date", value: normalizeDate(device.removalDate) || "", oninput: event => update({ removalDate: event.target.value }, false) })
       ]) : ""
+    ]);
+  }
+
+  function renderCheckSelector(label, value, onSelect) {
+    return h("div", { class: "check-selector" }, [
+      h("span", {}, [label]),
+      h("div", { class: "button-segment" }, YES_NO_NA.map(item =>
+        h("button", {
+          type: "button",
+          class: normalizeText(value) === normalizeText(item) ? "active" : "",
+          onclick: () => onSelect(item)
+        }, [item])
+      ))
+    ]);
+  }
+
+  function renderButtonGroup(label, values, value, onSelect) {
+    return h("div", { class: "button-group-field" }, [
+      h("span", {}, [label]),
+      h("div", { class: "button-chip-row" }, values.map(item =>
+        h("button", {
+          type: "button",
+          class: normalizeText(value) === normalizeText(item) ? "selected" : "",
+          onclick: () => onSelect(item)
+        }, [item])
+      ))
     ]);
   }
 
@@ -4940,7 +5275,7 @@
 
   function renderReconciliationPanel() {
     const rows = Object.values(store.patients)
-      .filter(patient => patient.hospitalizationStatus === "requiere_conciliación")
+      .filter(patient => ["requiere_conciliación", "alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus))
       .slice(0, 12);
     if (!rows.length) return h("p", { class: "muted" }, ["No hay pacientes pendientes de conciliación."]);
     return h("div", { class: "reconciliation-list" }, rows.map(patient =>
@@ -5027,7 +5362,7 @@
     ui.importProgress = "Validando...";
     renderIaas();
     await waitFrame();
-    const parsedRows = parseDelimitedText(text);
+    const parsedRows = parseDelimitedText(text, date);
     ui.importDraft = buildImportDraft(parsedRows, date);
     ui.importProgress = "";
     renderIaas();
@@ -5042,12 +5377,12 @@
     renderIaas();
     try {
       if (/\.xlsx$/i.test(file.name)) {
-        const rows = await parseXlsx(file);
+        const rows = await parseXlsx(file, date);
         ui.importDraft = buildImportDraft(rows, date);
       } else if (/\.(csv|txt|tsv)$/i.test(file.name)) {
         const text = await file.text();
         ui.importText = text;
-        ui.importDraft = buildImportDraft(parseDelimitedText(text), date);
+        ui.importDraft = buildImportDraft(parseDelimitedText(text, date), date);
       } else {
         flashIaas("Tipo de archivo no soportado.");
       }
@@ -5059,20 +5394,21 @@
     }
   }
 
-  async function parseXlsx(file) {
+  async function parseXlsx(file, fallbackDate = "") {
     await loadSheetJs();
     const buffer = await file.arrayBuffer();
     const workbook = window.XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
-    return rowsFromMatrix(matrix);
+    return rowsFromMatrix(matrix, fallbackDate);
   }
 
-  function rowsFromMatrix(matrix) {
+  function rowsFromMatrix(matrix, fallbackDate = "") {
     const rows = (matrix || []).filter(row => Array.isArray(row) && row.some(cell => cleanCell(cell)));
     if (!rows.length) return [];
     const headerIndex = rows.findIndex(row => looksLikeImportHeader(row.map(cleanCell)));
-    if (headerIndex < 0) return rowsFromHeaderlessMatrix(rows);
+    const hasHospitalLayout = rows.some(row => looksLikeHospitalCensusHeader(row.map(cleanCell)));
+    if (headerIndex < 0 || hasHospitalLayout) return rowsFromHeaderlessMatrix(rows, fallbackDate);
     const startIndex = headerIndex;
     const headers = rows[startIndex].map(header => cleanCell(header));
     return rows.slice(startIndex + 1).map(cells => {
@@ -5082,19 +5418,25 @@
     });
   }
 
-  function rowsFromHeaderlessMatrix(matrix) {
+  function rowsFromHeaderlessMatrix(matrix, fallbackDate = "") {
     const out = [];
     let currentService = "";
+    let currentDate = normalizeDate(fallbackDate) || "";
     (matrix || []).forEach((sourceRow, index) => {
       const cells = sourceRow.map(cleanCell);
       const nonEmpty = cells.filter(Boolean);
       if (!nonEmpty.length) return;
+      const serviceInRow = serviceFromHospitalHeader(cells);
+      const dateInRow = censusDateFromRow(cells);
+      if (serviceInRow) currentService = serviceInRow;
+      if (dateInRow && !normalizeDate(fallbackDate)) currentDate = dateInRow;
+      if (isHospitalCensusGuideRow(cells)) return;
       const singleService = nonEmpty.length <= 2 ? knownServiceFromText(nonEmpty.join(" ")) : "";
       if (singleService && !looksLikeBedCell(nonEmpty[0]) && !looksLikePatientNameCell(nonEmpty[0])) {
         currentService = singleService;
         return;
       }
-      const row = headerlessRowToObject(cells, currentService);
+      const row = headerlessRowToObject(cells, currentService, currentDate);
       if (row) {
         row.__source_row = String(index + 1);
         out.push(row);
@@ -5103,20 +5445,30 @@
     return out;
   }
 
-  function headerlessRowToObject(cells, currentService = "") {
+  function headerlessRowToObject(cells, currentService = "", currentDate = "") {
     const values = cells.map(cleanCell);
     const nonEmpty = values.filter(Boolean);
-    if (nonEmpty.length < 2) return null;
-    const serviceIndex = values.findIndex(value => knownServiceFromText(value));
-    const bedIndex = values.findIndex(looksLikeBedCell);
-    const patientIndex = values.findIndex((value, index) => looksLikePatientNameCell(value) && index !== serviceIndex && index !== bedIndex);
-    const service = serviceIndex >= 0 ? knownServiceFromText(values[serviceIndex]) : currentService;
+    if (nonEmpty.length < 2 || isHospitalCensusGuideRow(values)) return null;
+    const serviceBedIndex = values.findIndex(value => {
+      if (normalizeDate(value)) return false;
+      const item = splitServiceBed(value);
+      return Boolean(item.bed && knownServiceFromText(item.service));
+    });
+    const serviceIndex = values.findIndex((value, index) => {
+      const key = normalizeText(value);
+      return /\bSERVICIO\b/.test(key) || (index <= 1 && knownServiceFromText(value) && !looksLikeBedCell(value));
+    });
+    const explicitBedIndex = values.findIndex(looksLikeBedCell);
+    const bedIndex = explicitBedIndex >= 0 ? explicitBedIndex : serviceBedIndex;
+    const patientIndex = findPatientNameIndex(values, bedIndex, serviceIndex);
+    const serviceBed = serviceBedIndex >= 0 ? splitServiceBed(values[serviceBedIndex]) : { service: "", bed: "" };
+    const service = (serviceIndex >= 0 ? knownServiceFromText(values[serviceIndex]) : "") || knownServiceFromText(serviceBed.service) || serviceFromBedCell(values[bedIndex]) || currentService;
     if (patientIndex < 0 && bedIndex < 0) return null;
 
     const row = {};
     const first = nonEmpty[0] || "";
     const second = nonEmpty[1] || "";
-    if (knownServiceFromText(first) && looksLikeBedCell(second)) {
+    if (knownServiceFromText(first) && looksLikeBedCell(second) && patientIndex < 0) {
       row.Servicio = knownServiceFromText(first);
       row.Cama = second;
       row.Paciente = nonEmpty[2] || "";
@@ -5126,11 +5478,10 @@
       row.Ingreso = nonEmpty[6] || "";
       row.Estado = nonEmpty[7] || "";
       row["Dx hospitalario"] = nonEmpty[8] || "";
-      row["Dx epidemiologico"] = nonEmpty[9] || "";
-      row.Observaciones = nonEmpty.slice(10).join(" / ");
+      row.Observaciones = nonEmpty.slice(9).join(" / ");
       return row;
     }
-    if (knownServiceFromText(first) || splitServiceBed(first).bed) {
+    if ((knownServiceFromText(first) || splitServiceBed(first).bed) && patientIndex < 0) {
       const serviceBed = splitServiceBed(first);
       row["Servicio/Cama"] = serviceBed.bed ? first : `${knownServiceFromText(first) || first} / ${second}`;
       row.Paciente = serviceBed.bed ? second : nonEmpty[2] || "";
@@ -5140,28 +5491,188 @@
       row.Ingreso = serviceBed.bed ? nonEmpty[5] || "" : nonEmpty[6] || "";
       row.Estado = serviceBed.bed ? nonEmpty[6] || "" : nonEmpty[7] || "";
       row["Dx hospitalario"] = serviceBed.bed ? nonEmpty[7] || "" : nonEmpty[8] || "";
-      row["Dx epidemiologico"] = serviceBed.bed ? nonEmpty[8] || "" : nonEmpty[9] || "";
-      row.Observaciones = (serviceBed.bed ? nonEmpty.slice(9) : nonEmpty.slice(10)).join(" / ");
+      row.Observaciones = (serviceBed.bed ? nonEmpty.slice(8) : nonEmpty.slice(9)).join(" / ");
       return row;
     }
     if (patientIndex >= 0) {
+      const entries = values.map((value, index) => ({ value, index })).filter(item => item.value);
+      const rfc = entries.find(item => looksLikeRfcCell(item.value));
+      const sex = entries.find(item => looksLikeSexCell(item.value));
+      const dates = entries
+        .map(item => ({ ...item, iso: normalizeDate(item.value) }))
+        .filter(item => item.iso);
+      const birth = selectBirthDate(dates, currentDate);
+      const admission = selectAdmissionDate(dates, birth, currentDate);
+      const age = selectAgeValue(entries, birth, currentDate, sex?.index);
+      const sector = entries.find(item => looksLikeSectorCell(item.value));
+      const state = entries.find(item => looksLikeStateCell(item.value));
+      const observations = entries
+        .filter(item => isObservationCandidate(item.value, item.index, values.length))
+        .map(item => normalizeObservationText(item.value));
+      const observationIndexes = observations
+        .map(text => values.findIndex(value => normalizeObservationText(value) === text))
+        .filter(index => index >= 0);
+      const used = new Set([
+        serviceIndex,
+        bedIndex,
+        patientIndex,
+        rfc?.index,
+        sex?.index,
+        birth?.index,
+        admission?.index,
+        age?.index,
+        sector?.index,
+        state?.index,
+        ...observationIndexes
+      ].filter(index => index >= 0));
+      const diagnosisParts = entries
+        .filter(item => !used.has(item.index))
+        .filter(item => isHospitalDiagnosisCandidate(item.value))
+        .map(item => item.value);
+      row.Fecha_censo = currentDate || "";
       row.Servicio = service;
-      row.Cama = bedIndex >= 0 ? values[bedIndex] : "";
+      row.Cama = serviceBed.bed || (bedIndex >= 0 ? values[bedIndex] : "");
       row.Paciente = values[patientIndex];
-      const used = new Set([serviceIndex, bedIndex, patientIndex].filter(index => index >= 0));
-      const rest = values.map((value, index) => used.has(index) ? "" : value).filter(Boolean);
-      row.Sector = rest.find(value => /^[A-Z]{2,8}$/.test(normalizeText(value))) || "";
-      row.Edad = rest.find(value => /^\d{1,3}(\s*AÑOS?)?$/i.test(value)) || "";
-      row.Sexo = rest.find(value => ["M", "F", "MASCULINO", "FEMENINO"].includes(normalizeText(value))) || "";
-      row.Ingreso = rest.find(value => normalizeDate(value) || ["AMB", "NA"].includes(normalizeText(value))) || "";
-      row.Estado = rest.find(value => STATE_OPTIONS.some(option => normalizeText(option) === normalizeText(value))) || "";
-      const diagnosisParts = rest.filter(value => ![row.Sector, row.Edad, row.Sexo, row.Ingreso, row.Estado].includes(value));
-      row["Dx hospitalario"] = diagnosisParts[0] || "";
-      row["Dx epidemiologico"] = diagnosisParts.find(value => epidemiologicalBasesForText(value).length || iaasCountForText(value) > 0) || "";
-      row.Observaciones = diagnosisParts.slice(row["Dx epidemiologico"] ? 1 : 1).join(" / ");
+      row.RFC = rfc?.value || "";
+      row["Fecha nacimiento"] = birth?.iso || "";
+      row.Sector = sector?.value || "";
+      row.Edad = age?.value || "";
+      row.Sexo = sex?.value || "";
+      row.Ingreso = admission?.iso || "";
+      row.Estado = state?.value || "";
+      row["Dx hospitalario"] = unique(diagnosisParts).join(" / ");
+      row.Observaciones = unique(observations).join(" / ");
       return row;
     }
     return null;
+  }
+
+  function looksLikeHospitalCensusHeader(cells) {
+    const text = normalizeText((cells || []).map(cleanCell).filter(Boolean).join(" "));
+    if (!text) return false;
+    const hasPatientHeader = /\bNOMBRE\b.*\bPACIENTE\b/.test(text);
+    const hasHospitalMarkers = /\bSERVICIO\s*:|\bGUARDIA\b|\bHORA\b|\bFECHA\s+INGRESO\b|\bESPECIALIDAD\b|\bMEDICO\b|\bPENDIENTES\b|\bE\s*C\s*D\b/.test(text);
+    return hasPatientHeader && hasHospitalMarkers;
+  }
+
+  function isHospitalCensusGuideRow(cells) {
+    const values = (cells || []).map(cleanCell).filter(Boolean);
+    if (!values.length) return true;
+    const text = normalizeText(values.join(" "));
+    if (looksLikeHospitalCensusHeader(values)) return true;
+    if (/\b(NOMBRE\s+DEL\s+PACIENTE|FECHA\s+INGRESO|GUARDIA|ESPECIALIDAD|MEDICO|PENDIENTES|E\s*C\s*D|RESUMENES|RESÚMENES|INGRESOS|GRAVES)\b/.test(text)) return true;
+    if (/\.(DOCX?|XLSX?|PDF|CSV|TXT)\b/.test(text)) return true;
+    if (values.length <= 3 && values.some(value => knownServiceFromText(value)) && !values.some(looksLikePatientNameCell)) return true;
+    return false;
+  }
+
+  function serviceFromHospitalHeader(cells) {
+    const values = (cells || []).map(cleanCell).filter(Boolean);
+    const explicit = values.find(value => /\bSERVICIO\b/i.test(value) && knownServiceFromText(value));
+    if (explicit) return knownServiceFromText(explicit);
+    if (looksLikeHospitalCensusHeader(values)) {
+      return knownServiceFromText(values.join(" "));
+    }
+    if (values.length <= 3) return knownServiceFromText(values.join(" "));
+    return "";
+  }
+
+  function censusDateFromRow(cells) {
+    const values = (cells || []).map(cleanCell).filter(Boolean);
+    if (!values.some(value => /\b(SERVICIO|CENSO|FECHA)\b/i.test(value))) return "";
+    return values.map(normalizeDate).find(Boolean) || "";
+  }
+
+  function findPatientNameIndex(values, bedIndex, serviceIndex) {
+    const blocked = new Set([bedIndex, serviceIndex].filter(index => index >= 0));
+    const start = bedIndex >= 0 ? bedIndex + 1 : 0;
+    const afterBed = values.findIndex((value, index) => index >= start && !blocked.has(index) && looksLikePatientNameCell(value));
+    if (afterBed >= 0) return afterBed;
+    return values.findIndex((value, index) => !blocked.has(index) && looksLikePatientNameCell(value));
+  }
+
+  function looksLikeRfcCell(value) {
+    const text = normalizeText(value).replace(/\s+/g, "");
+    return /^[A-ZÑ&]{3,5}\d{6}-?[A-Z0-9]{1,4}$/.test(text);
+  }
+
+  function looksLikeSexCell(value) {
+    return ["M", "F", "MASCULINO", "FEMENINO", "HOMBRE", "MUJER"].includes(normalizeText(value));
+  }
+
+  function looksLikeSectorCell(value) {
+    return Boolean(normalizeSectorImport(value));
+  }
+
+  function looksLikeStateCell(value) {
+    const key = normalizeText(value);
+    return STATE_OPTIONS.some(option => normalizeText(option) === key)
+      || ["ESTABLE", "DELICADO", "GRAVE", "CRITICO", "CRÍTICO"].includes(key);
+  }
+
+  function selectBirthDate(dates, censusDate) {
+    if (!dates.length) return null;
+    const censusYear = Number((normalizeDate(censusDate) || isoToday()).slice(0, 4));
+    const likelyBirth = dates.find(item => Number(item.iso.slice(0, 4)) <= censusYear - 1);
+    return likelyBirth || (dates.length > 1 ? dates[0] : null);
+  }
+
+  function selectAdmissionDate(dates, birth, censusDate) {
+    if (!dates.length) return null;
+    const census = normalizeDate(censusDate) || isoToday();
+    const candidates = dates.filter(item => item.index !== birth?.index);
+    return candidates.find(item => item.iso <= census) || candidates[0] || null;
+  }
+
+  function selectAgeValue(entries, birth, censusDate, sexIndex) {
+    const candidates = entries
+      .map(item => ({ ...item, value: normalizeImportAge(item.value) }))
+      .filter(item => item.value !== "");
+    if (!candidates.length && birth?.iso) {
+      const years = ageFromBirthDate(birth.iso, censusDate);
+      return years === null ? null : { value: years, index: -1 };
+    }
+    const nearBirth = birth ? candidates.find(item => item.index > birth.index && item.index <= birth.index + 3) : null;
+    if (nearBirth) return nearBirth;
+    const beforeSex = Number.isFinite(sexIndex) ? candidates.filter(item => item.index < sexIndex).at(-1) : null;
+    return beforeSex || candidates[0] || null;
+  }
+
+  function isObservationCandidate(value, index, totalCells) {
+    const text = normalizeText(value);
+    if (!text || looksLikeRfcCell(value) || looksLikeSexCell(value) || looksLikeSectorCell(value) || normalizeDate(value)) return false;
+    if (/^(DR|DRA|DR\.|DRA\.)\b/.test(text) || isSpecialtyOnlyCell(text)) return false;
+    if (/^(SP|S\/P|S P|NA|N\/A|PENDIENTE)$/.test(text)) return true;
+    if (/\b(CITA|PROGRAMAR|VALORACION|VALORACIÓN|LABORATORIO|PENDIENTE|VIGILAR|PROCEDIMIENTO|CONSULTA|ARCO EN C|PREALTA|GUARDIA|CIRUGIA\s+MA[NÑ]ANA)\b/.test(text)) return true;
+    return index >= Math.max(0, totalCells - 3) && text.length <= 80 && !isHospitalDiagnosisCandidate(value);
+  }
+
+  function normalizeObservationText(value) {
+    const text = cleanCell(value);
+    return /^S\s*\/?\s*P$/i.test(text) ? "SP" : text.toUpperCase();
+  }
+
+  function isHospitalDiagnosisCandidate(value) {
+    const text = cleanCell(value);
+    const key = normalizeText(text);
+    if (!text || text.length < 3) return false;
+    if (knownServiceFromText(text) || looksLikeBedCell(text) || looksLikeRfcCell(text) || looksLikeSexCell(text) || looksLikeSectorCell(text) || looksLikeStateCell(text) || normalizeDate(text)) return false;
+    if (/^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}$/.test(text)) return false;
+    if (isLocationOnlyCell(key) || /^(AMERITA|NO AMERITA)$/.test(key)) return false;
+    if (isSpecialtyOnlyCell(key)) return false;
+    if (/\b(DR|DRA|MEDICO|GUARDIA|CITA|PROGRAMAR|PENDIENTE|PREALTA)\b/.test(key)) return false;
+    return /[A-ZÁÉÍÓÚÑ]{3,}/i.test(text);
+  }
+
+  function isSpecialtyOnlyCell(value) {
+    const key = normalizeText(value);
+    return /^(CX|TYO|ORL|MED|PED|GYO|GO|MI|UCIA|UCIN|UCIP|OTORRINO|TRAUMA|URO|NEURO|CARDIO|ONCO|GINECO|CIRUGIA|CIRUGÍA)$/.test(key);
+  }
+
+  function isLocationOnlyCell(value) {
+    const key = normalizeText(value).replace(/\s+/g, " ").trim();
+    return /^(TUXTLA|TUXTLA GUTIERREZ|SAN CRISTOBAL|JIQUIPILAS|VILLA CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA DE CORZO|CHIAPAS)$/.test(key)
+      || /^[A-ZÁÉÍÓÚÑ ]+,\s*CHIAPAS$/.test(key);
   }
 
   function loadSheetJs() {
@@ -5178,7 +5689,7 @@
   function buildImportDraft(rawRows, fallbackDate) {
     const rows = rawRows.map((raw, index) => normalizeImportRow(raw, index, fallbackDate));
     const validRows = rows.filter(row => !row.errors.length);
-    const plan = buildImportPlan(validRows.map(row => row.normalized), fallbackDate);
+    const plan = buildImportPlanV2(validRows.map(row => row.normalized), fallbackDate);
     const summary = {
       totalRows: rows.length,
       validRows: validRows.length,
@@ -5187,37 +5698,58 @@
       newPatients: plan.newPatients.length,
       updatedPatients: plan.updatedPatients.length,
       duplicates: plan.duplicates.length,
-      conflicts: plan.conflicts.length
+      conflicts: plan.conflicts.length,
+      probableDischarges: plan.reconciliationMissing.length,
+      automaticDischarges: (plan.automaticDischarges || []).length,
+      reportedDischarges: plan.rows.filter(row => row.dischargeReported).length,
+      existingDuplicates: (plan.duplicateExisting || []).length
     };
-    return { rows, plan, summary, conflicts: plan.conflicts, reconciliationMissing: plan.reconciliationMissing };
+    return { rows, plan, summary, conflicts: plan.conflicts, reconciliationMissing: plan.reconciliationMissing, automaticDischarges: plan.automaticDischarges || [], reportedDischarges: plan.rows.filter(row => row.dischargeReported) };
   }
 
   function normalizeImportRow(raw, index, fallbackDate) {
     const mapped = {};
     Object.entries(raw).forEach(([key, value]) => {
       const canonical = canonicalColumn(key);
-      if (canonical) mapped[canonical] = cleanCell(value);
+      if (!canonical) return;
+      const cleaned = cleanCell(value);
+      if (["diagnostico_actual", "observaciones", "pendientes"].includes(canonical) && mapped[canonical]) {
+        mapped[canonical] = mergeClinicalText(mapped[canonical], cleaned);
+      } else {
+        mapped[canonical] = cleaned;
+      }
     });
     const serviceBed = splitServiceBed(mapped.servicio_cama);
+    const service = normalizeImportService(mapped.servicio || serviceBed.service);
+    const bed = normalizeBed(mapped.cama || serviceBed.bed);
+    const censusDate = normalizeDate(mapped.fecha_censo) || fallbackDate;
+    const birthDate = normalizeDate(mapped.fecha_nacimiento);
+    const admissionDate = normalizeDate(mapped.fecha_ingreso);
+    const age = normalizeImportAge(mapped.edad) || ageFromBirthDate(birthDate, censusDate);
+    const sector = normalizeSectorImport(mapped.sector);
+    const sex = normalizeImportSex(mapped.sexo);
+    const deih = normalizeImportDeih(mapped.deih, admissionDate, censusDate, service);
+    const observations = normalizeObservationText(mapped.observaciones || mapped.pendientes || "SP") || "SP";
     const row = {
       patient_id: cleanCell(mapped.patient_id || mapped.hospital_internal_id || ""),
       patient_name: cleanCell(mapped.patient_name).toUpperCase(),
       rfc: cleanCell(mapped.rfc),
-      fecha_nacimiento: normalizeDate(mapped.fecha_nacimiento),
-      fecha_censo: normalizeDate(mapped.fecha_censo) || fallbackDate,
-      servicio: normalizeService(mapped.servicio || serviceBed.service),
-      cama: normalizeBed(mapped.cama || serviceBed.bed),
-      sector: cleanCell(mapped.sector),
-      edad: parseAge(mapped.edad),
-      sexo: normalizeSex(mapped.sexo),
-      fecha_ingreso: normalizeDate(mapped.fecha_ingreso),
-      dx_epidemiologico: cleanCell(mapped.dx_epidemiologico),
-      estado: mapped.estado ? displayState(mapped.estado) : "",
-      diagnostico_actual: cleanCell(mapped.diagnostico_actual),
+      fecha_nacimiento: birthDate,
+      fecha_censo: censusDate,
+      servicio: service || "PENDIENTE",
+      cama: bed || "PENDIENTE",
+      sector: sector || "PENDIENTE",
+      edad: age,
+      sexo: sex || "PENDIENTE",
+      fecha_ingreso: admissionDate,
+      deih,
+      dx_epidemiologico: "",
+      estado: normalizeImportState(mapped.estado, service, bed),
+      diagnostico_actual: cleanCell(mapped.diagnostico_actual) || "PENDIENTE",
       pendientes: cleanCell(mapped.pendientes),
       hospital_internal_id: cleanCell(mapped.hospital_internal_id),
       riesgo_iaas: cleanCell(mapped.riesgo_iaas),
-      observaciones: cleanCell(mapped.observaciones),
+      observaciones: observations,
       medico_tratante: cleanCell(mapped.medico_tratante),
       piso: cleanCell(mapped.piso),
       aislamiento: cleanCell(mapped.aislamiento),
@@ -5228,13 +5760,146 @@
     const warnings = [];
     if (!row.patient_id && !row.hospital_internal_id && !row.patient_name) errors.push("Falta patient_id, expediente o nombre de paciente.");
     if (!row.fecha_censo) errors.push("Fecha de censo inválida.");
-    if (!row.servicio) errors.push("Falta servicio.");
-    if (!row.cama) errors.push("Falta cama.");
-    if (mapped.edad && row.edad === null) warnings.push("Edad no numérica.");
+    if (row.servicio === "PENDIENTE") warnings.push("Servicio pendiente: no se detectó en el título ni en la fila.");
+    if (row.cama === "PENDIENTE") warnings.push("Cama pendiente: revisar ubicación.");
+    if (row.sector === "PENDIENTE") warnings.push("Sector pendiente: actualizar derechohabiencia.");
+    if (row.sexo === "PENDIENTE") warnings.push("Sexo pendiente.");
+    if (!row.edad && row.edad !== 0) warnings.push("Edad pendiente.");
     if (mapped.fecha_ingreso && !row.fecha_ingreso && !["AMB", "NA"].includes(normalizeText(mapped.fecha_ingreso))) warnings.push("Fecha de ingreso inválida.");
     if (row.fecha_ingreso && row.fecha_censo && row.fecha_ingreso > row.fecha_censo) warnings.push("Ingreso posterior al censo.");
-    if (!row.diagnostico_actual) warnings.push("Diagnóstico vacío.");
+    if (!row.fecha_ingreso && !isAmbulatoryStayService(row.servicio)) warnings.push("Fecha de ingreso pendiente.");
+    if (row.deih === null && !isAmbulatoryStayService(row.servicio)) warnings.push("DEIH pendiente: falta fecha de ingreso para calcular estancia.");
+    if (row.diagnostico_actual === "PENDIENTE") warnings.push("Diagnóstico hospitalario pendiente.");
     return { index: index + 1, raw, normalized: row, errors, warnings };
+  }
+
+  function enrichImportRowForReconciliation(row, date) {
+    const reported = extractReportedDischarge(row, date);
+    if (reported) {
+      row.dischargeReported = true;
+      row.dischargeReviewRequired = true;
+      row.dischargeType = reported.type;
+      row.dischargeDate = reported.date;
+      row.importAlerts = mergeUnique(row.importAlerts || [], [REPORTED_DISCHARGE_MESSAGE]);
+    }
+    return row;
+  }
+
+  function extractReportedDischarge(row, date) {
+    const text = cleanCell(`${row.observaciones || ""} ${row.pendientes || ""}`);
+    const key = normalizeText(text);
+    if (!/\b(ALTA|EGRESO|DEFUNCION|DEFUNCIÓN)\b/.test(key)) return null;
+    const dischargeDate = firstDateInText(text) || normalizeDate(date) || normalizeDate(row.fecha_censo) || isoToday();
+    let type = "ALTA HOSPITALARIA POR MEJORÍA";
+    if (/\bDEFUNCION|DEFUNCIÓN\b/.test(key)) type = "DEFUNCIÓN";
+    else if (/\bTRASLADO\b/.test(key)) type = "ALTA HOSPITALARIA POR TRASLADO";
+    else if (/\bVOLUNTARIA\b/.test(key)) type = "ALTA HOSPITALARIA VOLUNTARIA";
+    else if (/\bMAXIMO BENEFICIO|MÁXIMO BENEFICIO\b/.test(key)) type = "ALTA HOSPITALARIA POR MÁXIMO BENEFICIO";
+    else if (/\bNO AUTORIZADA|FUGA|ABANDONO\b/.test(key)) type = "ALTA HOSPITALARIA NO AUTORIZADA";
+    return { type, date: dischargeDate };
+  }
+
+  function firstDateInText(value) {
+    const text = cleanCell(value);
+    const direct = normalizeDate(text);
+    if (direct) return direct;
+    const matches = text.match(/\b\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}\b/g) || [];
+    return matches.map(normalizeDate).find(Boolean) || "";
+  }
+
+  function dischargeLabel(type, date) {
+    const safeType = DISCHARGE_TYPES.find(item => normalizeText(item) === normalizeText(type)) || DISCHARGE_TYPES[0];
+    return `${safeType} ${formatDisplayDate(date || isoToday())}`.trim();
+  }
+
+  function protectedHospitalStayId(patientId) {
+    return `${patientId}__hospital`;
+  }
+
+  function movementNotice(before, row) {
+    if (!before) return "";
+    const fromService = normalizeService(before.currentService || "");
+    const fromBed = cleanCell(before.currentBed || "S/C");
+    const toService = normalizeService(row.servicio || "");
+    const toBed = cleanCell(row.cama || "S/C");
+    if (!fromService || !toService) return "";
+    if (fromService === toService && fromBed === toBed) return "";
+    const name = cleanCell(row.patient_name || before.patientName || "PACIENTE").toUpperCase();
+    return `${name} DE LA CAMA ${fromBed || "S/C"} DE ${fromService} HA SIDO MOVIDO A ${toService} CAMA ${toBed || "S/C"}.`;
+  }
+
+  function carryProtectedAmbulatoryRow(patient, date, importBatchId) {
+    return {
+      patient_id: patient.hospitalInternalId || patient.displayCode || patient.patientId,
+      patient_name: cleanCell(patient.patientName).toUpperCase(),
+      rfc: patient.rfc || "",
+      fecha_nacimiento: patient.birthDate || "",
+      fecha_censo: date,
+      servicio: normalizeService(patient.currentService || ""),
+      cama: patient.currentBed || "AMB",
+      sector: patient.sector || "PENDIENTE",
+      edad: patient.age ?? "",
+      sexo: patient.sex || "PENDIENTE",
+      fecha_ingreso: patient.admissionDate || "",
+      deih: "NA",
+      dx_epidemiologico: "",
+      estado: patient.currentState || "ESTABLE",
+      diagnostico_actual: patient.currentDiagnosis || "PENDIENTE",
+      pendientes: "",
+      hospital_internal_id: patient.hospitalInternalId || "",
+      riesgo_iaas: "",
+      observaciones: patient.observations || "SP",
+      patientId: patient.patientId,
+      rowHash: `carry-${patient.patientId}-${date}`,
+      importedFromFile: false,
+      carriedProtectedAmbulatory: true,
+      importBatchId,
+      importAlerts: []
+    };
+  }
+
+  function makeProtectedAmbulatoryCompanionRow(row, sourcePatient, sourcePatientId) {
+    const target = { ...row };
+    target.basePatientId = sourcePatientId;
+    target.ambulatoryCompanion = true;
+    target.ambulatorySourceService = normalizeService(sourcePatient.currentService || "");
+    target.patientId = protectedHospitalStayId(sourcePatientId);
+    target.servicio = combinedServiceLabel(sourcePatient.currentService, row.servicio);
+    target.importAlerts = mergeUnique(row.importAlerts || [], [
+      `${cleanCell(row.patient_name || sourcePatient.patientName).toUpperCase()} conserva registro en ${normalizeService(sourcePatient.currentService)} y se agrega estancia hospitalaria en ${normalizeService(row.servicio)} cama ${row.cama || "S/C"}.`
+    ]);
+    return target;
+  }
+
+  function shouldAutoDischargeBeforeImport(patient, date) {
+    if (!patient || patient.hospitalizationStatus === "egresado") return false;
+    const latest = normalizeDate(patient.latestCensusDate);
+    if (!latest || latest >= date) return false;
+    if (["alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus)) return true;
+    return isPlainAmbulatoryService(patient.currentService) && !isProtectedAmbulatoryService(patient.currentService);
+  }
+
+  function shouldReconcileMissingPatient(patient, date) {
+    if (!patient || patient.hospitalizationStatus === "egresado") return false;
+    if (shouldAutoDischargeBeforeImport(patient, date)) return false;
+    return true;
+  }
+
+  function importIdentityMatchesPatient(row, patient) {
+    if (!patient) return false;
+    const stable = cleanCell(row.patient_id || row.hospital_internal_id);
+    if (stable && [patient.hospitalInternalId, patient.pseudonymizedId, patient.displayCode, patient.patientId].some(value => cleanCell(value) === stable)) return true;
+    if (row.rfc && cleanCell(patient.rfc) && cleanCell(row.rfc) === cleanCell(patient.rfc)) return true;
+    const sameName = normalizedPatientNameKey(row.patient_name) && normalizedPatientNameKey(row.patient_name) === normalizedPatientNameKey(patient.patientName);
+    const sameBirth = row.fecha_nacimiento && normalizeDate(patient.birthDate) === normalizeDate(row.fecha_nacimiento);
+    return Boolean(sameName && (sameBirth || !row.fecha_nacimiento));
+  }
+
+  function duplicateExistingPatientsForRow(row, keepPatientId) {
+    return Object.values(store.patients || {})
+      .filter(patient => patient.patientId !== keepPatientId)
+      .filter(patient => patient.hospitalizationStatus !== "egresado")
+      .filter(patient => importIdentityMatchesPatient(row, patient));
   }
 
   function buildImportPlan(rows, date) {
@@ -5286,6 +5951,84 @@
     return { date, importBatchId: createImportBatchId(date), rows: uniqueRows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing };
   }
 
+  function buildImportPlanV2(rows, date) {
+    const seen = new Map();
+    const uniqueRows = [];
+    const newPatients = [];
+    const updatedPatients = [];
+    const duplicates = [];
+    const conflicts = [];
+    const duplicateExisting = [];
+    const automaticDischarges = [];
+    const carryRows = new Map();
+    const normalizedDate = normalizeDate(date) || isoToday();
+    const importBatchId = createImportBatchId(normalizedDate);
+    Object.values(store.patients || {}).forEach(patient => {
+      if (shouldAutoDischargeBeforeImport(patient, normalizedDate)) automaticDischarges.push(patient);
+    });
+    const existingPresent = new Set(Object.values(store.patients || {})
+      .filter(patient => shouldReconcileMissingPatient(patient, normalizedDate))
+      .map(patient => patient.patientId));
+    const incomingIds = new Set();
+
+    rows.forEach(sourceRow => {
+      let row = enrichImportRowForReconciliation(sourceRow, normalizedDate);
+      const resolvedPatientId = resolveImportPatientId(row);
+      const existing = store.patients[resolvedPatientId];
+      let patientId = resolvedPatientId;
+      if (existing && isProtectedAmbulatoryService(existing.currentService) && isHospitalStayService(row.servicio)) {
+        carryRows.set(existing.patientId, carryProtectedAmbulatoryRow(existing, normalizedDate, importBatchId));
+        row = makeProtectedAmbulatoryCompanionRow(row, existing, existing.patientId);
+        patientId = row.patientId;
+        incomingIds.add(existing.patientId);
+      } else {
+        row.patientId = patientId;
+        const notice = movementNotice(existing, row);
+        if (notice) row.importAlerts = mergeUnique(row.importAlerts || [], [notice]);
+      }
+      row.rowHash = hashNormalizedRow(row);
+      incomingIds.add(patientId);
+      duplicateExistingPatientsForRow(row, patientId).forEach(patient => {
+        if (!duplicateExisting.some(item => item.patientId === patient.patientId)) duplicateExisting.push(patient);
+      });
+      if (seen.has(patientId)) {
+        const previous = seen.get(patientId);
+        if (previous.servicio !== row.servicio || previous.cama !== row.cama) {
+          conflicts.push({ patientId, previous, current: row, reason: "Mismo paciente detectado en dos ubicaciones del archivo; se conservará la fila más completa y se dejará auditoría." });
+        }
+        const merged = mergeImportRows(previous, row);
+        merged.patientId = patientId;
+        merged.rowHash = hashNormalizedRow(merged);
+        seen.set(patientId, merged);
+        const index = uniqueRows.findIndex(item => item.patientId === patientId);
+        if (index >= 0) uniqueRows[index] = merged;
+        duplicates.push(row);
+        return;
+      }
+      seen.set(patientId, row);
+      uniqueRows.push(row);
+    });
+
+    carryRows.forEach(row => {
+      if (seen.has(row.patientId)) return;
+      seen.set(row.patientId, row);
+      uniqueRows.push(row);
+      incomingIds.add(row.patientId);
+    });
+
+    uniqueRows.forEach(row => {
+      if (store.patients[row.patientId]) updatedPatients.push(row);
+      else newPatients.push(row);
+    });
+
+    const reconciliationMissing = [...existingPresent]
+      .filter(patientId => !incomingIds.has(patientId))
+      .map(patientId => store.patients[patientId])
+      .filter(Boolean);
+
+    return { date: normalizedDate, importBatchId, rows: uniqueRows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing, automaticDischarges, duplicateExisting };
+  }
+
   async function confirmImport() {
     const draft = ui.importDraft;
     if (!draft) return;
@@ -5294,8 +6037,8 @@
     renderIaas();
     await waitFrame();
     try {
-      executeImportPlanLocal(draft.plan);
-      const ops = buildImportWriteOps(draft.plan);
+      executeImportPlanLocalV2(draft.plan);
+      const ops = buildImportWriteOpsV2(draft.plan);
       for (let i = 0; i < ops.length; i += 450) {
         ui.importProgress = `Guardando lote ${Math.floor(i / 450) + 1}/${Math.ceil(ops.length / 450)}...`;
         renderIaas();
@@ -5342,9 +6085,10 @@
           sex: row.sexo,
           age: row.edad,
           admissionDate: row.fecha_ingreso || null,
+          deih: row.deih ?? null,
           currentState: row.estado || null,
           currentDiagnosis: row.diagnostico_actual || null,
-          epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || null,
+          epidemiologicalDiagnosis: null,
           diagnosisHistory: [{ date: plan.date, value: row.diagnostico_actual || "", source: "import" }],
           serviceHistory: [{
             date: row.fecha_ingreso || plan.date,
@@ -5380,9 +6124,10 @@
         previous.sex = row.sexo || previous.sex;
         previous.age = row.edad ?? previous.age;
         previous.admissionDate = earliestIsoDate(previous.admissionDate, row.fecha_ingreso) || row.fecha_ingreso || previous.admissionDate;
+        previous.deih = row.deih ?? previous.deih ?? null;
         previous.currentState = row.estado || previous.currentState || null;
         previous.currentDiagnosis = row.diagnostico_actual || previous.currentDiagnosis;
-        previous.epidemiologicalDiagnosis = row.dx_epidemiologico || row.riesgo_iaas || previous.epidemiologicalDiagnosis || null;
+        previous.epidemiologicalDiagnosis = previous.epidemiologicalDiagnosis || null;
         previous.observations = row.observaciones || row.pendientes || previous.observations || null;
         previous.activePendingIssues = mergeUnique(previous.activePendingIssues || [], pending);
         previous.currentRiskLevel = riskFromImport(row) || previous.currentRiskLevel;
@@ -5421,8 +6166,9 @@
         age: row.edad ?? null,
         sex: row.sexo || null,
         admissionDate: row.fecha_ingreso || store.patients[row.patientId]?.admissionDate || null,
+        deih: row.deih ?? null,
         state: row.estado || null,
-        epidemiologicalDiagnosis: row.dx_epidemiologico || row.riesgo_iaas || store.patients[row.patientId]?.epidemiologicalDiagnosis || null,
+        epidemiologicalDiagnosis: store.patients[row.patientId]?.epidemiologicalDiagnosis || null,
         diagnosis: row.diagnostico_actual || null,
         observations: row.observaciones || row.pendientes || null,
         present: true,
@@ -5509,6 +6255,7 @@
       age: patient.age ?? null,
       sex: patient.sex || null,
       admissionDate: patient.admissionDate || null,
+      deih: patient.deih ?? daysBetween(patient.admissionDate, plan.date),
       state: patient.currentState || "Requiere conciliación",
       epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis || null,
       diagnosis: patient.currentDiagnosis || null,
@@ -5524,6 +6271,340 @@
       syncStatus: syncStatusForNewWrite(),
       notes: "Requiere conciliación por ausencia en importación."
     };
+  }
+
+  function executeImportPlanLocalV2(plan) {
+    const now = nowIso();
+    const censusPatients = {};
+    const affectedPatientIds = new Set();
+    const incomingPatientIds = new Set((plan.rows || []).flatMap(row => [row.patientId, row.basePatientId].filter(Boolean)));
+
+    (plan.automaticDischarges || []).forEach(patient => {
+      if (!patient || incomingPatientIds.has(patient.patientId)) return;
+      const before = clone(patient);
+      patient.hospitalizationStatus = "egresado";
+      patient.presentInLatestCensus = false;
+      patient.latestRoundStatus = "revisado";
+      patient.activePendingIssues = mergeUnique(patient.activePendingIssues || [], ["Alta automática por ausencia posterior al día de aviso"]);
+      patient.updatedAt = now;
+      patient.updatedBy = currentUserId();
+      affectedPatientIds.add(patient.patientId);
+      addAudit("PATIENT_AUTO_DISCHARGED", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
+    });
+
+    (plan.duplicateExisting || []).forEach(patient => {
+      if (!patient || incomingPatientIds.has(patient.patientId)) return;
+      const before = clone(patient);
+      patient.hospitalizationStatus = "egresado";
+      patient.presentInLatestCensus = false;
+      patient.latestRoundStatus = "revisado";
+      patient.activePendingIssues = mergeUnique(patient.activePendingIssues || [], ["Registro duplicado omitido por importación"]);
+      patient.updatedAt = now;
+      patient.updatedBy = currentUserId();
+      affectedPatientIds.add(patient.patientId);
+      addAudit("PATIENT_DUPLICATE_CLOSED", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
+    });
+
+    (plan.rows || []).forEach(row => {
+      const previous = store.patients[row.patientId];
+      const pending = mergeUnique(splitPending(row.pendientes || row.observaciones), row.importAlerts || []);
+      if (!previous) {
+        store.patients[row.patientId] = {
+          patientId: row.patientId,
+          displayCode: makeDisplayCode(row.patientId),
+          patientName: row.patient_name || null,
+          rfc: row.rfc || null,
+          birthDate: row.fecha_nacimiento || null,
+          hospitalInternalId: row.hospital_internal_id || row.patient_id || null,
+          pseudonymizedId: row.patientId,
+          currentService: row.servicio,
+          currentBed: row.cama,
+          sector: row.sector || null,
+          sex: row.sexo,
+          age: row.edad,
+          admissionDate: row.fecha_ingreso || null,
+          deih: row.deih ?? null,
+          currentState: row.estado || null,
+          currentDiagnosis: normalizedClinicalImportValue(row.diagnostico_actual) || null,
+          epidemiologicalDiagnosis: null,
+          diagnosisHistory: normalizedClinicalImportValue(row.diagnostico_actual) ? [{ date: plan.date, value: normalizedClinicalImportValue(row.diagnostico_actual), source: "import" }] : [],
+          serviceHistory: [{
+            date: row.fecha_ingreso || plan.date,
+            fromService: null,
+            fromBed: null,
+            toService: row.servicio,
+            toBed: row.cama,
+            source: "import"
+          }],
+          observations: normalizedObservationImportValue(row.observaciones || row.pendientes) || null,
+          activePendingIssues: pending,
+          currentRiskLevel: riskFromImport(row),
+          hospitalizationStatus: row.dischargeReported ? "alta_reportada" : "hospitalizado",
+          dischargeType: row.dischargeType || null,
+          dischargeDate: row.dischargeDate || null,
+          dischargeStatus: row.dischargeReported ? "reportada_por_censo" : null,
+          dischargeReviewRequired: Boolean(row.dischargeReviewRequired),
+          presentInLatestCensus: true,
+          latestCensusDate: plan.date,
+          latestRoundDate: null,
+          latestRoundStatus: row.importAlerts?.length || row.dischargeReviewRequired ? "alerta" : "pendiente",
+          basePatientId: row.basePatientId || null,
+          createdAt: now,
+          updatedAt: now,
+          createdBy: currentUserId(),
+          updatedBy: currentUserId()
+        };
+        addAudit("PATIENT_CREATED", { patientId: row.patientId, after: store.patients[row.patientId], importBatchId: plan.importBatchId });
+      } else {
+        const before = clone(previous);
+        const incomingDx = normalizedClinicalImportValue(row.diagnostico_actual);
+        const nextDx = mergeClinicalImportValue(previous.currentDiagnosis, incomingDx);
+        const diagnosisChanged = incomingDx && cleanCell(previous.currentDiagnosis) !== cleanCell(nextDx);
+        const serviceChanged = cleanCell(previous.currentService) !== cleanCell(row.servicio) || cleanCell(previous.currentBed) !== cleanCell(row.cama);
+        previous.currentService = row.servicio;
+        previous.currentBed = row.cama;
+        previous.patientName = row.patient_name || previous.patientName || null;
+        previous.rfc = row.rfc || previous.rfc || null;
+        previous.birthDate = row.fecha_nacimiento || previous.birthDate || null;
+        previous.sector = row.sector || previous.sector || null;
+        previous.sex = row.sexo || previous.sex;
+        previous.age = row.edad ?? previous.age;
+        previous.admissionDate = row.fecha_ingreso || previous.admissionDate || null;
+        previous.deih = row.deih ?? previous.deih ?? null;
+        previous.currentState = row.estado || previous.currentState || null;
+        previous.currentDiagnosis = nextDx || previous.currentDiagnosis || null;
+        previous.epidemiologicalDiagnosis = previous.epidemiologicalDiagnosis || null;
+        previous.observations = mergeObservationImportValue(previous.observations, row.observaciones || row.pendientes) || previous.observations || null;
+        previous.activePendingIssues = mergeUnique(previous.activePendingIssues || [], pending);
+        previous.currentRiskLevel = riskFromImport(row) || previous.currentRiskLevel;
+        previous.hospitalizationStatus = row.dischargeReported ? "alta_reportada" : "hospitalizado";
+        previous.dischargeType = row.dischargeType || (row.dischargeReported ? previous.dischargeType : previous.dischargeType || null);
+        previous.dischargeDate = row.dischargeDate || (row.dischargeReported ? previous.dischargeDate : previous.dischargeDate || null);
+        previous.dischargeStatus = row.dischargeReported ? "reportada_por_censo" : previous.dischargeStatus || null;
+        previous.dischargeReviewRequired = Boolean(row.dischargeReviewRequired);
+        previous.presentInLatestCensus = true;
+        previous.latestCensusDate = plan.date;
+        previous.latestRoundStatus = row.importAlerts?.length || row.dischargeReviewRequired ? "alerta" : (previous.latestRoundDate === plan.date ? previous.latestRoundStatus : "pendiente");
+        previous.basePatientId = row.basePatientId || previous.basePatientId || null;
+        previous.updatedAt = now;
+        previous.updatedBy = currentUserId();
+        if (diagnosisChanged) {
+          previous.diagnosisHistory = [...(previous.diagnosisHistory || []), { date: plan.date, value: incomingDx, source: "import" }].slice(-100);
+        }
+        if (serviceChanged) {
+          previous.serviceHistory = [
+            ...(previous.serviceHistory || []),
+            {
+              date: plan.date,
+              fromService: before.currentService || null,
+              fromBed: before.currentBed || null,
+              toService: row.servicio,
+              toBed: row.cama,
+              source: "import"
+            }
+          ].slice(-80);
+        }
+        addAudit("PATIENT_UPDATED", { patientId: row.patientId, before, after: previous, importBatchId: plan.importBatchId });
+      }
+      affectedPatientIds.add(row.patientId);
+      censusPatients[row.patientId] = importCensusRowV2(row, store.patients[row.patientId], plan);
+    });
+
+    (plan.reconciliationMissing || []).forEach(patient => {
+      const before = clone(patient);
+      patient.presentInLatestCensus = false;
+      patient.latestCensusDate = plan.date;
+      patient.hospitalizationStatus = "alta_probable";
+      patient.latestRoundStatus = "alerta";
+      patient.dischargeReviewRequired = true;
+      patient.activePendingIssues = mergeUnique(patient.activePendingIssues || [], [PROBABLE_DISCHARGE_MESSAGE]);
+      patient.updatedAt = now;
+      patient.updatedBy = currentUserId();
+      affectedPatientIds.add(patient.patientId);
+      addAudit("PATIENT_PROBABLE_DISCHARGE", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
+      censusPatients[patient.patientId] ||= probableDischargeCensusRow(patient, plan);
+    });
+
+    store.dailyCensus[plan.date] = {
+      date: plan.date,
+      importBatchId: plan.importBatchId,
+      importedAt: now,
+      importedBy: currentUserId(),
+      totalRows: (plan.rows || []).length + (plan.duplicates || []).length + (plan.conflicts || []).length,
+      totalPatientsDetected: Object.keys(censusPatients).length,
+      totalNewPatients: (plan.newPatients || []).length,
+      totalUpdatedPatients: (plan.updatedPatients || []).length,
+      totalDuplicatesSkipped: (plan.duplicates || []).length + (plan.duplicateExisting || []).length,
+      totalErrors: (plan.conflicts || []).length,
+      status: "imported",
+      closedAt: null,
+      closedBy: null,
+      patients: censusPatients,
+      conflicts: plan.conflicts || []
+    };
+    store.activeDate = plan.date;
+    ui.sheets.activeDate = plan.date;
+    ensureDailyRound(plan.date);
+    const entries = {};
+    Object.values(censusPatients).forEach(row => {
+      const existingEntry = store.dailyRounds[plan.date].entries[row.patientId];
+      const alerts = mergeUnique(row.importAlerts || [], row.reconciliationRequired ? [PROBABLE_DISCHARGE_MESSAGE] : []);
+      const needsAttention = Boolean(alerts.length || row.dischargeReviewRequired || row.probableDischarge);
+      const defaultEntry = {
+        entryId: row.patientId,
+        patientId: row.patientId,
+        service: row.service,
+        bed: row.bed,
+        reviewedBy: null,
+        reviewedAt: null,
+        roundDate: plan.date,
+        hasInvasives: activeEpisodes(row.patientId, plan.date).length > 0,
+        noInvasivesConfirmed: false,
+        reviewedDevices: [],
+        pendingIssuesAdded: [],
+        alertsGenerated: alerts,
+        status: needsAttention ? "alerta" : "pendiente",
+        syncStatus: syncStatusForNewWrite(),
+        localSavedAt: null,
+        serverConfirmedAt: null,
+        notes: alerts.join(" | ")
+      };
+      entries[row.patientId] = existingEntry ? {
+        ...defaultEntry,
+        ...existingEntry,
+        service: row.service,
+        bed: row.bed,
+        alertsGenerated: mergeUnique(existingEntry.alertsGenerated || [], alerts),
+        status: existingEntry.status === "pendiente" && needsAttention ? "alerta" : existingEntry.status,
+        notes: mergeClinicalText(existingEntry.notes || "", alerts.join(" | "))
+      } : defaultEntry;
+    });
+    store.dailyRounds[plan.date].entries = entries;
+    store.dailyRounds[plan.date].status = "not_started";
+    store.dailyRounds[plan.date].probableDischarges = (plan.reconciliationMissing || []).length;
+    store.dailyRounds[plan.date].reportedDischarges = Object.values(censusPatients).filter(row => row.dischargeReported).length;
+    recalculateRound(plan.date);
+    plan.affectedPatientIds = [...affectedPatientIds];
+  }
+
+  function importCensusRowV2(row, patient, plan) {
+    return {
+      patientId: row.patientId,
+      service: row.servicio,
+      bed: row.cama,
+      patientName: row.patient_name || patient?.patientName || null,
+      rfc: row.rfc || patient?.rfc || null,
+      birthDate: row.fecha_nacimiento || patient?.birthDate || null,
+      sector: row.sector || patient?.sector || null,
+      age: row.edad ?? patient?.age ?? null,
+      sex: row.sexo || patient?.sex || null,
+      admissionDate: row.fecha_ingreso || patient?.admissionDate || null,
+      deih: row.deih ?? patient?.deih ?? null,
+      state: row.estado || patient?.currentState || null,
+      epidemiologicalDiagnosis: patient?.epidemiologicalDiagnosis || null,
+      diagnosis: normalizedClinicalImportValue(row.diagnostico_actual) || patient?.currentDiagnosis || null,
+      observations: normalizedObservationImportValue(row.observaciones || row.pendientes) || patient?.observations || null,
+      present: true,
+      importedFromFile: row.importedFromFile !== false,
+      carriedProtectedAmbulatory: Boolean(row.carriedProtectedAmbulatory),
+      ambulatoryCompanion: Boolean(row.ambulatoryCompanion),
+      basePatientId: row.basePatientId || null,
+      dischargeReported: Boolean(row.dischargeReported),
+      dischargeReviewRequired: Boolean(row.dischargeReviewRequired),
+      dischargeType: row.dischargeType || patient?.dischargeType || null,
+      dischargeDate: row.dischargeDate || patient?.dischargeDate || null,
+      dischargeStatus: row.dischargeReported ? "reportada_por_censo" : patient?.dischargeStatus || null,
+      importAlerts: row.importAlerts || [],
+      importBatchId: plan.importBatchId,
+      rowHash: row.rowHash,
+      reviewedByNursing: false,
+      reviewStatus: "pendiente",
+      reviewedAt: null,
+      syncStatus: syncStatusForNewWrite(),
+      notes: mergeClinicalText(row.observaciones || "", (row.importAlerts || []).join(" | "))
+    };
+  }
+
+  function probableDischargeCensusRow(patient, plan) {
+    return {
+      patientId: patient.patientId,
+      service: patient.currentService || "SIN SERVICIO",
+      bed: patient.currentBed || "S/C",
+      patientName: patient.patientName || null,
+      rfc: patient.rfc || patient.hospitalInternalId || null,
+      birthDate: patient.birthDate || null,
+      sector: patient.sector || null,
+      age: patient.age ?? null,
+      sex: patient.sex || null,
+      admissionDate: patient.admissionDate || null,
+      deih: patient.deih ?? daysBetween(patient.admissionDate, plan.date),
+      state: patient.currentState || "GRAVE",
+      epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis || null,
+      diagnosis: patient.currentDiagnosis || null,
+      observations: PROBABLE_DISCHARGE_MESSAGE,
+      present: false,
+      probableDischarge: true,
+      dischargeReviewRequired: true,
+      reconciliationRequired: true,
+      importAlerts: [PROBABLE_DISCHARGE_MESSAGE],
+      importedFromFile: false,
+      importBatchId: plan.importBatchId,
+      rowHash: `probable-discharge-${patient.patientId}-${plan.date}`,
+      reviewedByNursing: false,
+      reviewStatus: "alerta",
+      reviewedAt: null,
+      syncStatus: syncStatusForNewWrite(),
+      notes: PROBABLE_DISCHARGE_MESSAGE
+    };
+  }
+
+  function normalizedClinicalImportValue(value) {
+    const text = cleanCell(value);
+    const key = normalizeText(text);
+    if (!text || ["PENDIENTE", "SP", "S/P", "SIN DATO", "SD", "NA", "N/A"].includes(key)) return "";
+    return text.toUpperCase();
+  }
+
+  function normalizedObservationImportValue(value) {
+    const text = cleanCell(value);
+    const key = normalizeText(text);
+    if (!text || ["PENDIENTE", "SIN DATO", "SD", "NA", "N/A"].includes(key)) return "";
+    if (/^S\s*\/?\s*P$/.test(key)) return "SP";
+    return text.toUpperCase();
+  }
+
+  function mergeClinicalImportValue(previous, incoming) {
+    const value = normalizedClinicalImportValue(incoming) || normalizedObservationImportValue(incoming);
+    if (!value) return cleanCell(previous);
+    return mergeClinicalText(previous, value);
+  }
+
+  function mergeObservationImportValue(previous, incoming) {
+    const value = normalizedObservationImportValue(incoming);
+    if (!value || (value === "SP" && cleanCell(previous))) return cleanCell(previous);
+    return mergeClinicalText(previous, value);
+  }
+
+  function buildImportWriteOpsV2(plan) {
+    const ops = [];
+    const affected = new Set(plan.affectedPatientIds || []);
+    ops.push({ path: `dailyCensus/${plan.date}`, action: "set", data: omitPatients(store.dailyCensus[plan.date]) });
+    Object.values(store.dailyCensus[plan.date].patients || {}).forEach(row => {
+      affected.add(row.patientId);
+      ops.push({ path: `dailyCensus/${plan.date}/patients/${row.patientId}`, action: "set", data: row });
+    });
+    (plan.rows || []).forEach(row => affected.add(row.patientId));
+    (plan.reconciliationMissing || []).forEach(patient => affected.add(patient.patientId));
+    (plan.automaticDischarges || []).forEach(patient => affected.add(patient.patientId));
+    (plan.duplicateExisting || []).forEach(patient => affected.add(patient.patientId));
+    affected.forEach(patientId => {
+      if (store.patients[patientId]) ops.push({ path: `patients/${patientId}`, action: "set", data: store.patients[patientId], merge: true });
+    });
+    ops.push({ path: `dailyRounds/${plan.date}`, action: "set", data: omitEntries(store.dailyRounds[plan.date]), merge: true });
+    Object.values(store.dailyRounds[plan.date].entries || {}).forEach(entry => {
+      ops.push({ path: `dailyRounds/${plan.date}/entries/${entry.entryId}`, action: "set", data: entry, merge: true });
+    });
+    return ops;
   }
 
   function buildImportWriteOps(plan) {
@@ -5569,18 +6650,31 @@
     }
 
     const createdEpisodeIds = [];
+    const packageReviews = [];
     (draft.deviceDrafts || []).forEach(device => {
+      if (!packageCreatesDevice(device)) {
+        packageReviews.push(packageReviewSummary(device));
+        return;
+      }
       if (!device.installationDate) return;
       const previous = detectReinstallation(patientId, device);
+      const removalDate = normalizeDate(device.removalDate);
       const episode = {
-        episodeId: buildDeviceEpisodeId(patientId, device.deviceType, device.installationDate, device.anatomicalSite || ""),
+        episodeId: buildDeviceEpisodeId(patientId, deviceDisplayName(device), device.installationDate, device.french || ""),
         patientId,
         deviceType: device.deviceType,
         deviceSubtype: device.deviceSubtype || null,
+        french: device.french || null,
+        material: device.material || null,
+        deviceState: device.deviceState || null,
+        preventivePackage: device.packageType || null,
+        preventiveChecks: device.preventiveChecks || {},
+        preventiveCompliance: preventiveCompliance(device.preventiveChecks || {}),
+        oralHygieneMethod: device.oralHygieneMethod || null,
         anatomicalSite: device.anatomicalSite || null,
         installationDate: normalizeDate(device.installationDate) || device.installationDate,
-        removalDate: null,
-        status: "activo",
+        removalDate: removalDate || null,
+        status: removalDate ? "retirado" : "activo",
         isReinstallation: Boolean(previous),
         previousEpisodeId: previous?.episodeId || null,
         dressingCurrent: nullable(device.dressingCurrent),
@@ -5588,7 +6682,7 @@
         careStatus: device.careStatus || "no_valorado",
         infectionSigns: nullable(device.infectionSigns),
         infectionSignsDescription: device.infectionSignsDescription || null,
-        notes: device.notes || null,
+        notes: mergeClinicalText(device.notes || "", device.observations || ""),
         createdDuringRoundDate: date,
         createdAt: nowIso(),
         updatedAt: nowIso(),
@@ -5598,6 +6692,7 @@
       };
       store.deviceEpisodes[episode.episodeId] = episode;
       createdEpisodeIds.push(episode.episodeId);
+      packageReviews.push(packageReviewSummary(device));
       addAudit(episode.isReinstallation ? "DEVICE_REINSTALLATION_CREATED" : "DEVICE_EPISODE_CREATED", {
         patientId,
         deviceEpisodeId: episode.episodeId,
@@ -5641,7 +6736,7 @@
       reviewedAt: nowIso(),
       roundDate: date,
       hasInvasives: activeNow.length > 0 || createdEpisodeIds.length > 0,
-      noInvasivesConfirmed: Boolean(draft.noInvasivesConfirmed),
+      noInvasivesConfirmed: Boolean(draft.noInvasivesConfirmed) && activeNow.length === 0 && createdEpisodeIds.length === 0,
       reviewedDevices: mergeUnique(activeNow.map(ep => ep.episodeId), createdEpisodeIds),
       pendingIssuesAdded: pendingAdded,
       alertsGenerated: alerts,
@@ -5651,6 +6746,7 @@
       serverConfirmedAt: null,
       notes: draft.notes || "",
       activeRoundSection: draft.activeRoundSection || "preventive",
+      packageReviews: [...(previousEntry.packageReviews || []), ...packageReviews],
       iaasAssessment: storesIaasAssessment
         ? (draft.activeRoundSection === "iaas" || iaasAssessmentHasContent(iaasAssessment) ? iaasAssessment : previousEntry.iaasAssessment)
         : null,
@@ -5688,7 +6784,9 @@
         : "Guardado localmente. Pendiente de sincronizar.");
     if (goNext) {
       const next = draft.activeRoundSection === "iaas" ? nextIaasPatientId(date, patientId) : nextPatientId(date, patientId);
-      location.hash = next ? `#/ronda/${date}/paciente/${next}${draft.activeRoundSection === "iaas" ? "/iaas" : ""}` : `#/${draft.activeRoundSection === "iaas" ? "seguimiento-iaas" : `ronda/${date}`}`;
+      location.hash = next
+        ? (draft.activeRoundSection === "iaas" ? `#/seguimiento-iaas/${date}/paciente/${next}` : `#/ronda/${date}/paciente/${next}`)
+        : `#/${draft.activeRoundSection === "iaas" ? "seguimiento-iaas" : `ronda/${date}`}`;
     } else {
       renderIaas();
     }
@@ -5697,8 +6795,11 @@
   function validateReviewDraft(date, patientId, draft, requestedStatus) {
     const errors = [];
     (draft.deviceDrafts || []).forEach(device => {
-      if (!device.installationDate) errors.push(`${device.deviceType}: falta fecha de instalación.`);
-      if (device.installationDate && !normalizeDate(device.installationDate)) errors.push(`${device.deviceType}: fecha de instalación inválida.`);
+      if (!packageCreatesDevice(device)) return;
+      if (!device.installationDate) errors.push(`${deviceDisplayName(device)}: falta fecha de instalación.`);
+      if (device.installationDate && !normalizeDate(device.installationDate)) errors.push(`${deviceDisplayName(device)}: fecha de instalación inválida.`);
+      if (device.removalDate && !normalizeDate(device.removalDate)) errors.push(`${deviceDisplayName(device)}: fecha de retiro inválida.`);
+      if (device.installationDate && device.removalDate && normalizeDate(device.removalDate) < normalizeDate(device.installationDate)) errors.push(`${deviceDisplayName(device)}: retiro antes de instalación.`);
     });
     Object.entries(draft.removals || {}).forEach(([episodeId, removalDate]) => {
       const episode = store.deviceEpisodes[episodeId];
@@ -5708,7 +6809,8 @@
     if (draft.noInvasivesConfirmed && activeEpisodes(patientId, date).some(ep => !draft.removals?.[ep.episodeId])) {
       errors.push("Había invasivos activos. Confirme fecha de retiro o marque como incompleto.");
     }
-    if (requestedStatus === "revisado" && draft.activeRoundSection !== "iaas" && !draft.noInvasivesConfirmed && !(draft.deviceDrafts || []).length && !activeEpisodes(patientId, date).length) {
+    const newInvasives = (draft.deviceDrafts || []).some(packageCreatesDevice);
+    if (requestedStatus === "revisado" && draft.activeRoundSection !== "iaas" && !draft.noInvasivesConfirmed && !newInvasives && !activeEpisodes(patientId, date).length) {
       errors.push("Confirme Sin invasivos o agregue dispositivos.");
     }
     return errors;
@@ -5755,6 +6857,95 @@
     renderIaas();
   }
 
+  function confirmHospitalDischarge(date, patientId) {
+    const safeId = safeDomId(patientId);
+    const type = document.querySelector(`#discharge-type-${safeId}`)?.value || DISCHARGE_TYPES[0];
+    const dischargeDate = document.querySelector(`#discharge-date-${safeId}`)?.value || date;
+    applyHospitalDischarge(date, patientId, type, dischargeDate);
+  }
+
+  function applyHospitalDischarge(date, patientId, type, dischargeDate) {
+    const patient = store.patients[patientId];
+    if (!patient) return;
+    const before = clone(patient);
+    const normalizedDate = normalizeDate(dischargeDate) || date || isoToday();
+    const label = dischargeLabel(type, normalizedDate);
+    patient.hospitalizationStatus = "egresado";
+    patient.presentInLatestCensus = false;
+    patient.dischargeType = DISCHARGE_TYPES.find(item => normalizeText(item) === normalizeText(type)) || DISCHARGE_TYPES[0];
+    patient.dischargeDate = normalizedDate;
+    patient.dischargeStatus = "confirmada";
+    patient.dischargeReviewRequired = false;
+    patient.observations = label;
+    patient.activePendingIssues = mergeUnique(patient.activePendingIssues || [], [label]);
+    patient.latestRoundStatus = "alerta";
+    patient.updatedAt = nowIso();
+    patient.updatedBy = currentUserId();
+    const row = store.dailyCensus[date]?.patients?.[patientId];
+    if (row) {
+      row.present = false;
+      row.dischargeConfirmed = true;
+      row.dischargeReviewRequired = false;
+      row.dischargeType = patient.dischargeType;
+      row.dischargeDate = normalizedDate;
+      row.dischargeStatus = "confirmada";
+      row.observations = label;
+      row.importAlerts = mergeUnique(row.importAlerts || [], [label]);
+      row.notes = label;
+      row.syncStatus = syncStatusForNewWrite();
+    }
+    const entry = store.dailyRounds[date]?.entries?.[patientId];
+    if (entry) {
+      entry.status = "alerta";
+      entry.alertsGenerated = mergeUnique(entry.alertsGenerated || [], [label]);
+      entry.notes = label;
+      entry.syncStatus = syncStatusForNewWrite();
+    }
+    addAudit("PATIENT_DISCHARGE_CONFIRMED", { patientId, before, after: patient, roundDate: date, metadata: { dischargeType: patient.dischargeType, dischargeDate: normalizedDate } });
+    saveStore();
+    enqueueWrite({ type: "patientUpdate", patientId, patient });
+    flashIaas("Alta hospitalaria confirmada para el censo.");
+    renderIaas();
+  }
+
+  function markPatientStillHospitalized(date, patientId) {
+    const patient = store.patients[patientId];
+    if (!patient) return;
+    const before = clone(patient);
+    patient.hospitalizationStatus = "hospitalizado";
+    patient.presentInLatestCensus = true;
+    patient.dischargeReviewRequired = false;
+    patient.dischargeStatus = null;
+    patient.latestRoundStatus = "pendiente";
+    patient.activePendingIssues = mergeUnique(patient.activePendingIssues || [], ["Alta descartada: sigue hospitalizado"]);
+    patient.updatedAt = nowIso();
+    patient.updatedBy = currentUserId();
+    const row = store.dailyCensus[date]?.patients?.[patientId];
+    if (row) {
+      row.present = true;
+      row.probableDischarge = false;
+      row.dischargeReported = false;
+      row.dischargeReviewRequired = false;
+      row.reconciliationRequired = false;
+      row.importAlerts = (row.importAlerts || []).filter(item => ![PROBABLE_DISCHARGE_MESSAGE, REPORTED_DISCHARGE_MESSAGE].includes(item));
+      row.reviewStatus = "pendiente";
+      row.notes = "Paciente confirmado como hospitalizado.";
+      row.syncStatus = syncStatusForNewWrite();
+    }
+    const entry = store.dailyRounds[date]?.entries?.[patientId];
+    if (entry) {
+      entry.status = "pendiente";
+      entry.alertsGenerated = (entry.alertsGenerated || []).filter(item => ![PROBABLE_DISCHARGE_MESSAGE, REPORTED_DISCHARGE_MESSAGE].includes(item));
+      entry.notes = "Paciente confirmado como hospitalizado.";
+      entry.syncStatus = syncStatusForNewWrite();
+    }
+    addAudit("PATIENT_STILL_HOSPITALIZED", { patientId, before, after: patient, roundDate: date });
+    saveStore();
+    enqueueWrite({ type: "patientUpdate", patientId, patient });
+    flashIaas("Paciente marcado como hospitalizado.");
+    renderIaas();
+  }
+
   function validateRoundBeforeClose(date) {
     const issues = [];
     const round = store.dailyRounds[date];
@@ -5776,18 +6967,24 @@
   }
 
   function computeStats(date) {
+    const statsCache = ui.renderCache?.stats;
+    if (statsCache?.has(date)) return statsCache.get(date);
     ensureDailyRound(date);
     const round = store.dailyRounds[date];
     const censusRows = getCensusRows(date);
     const entries = Object.values(round.entries || {});
-    const episodes = Object.values(store.deviceEpisodes);
+    const episodes = deviceEpisodesForCurrentRender();
     const active = episodes.filter(ep => isEpisodeActiveOn(ep, date));
     const installedToday = episodes.filter(ep => ep.installationDate === date).length;
     const removedToday = episodes.filter(ep => ep.removalDate === date).length;
     const reinstallationsToday = episodes.filter(ep => ep.isReinstallation && ep.createdDuringRoundDate === date).length;
     const deviceDaysByType = {};
+    const activeByPatient = new Map();
     active.forEach(ep => {
       deviceDaysByType[ep.deviceType] = (deviceDaysByType[ep.deviceType] || 0) + 1;
+      const list = activeByPatient.get(ep.patientId) || [];
+      list.push(ep);
+      activeByPatient.set(ep.patientId, list);
     });
     const byService = {};
     censusRows.forEach(row => {
@@ -5795,15 +6992,18 @@
       byService[row.service].total += 1;
       const entry = round.entries[row.patientId];
       if (entry && ["revisado", "alerta"].includes(entry.status)) byService[row.service].reviewed += 1;
-      byService[row.service].devices += activeEpisodes(row.patientId, date).length;
+      byService[row.service].devices += (activeByPatient.get(row.patientId) || []).length;
     });
-    const alertPatients = Object.values(store.patients).filter(patient =>
-      patient.latestRoundStatus === "alerta" || activeEpisodes(patient.patientId, date).some(ep => ep.infectionSigns || deviceOver48h(ep, date))
-    ).map(patient => ({ ...patient, reason: activeEpisodes(patient.patientId, date).some(ep => ep.infectionSigns) ? "Signos de infección" : "Invasivo > 48 h" }));
+    const alertPatients = Object.values(store.patients).flatMap(patient => {
+      const patientEpisodes = activeByPatient.get(patient.patientId) || [];
+      const hasEpisodeAlert = patientEpisodes.some(ep => ep.infectionSigns || deviceOver48h(ep, date));
+      if (patient.latestRoundStatus !== "alerta" && !hasEpisodeAlert) return [];
+      return [{ ...patient, reason: patientEpisodes.some(ep => ep.infectionSigns) ? "Signos de infección" : "Invasivo > 48 h" }];
+    });
     const pending = entries.filter(entry => entry.status === "pendiente").length;
     const incomplete = entries.filter(entry => entry.status === "incompleto").length;
-    const reconciliation = Object.values(store.patients).filter(patient => patient.hospitalizationStatus === "requiere_conciliación").length;
-    return {
+    const reconciliation = Object.values(store.patients).filter(patient => ["requiere_conciliación", "alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus)).length;
+    const stats = {
       totalPatients: censusRows.length,
       reviewedPatients: entries.filter(entry => ["revisado", "alerta"].includes(entry.status)).length,
       pendingPatients: pending,
@@ -5824,16 +7024,19 @@
       serverSyncedWritesCount: entries.filter(entry => entry.syncStatus === "server_synced").length,
       errorWritesCount: entries.filter(entry => entry.syncStatus === "error").length
     };
+    if (statsCache) statsCache.set(date, stats);
+    return stats;
   }
 
   function computeRangeStats(days) {
     const out = [];
     const today = new Date(`${activeDate()}T00:00:00`);
+    const episodes = deviceEpisodesForCurrentRender();
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const date = toIsoDate(d);
-      const activeDevices = Object.values(store.deviceEpisodes).filter(ep => isEpisodeActiveOn(ep, date)).length;
+      const activeDevices = episodes.filter(ep => isEpisodeActiveOn(ep, date)).length;
       out.push({ date, activeDevices, patientDays: getCensusRows(date).length });
     }
     return out;
@@ -6239,6 +7442,13 @@
           top: reportBorder("SOLID_MEDIUM")
         }
       })),
+      ...(report.dischargeRows || []).map(row => ({
+        repeatCell: {
+          range: gridRange(sheetId, row, row + 1, 11, 12),
+          cell: { userEnteredFormat: { textFormat: { bold: true } } },
+          fields: "userEnteredFormat.textFormat.bold"
+        }
+      })),
       { mergeCells: { range: gridRange(sheetId, bottomStart, bottomStart + 1, 0, 6), mergeType: "MERGE_ALL" } },
       { mergeCells: { range: gridRange(sheetId, bottomStart, bottomStart + 1, 6, totalColumns), mergeType: "MERGE_ALL" } },
       ...indicatorMergeRequests(sheetId, indicatorStart, indicatorEnd),
@@ -6279,6 +7489,9 @@
       ["SERVICIO", "CAMA", "PACIENTE", "SECTOR", "EDAD", "SEXO", "INGRESO", "DEIH", "ESTADO", "DX HOSPITALARIOS", "DX EPIDEMIOLÓGICOS", "OBSERVACIONES"]
     ];
     const patientRows = items.map(printReportPatientRow);
+    const dischargeRows = items
+      .map((item, index) => item.dischargePrintText ? headerRows.length + index : null)
+      .filter(Number.isFinite);
     const spacerRow = Array(12).fill("");
     const bottomRows = printReportBottomRows(items, date);
     const bottomStartIndex = headerRows.length + patientRows.length + 1;
@@ -6288,12 +7501,14 @@
       columns: 12,
       patientRows: patientRows.length,
       bottomStartIndex,
+      dischargeRows,
       patientBreakRows: printReportServiceBreakRows(items, headerRows.length)
     };
   }
 
   function printReportPatientRow(item) {
     const ambulatory = isAmbulatoryStayService(item.service);
+    const dischargeText = item.dischargePrintText || dischargePrintTextFor(item);
     return [
       printServiceLabel(item.service),
       printBedLabel(item.bed),
@@ -6306,8 +7521,24 @@
       cleanCell(item.state).toUpperCase(),
       cleanCell(item.dxHospital || "SIN DIAGNÓSTICO HOSPITALARIO").toUpperCase(),
       cleanCell(item.epiText || "SIN DX EPIDEMIOLÓGICO").toUpperCase(),
-      cleanCell(item.observations || "SIN OBSERVACIONES").toUpperCase()
+      cleanCell(dischargeText || item.observations || "SIN OBSERVACIONES").toUpperCase()
     ];
+  }
+
+  function dischargePrintTextFor(item) {
+    const row = item?.row || item || {};
+    const patient = item?.patient || store.patients?.[row.patientId] || {};
+    const type = patient.dischargeType || row.dischargeType || item?.dischargeType || "";
+    const date = patient.dischargeDate || row.dischargeDate || item?.dischargeDate || "";
+    const status = patient.dischargeStatus || row.dischargeStatus || item?.dischargeStatus || "";
+    const show = type && date && (
+      status
+      || patient.hospitalizationStatus === "egresado"
+      || patient.hospitalizationStatus === "alta_reportada"
+      || row.dischargeConfirmed
+      || row.dischargeReported
+    );
+    return show ? dischargeLabel(type, date).toUpperCase() : "";
   }
 
   function printReportBottomRows(items, date) {
@@ -6381,8 +7612,8 @@
   }
 
   function sortByPrintServiceBed(a, b) {
-    const ai = SERVICES.indexOf(normalizeService(a.service));
-    const bi = SERVICES.indexOf(normalizeService(b.service));
+    const ai = SERVICES.indexOf(primaryService(a.service));
+    const bi = SERVICES.indexOf(primaryService(b.service));
     const serviceCompare = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     if (serviceCompare) return serviceCompare;
     return comparePrintBeds(a.bed, b.bed);
@@ -7726,7 +8957,7 @@
 
   function setReviewDraft(date, patientId, draft) {
     ui.reviewDrafts[`${date}:${patientId}`] = draft;
-    saveJson(DRAFT_KEY, ui.reviewDrafts);
+    scheduleDraftSave();
   }
 
   function updateDraft(date, patientId, patch) {
@@ -7736,25 +8967,23 @@
 
   function clearReviewDraft(date, patientId) {
     delete ui.reviewDrafts[`${date}:${patientId}`];
-    saveJson(DRAFT_KEY, ui.reviewDrafts);
+    ui.draftsDirty = true;
+    flushDraftSave();
   }
 
   function addDeviceDraft(date, patientId, type) {
     const draft = getReviewDraft(date, patientId);
     draft.noInvasivesConfirmed = false;
-    draft.deviceDrafts = [...(draft.deviceDrafts || []), {
-      deviceType: type,
-      installationDate: normalizeDate(date) || isoToday(),
-      anatomicalSite: "",
-      dressingCurrent: null,
-      dressingDate: "",
-      careStatus: "no_valorado",
-      infectionSigns: null,
-      infectionSignsDescription: "",
-      notes: ""
-    }];
+    draft.deviceDrafts = [...(draft.deviceDrafts || []), defaultPreventiveDevice(type)];
     setReviewDraft(date, patientId, draft);
     renderIaas();
+  }
+
+  function updateDeviceDraft(date, patientId, index, patch, rerender = true) {
+    const draft = getReviewDraft(date, patientId);
+    draft.deviceDrafts[index] = { ...(draft.deviceDrafts[index] || {}), ...patch };
+    setReviewDraft(date, patientId, draft);
+    if (rerender) renderIaas();
   }
 
   function removeDeviceDraft(date, patientId, index) {
@@ -7765,6 +8994,10 @@
   }
 
   function toggleNoInvasives(date, patientId) {
+    if (activeEpisodes(patientId, date).length) {
+      flashIaas("Este paciente tiene invasivos activos; no se puede marcar sin invasivos.");
+      return;
+    }
     const draft = getReviewDraft(date, patientId);
     draft.noInvasivesConfirmed = !draft.noInvasivesConfirmed;
     if (draft.noInvasivesConfirmed) draft.deviceDrafts = [];
@@ -7775,16 +9008,18 @@
   function updateRemovalDraft(draft, episodeId, value) {
     draft.removals ||= {};
     draft.removals[episodeId] = value;
-    saveJson(DRAFT_KEY, ui.reviewDrafts);
+    scheduleDraftSave();
   }
 
-  function parseDelimitedText(text) {
+  function parseDelimitedText(text, fallbackDate = "") {
     const lines = text.replace(/\r/g, "").split("\n").filter(line => line.trim());
     if (!lines.length) return [];
     const delimiter = detectDelimiter(lines.reduce((best, line) => delimiterScore(line) > delimiterScore(best) ? line : best, lines[0]));
     const headerIndex = lines.findIndex(line => looksLikeImportHeader(splitCsvLine(line, delimiter)));
-    if (headerIndex < 0) {
-      return rowsFromHeaderlessMatrix(lines.map(line => splitCsvLine(line, delimiter)));
+    const matrix = lines.map(line => splitCsvLine(line, delimiter));
+    const hasHospitalLayout = matrix.some(row => looksLikeHospitalCensusHeader(row));
+    if (headerIndex < 0 || hasHospitalLayout) {
+      return rowsFromHeaderlessMatrix(matrix, fallbackDate);
     }
     const startIndex = headerIndex >= 0 ? headerIndex : 0;
     const headers = splitCsvLine(lines[startIndex], delimiter).map(header => header.trim());
@@ -7811,18 +9046,38 @@
     if (!key) return "";
     const exact = SERVICES.find(service => normalizeText(service) === key);
     if (exact) return exact;
+    const aliases = [
+      ["MEDICINA INTERNA", /\b(MI|MEDICINA\s+INTERNA|MED\s+INT)\b/],
+      ["CIRUGÍA Y TRAUMATOLOGÍA", /\b(CX\s*TX|CX\s+TRAUMA|CIRUGIA\s+Y\s+TRAUMATOLOGIA|CIRUGIA|TRAUMATOLOGIA)\b/],
+      ["PEDIATRÍA", /\b(PED|PEDS|PEDIATRIA)\b/],
+      ["CUNEROS", /\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/],
+      ["UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", /\b(UCIN|NEONATAL|NEONATALES)\b/],
+      ["HEMODIÁLISIS", /\b(HEMO|HD|HEMODIALISIS)\b/],
+      ["ONCOLOGÍA", /\b(ONCO|ONCOLOGIA)\b/],
+      ["GINECOLOGÍA Y OBSTETRICIA", /\b(GYO|GO|GINECO|GINECOLOGIA|OBSTETRICIA)\b/],
+      ["UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS", /\b(UCIP|UTIP|UCI\s+PED)\b/],
+      ["UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", /\b(UCIA|UCI\s+ADULTO|UCI\s+ADULTOS|TERAPIA\s+INTENSIVA)\b/],
+      ["URGENCIAS", /\b(URG|URGENCIAS|OBSERVACION|OBSERVACIÓN)\b/],
+      ["AMBULATORIO", /\b(AMB|AMBULATORIO|CONSULTA\s+EXTERNA)\b/]
+    ];
+    const alias = aliases.find(([, pattern]) => pattern.test(key));
+    if (alias) return alias[0];
+    if (key.length < 3) return "";
     return SERVICES.find(service => key.includes(normalizeText(service)) || normalizeText(service).includes(key)) || "";
   }
 
   function looksLikeBedCell(value) {
     const text = normalizeText(value);
-    return Boolean(text && (/^(CAMA|CAM|SILLON|SILLÓN|AIS|A|B|C|UCIA|UCIN|UCIP|CUBICULO|CUBÍCULO|CAMILLA)[\s:-]*[A-Z0-9-]+$/.test(text) || /^\d{1,3}[A-Z-]*$/.test(text)));
+    if (!text || normalizeDate(value) || text.length > 24) return false;
+    if (/[\/()]/.test(text)) return false;
+    return Boolean(text && (/^(CAMA|CAM|SILLON|SILLÓN|AIS|AISLADO|AISLADA|OBS|OBSERVACION|OBSERVACIÓN|AMB|AMBULATORIO|A|B|C|UCIA|UCIN|UCIP|CUNERO|ESCOLAR|CUBICULO|CUBÍCULO|CAMILLA)[\s:-]*[A-Z0-9-]+(?:\s+[A-Z]{1,4})?$/.test(text) || /^\d{1,3}(?:\s|-)?[A-Z]{0,4}(?:\s+[A-Z]{1,4})?$/.test(text)));
   }
 
   function looksLikePatientNameCell(value) {
     const text = cleanCell(value);
     const normalized = normalizeText(text);
-    if (!text || text.length < 5 || knownServiceFromText(text) || looksLikeBedCell(text)) return false;
+    if (!text || text.length < 5 || knownServiceFromText(text) || looksLikeBedCell(text) || looksLikeRfcCell(text)) return false;
+    if (/\b(NOMBRE|PACIENTE|SERVICIO|FECHA|SECTOR|GUARDIA|MEDICO|PENDIENTES|ESPECIALIDAD)\b/.test(normalized)) return false;
     if (normalizeDate(text) || STATE_OPTIONS.some(option => normalizeText(option) === normalized)) return false;
     if (/[\/:;]/.test(text) && text.length > 40) return false;
     return /[A-ZÁÉÍÓÚÑ]{2,}\s+[A-ZÁÉÍÓÚÑ]{2,}/i.test(text);
@@ -7883,10 +9138,10 @@
   function loadSampleImport() {
     const date = ui.importDate || isoToday();
     ui.importText = [
-      "Fecha_censo\tServicio/Cama\tPaciente\tSector\tEdad\tSexo\tIngreso\tEstado\tDx hospitalario\tDx epidemiologico\tObservaciones",
-      `${date}\tMEDICINA INTERNA / Cama 23\tCASTILLO CARDEÑO FRANCISCO\tBUR\t71\tM\t16/04/2026\tDELICADO\tERC en hemodiálisis / vigilancia IAAS\t1 IAAS\tConfirmar curación de CVC`,
-      `${date}\tCIRUGÍA Y TRAUMATOLOGÍA / Cama 45\tRINCÓN DUARTE MARÍA DE LOURDES\tPIM\t77\tF\t20/04/2026\tDELICADO\tFístula enterocutánea\t1 IAAS IMPORTADA\tRevisar paquete preventivo`,
-      `${date}\tHEMODIÁLISIS / Sillón 1\tGÓMEZ PÉREZ CARLOS\tMAG\t62\tM\tAMB\tESTABLE\tERC en hemodiálisis\tNO IAAS\tParche seco sin secreción`
+      `NOMBRE DEL PACIENTE\tSERVICIO: CIRUGIA Y TRAUMATOLOGIA\t${formatDisplayDate(date)}\tSECTOR\tFECHA INGRESO\tHORA\tGUARDIA B\tDE\tESPECIALIDAD\tMEDICO\tPENDIENTES`,
+      "49 CX\tLUNA SANTOS CLARA\t12/08/1936\t89\tAMERITA\tCALA640401-92\tF\tTUXTLA GUTIERREZ\tPIM\t05/05/26\t12:30\tEPISTAXIS SECUNDARIA A CONTUSION NASAL TRAUMATICA\tEPISTAXIS SECUNDARIA A TRAUMATISMO\t2\tOTORRINO\tDR. MICELI\tCITA CONSULTA EXTERNA ORL 9:00 AM",
+      "50 CX\tMARIA OLGA CHACON RUIZ\t06/06/1955\t70\tAMERITA\tCARO550606-01\tF\tTUXTLA GUTIERREZ\tPIB\t30/04/2026\t01:00\tFX PROXIMAL HUMERO DERECHO\tFX PROXIMAL HUMERO DERECHO\t5\tTYO\tDR. SANCHEZ\tPROGRAMAR ARCO EN C",
+      "51 CX\tMARIA DE LOURDES RINCON DURANTE\t15/03/1979\t47\tAMERITA\tZEGH460213-02\tF\tTUXTLA GUTIERREZ\tPIM\t20/04/2026\t14:00\tPROBABLE FISTULA ENTEROCUTANEA\tFISTULA ENTEROCUTANEA\t15\tCX\tDRA. MELCHOR\tSP"
     ].join("\n");
     ui.importDraft = null;
     renderIaas();
@@ -8020,7 +9275,7 @@
     round.reviewedPatients = entries.filter(entry => ["revisado", "alerta"].includes(entry.status)).length;
     round.pendingPatients = entries.filter(entry => entry.status === "pendiente").length;
     round.incompletePatients = entries.filter(entry => entry.status === "incompleto").length;
-    round.reconciliationPatients = Object.values(store.patients).filter(patient => patient.hospitalizationStatus === "requiere_conciliación").length;
+    round.reconciliationPatients = Object.values(store.patients).filter(patient => ["requiere_conciliación", "alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus)).length;
     round.activeAlerts = entries.filter(entry => entry.status === "alerta").length;
     round.localPendingWritesCount = entries.filter(entry => entry.syncStatus === "local_pending").length;
     round.serverSyncedWritesCount = entries.filter(entry => entry.syncStatus === "server_synced").length;
@@ -8031,31 +9286,51 @@
   }
 
   function getCensusRows(date) {
+    const cache = ui.renderCache?.censusRows;
+    if (cache?.has(date)) return cache.get(date).slice();
     const targetDate = censusDateFor(date);
     const rows = Object.values(store.dailyCensus[targetDate]?.patients || {});
-    if (targetDate === date) return rows;
-    return rows.map(row => ({
+    const normalizedRows = targetDate === date ? rows : rows.map(row => ({
       ...row,
       roundDate: date,
       fecha_censo: date
     }));
+    if (cache) cache.set(date, normalizedRows);
+    return normalizedRows.slice();
   }
 
   function censusDateFor(date) {
+    const cache = ui.renderCache?.censusDates;
+    if (cache?.has(date)) return cache.get(date);
     if (store.dailyCensus[date]?.patients) return date;
     const dates = Object.keys(store.dailyCensus || {})
       .filter(item => store.dailyCensus[item]?.patients)
       .sort();
     const previous = dates.filter(item => item <= date).pop();
-    return previous || dates.at(-1) || date;
+    const resolved = previous || dates.at(-1) || date;
+    if (cache) cache.set(date, resolved);
+    return resolved;
   }
 
   function activeEpisodes(patientId, date) {
-    return Object.values(store.deviceEpisodes).filter(ep => ep.patientId === patientId && isEpisodeActiveOn(ep, date));
+    const cache = ui.renderCache?.activeEpisodes;
+    const key = `${patientId}|${date}`;
+    if (cache?.has(key)) return cache.get(key);
+    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId && isEpisodeActiveOn(ep, date));
+    if (cache) cache.set(key, episodes);
+    return episodes;
   }
 
   function episodesForPatient(patientId) {
-    return Object.values(store.deviceEpisodes).filter(ep => ep.patientId === patientId);
+    const cache = ui.renderCache?.patientEpisodes;
+    if (cache?.has(patientId)) return cache.get(patientId);
+    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId);
+    if (cache) cache.set(patientId, episodes);
+    return episodes;
+  }
+
+  function deviceEpisodesForCurrentRender() {
+    return ui.renderCache?.deviceEpisodes || Object.values(store.deviceEpisodes || {});
   }
 
   function isEpisodeActiveOn(ep, date) {
@@ -8078,6 +9353,9 @@
       if (ep.dressingCurrent === false) alerts.push(`Curación pendiente: ${ep.deviceType}`);
     });
     if (patient.hospitalizationStatus === "requiere_conciliación") alerts.push("Requiere conciliación");
+    if (patient.hospitalizationStatus === "alta_probable") alerts.push(PROBABLE_DISCHARGE_MESSAGE);
+    if (patient.hospitalizationStatus === "alta_reportada") alerts.push(REPORTED_DISCHARGE_MESSAGE);
+    if (patient.dischargeStatus === "confirmada") alerts.push(dischargeLabel(patient.dischargeType, patient.dischargeDate));
     return unique(alerts);
   }
 
@@ -8099,8 +9377,8 @@
   }
 
   function sortByServiceBed(a, b) {
-    const ai = SERVICES.indexOf(normalizeService(a.service));
-    const bi = SERVICES.indexOf(normalizeService(b.service));
+    const ai = SERVICES.indexOf(primaryService(a.service));
+    const bi = SERVICES.indexOf(primaryService(b.service));
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
       || String(a.bed || "").localeCompare(String(b.bed || ""), "es", { numeric: true });
   }
@@ -8187,6 +9465,22 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  function scheduleDraftSave(delay = 350) {
+    ui.draftsDirty = true;
+    if (ui.draftSaveTimer) window.clearTimeout(ui.draftSaveTimer);
+    ui.draftSaveTimer = window.setTimeout(flushDraftSave, delay);
+  }
+
+  function flushDraftSave() {
+    if (ui.draftSaveTimer) {
+      window.clearTimeout(ui.draftSaveTimer);
+      ui.draftSaveTimer = null;
+    }
+    if (!ui.draftsDirty) return;
+    ui.draftsDirty = false;
+    saveJson(DRAFT_KEY, ui.reviewDrafts);
+  }
+
   function cleanCell(value) {
     return String(value ?? "").replace(/\s+/g, " ").trim();
   }
@@ -8206,12 +9500,56 @@
       "UCIP": "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS",
       "GINECOLOGIA Y OBSTETRICIA": "GINECOLOGÍA Y OBSTETRICIA"
     };
+    if (!key.includes("/") && key.includes("HEMODI")) return "HEMODIÁLISIS";
+    if (!key.includes("/") && key.includes("ONCOLOG")) return "ONCOLOGÍA";
     return SERVICES.find(service => normalizeText(service) === key) || mapped[key] || cleanCell(value).toUpperCase();
+  }
+
+  function serviceParts(value) {
+    return cleanCell(value)
+      .split(/\s*\/\s*/)
+      .map(part => normalizeService(part))
+      .filter(Boolean);
+  }
+
+  function serviceMatchesFilter(value, filter) {
+    if (!filter || filter === "Todos") return true;
+    const target = normalizeService(filter);
+    const direct = normalizeService(value);
+    return direct === target || serviceParts(value).includes(target);
+  }
+
+  function primaryService(value) {
+    return serviceParts(value)[0] || normalizeService(value);
+  }
+
+  function isProtectedAmbulatoryService(value) {
+    const key = normalizeText(primaryService(value));
+    return key.includes("HEMODI") || key.includes("ONCOLOG") || PROTECTED_AMBULATORY_SERVICES.some(service => normalizeText(service) === key);
+  }
+
+  function isPlainAmbulatoryService(value) {
+    return normalizeService(value) === "AMBULATORIO";
+  }
+
+  function isHospitalStayService(value) {
+    const service = primaryService(value);
+    return Boolean(service) && !isPlainAmbulatoryService(service) && !PROTECTED_AMBULATORY_SERVICES.includes(service);
+  }
+
+  function combinedServiceLabel(baseService, targetService) {
+    const left = normalizeService(baseService);
+    const right = normalizeService(targetService);
+    return left && right && left !== right ? `${left} / ${right}` : right || left;
   }
 
   function splitServiceBed(value) {
     const text = cleanCell(value);
     if (!text) return { service: "", bed: "" };
+    if (looksLikeBedCell(text)) {
+      const serviceFromBed = serviceFromBedCell(text);
+      if (serviceFromBed) return { service: serviceFromBed, bed: text };
+    }
     const slashParts = text.split(/\s*\/\s*/).filter(Boolean);
     if (slashParts.length >= 2) {
       return { service: slashParts[0], bed: slashParts.slice(1).join(" / ") };
@@ -8221,10 +9559,33 @@
     return { service: text, bed: "" };
   }
 
+  function normalizeImportService(value) {
+    return knownServiceFromText(value) || normalizeService(value || "");
+  }
+
+  function serviceFromBedCell(value) {
+    const key = normalizeText(value);
+    if (/\b(CX|TX|CIR|TRAUMA)\b/.test(key)) return "CIRUGÍA Y TRAUMATOLOGÍA";
+    if (/\b(MI|MED\s*INT)\b/.test(key)) return "MEDICINA INTERNA";
+    if (/\b(PED|PEDS)\b/.test(key)) return "PEDIATRÍA";
+    if (/\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/.test(key)) return "CUNEROS";
+    if (/\b(GYO|GO)\b/.test(key)) return "GINECOLOGÍA Y OBSTETRICIA";
+    if (/\b(UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB)\b/.test(key)) return knownServiceFromText(key);
+    return "";
+  }
+
   function normalizeBed(value) {
-    return cleanCell(value)
+    if (normalizeDate(value)) return "";
+    const text = cleanCell(value)
       .replace(/^CAMA\s*[:#-]?\s*/i, "")
+      .replace(/\s+/g, " ")
       .toUpperCase();
+    if (/[\/()]/.test(text) || text.length > 24) return "";
+    const cleaned = text
+      .replace(/\s+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "")
+      .replace(/(\d+)[\s-]+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "$1")
+      .trim();
+    return cleaned;
   }
 
   function normalizeSex(value) {
@@ -8234,9 +9595,77 @@
     return key ? cleanCell(value).toUpperCase() : null;
   }
 
+  function normalizeImportSex(value) {
+    const key = normalizeText(value);
+    if (["M", "MASCULINO", "HOMBRE"].includes(key)) return "MASCULINO";
+    if (["F", "FEMENINO", "MUJER"].includes(key)) return "FEMENINO";
+    return "";
+  }
+
   function parseAge(value) {
+    const key = normalizeText(value);
+    if (/\b(DIA|DIAS|MES|MESES|NEONATO|RN|RECIEN NACIDO)\b/.test(key)) return 0;
     const n = Number(String(value ?? "").match(/\d+/)?.[0]);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function normalizeImportAge(value) {
+    const text = cleanCell(value);
+    const key = normalizeText(text);
+    const n = Number(text.match(/\d+/)?.[0]);
+    if (!Number.isFinite(n)) return "";
+    if (/\b(DIA|DIAS)\b/.test(key)) return `${n} ${n === 1 ? "día" : "días"}`;
+    if (/\b(MES|MESES)\b/.test(key)) return `${n} ${n === 1 ? "mes" : "meses"}`;
+    return n;
+  }
+
+  function ageFromBirthDate(birthDate, censusDate) {
+    const birth = normalizeDate(birthDate);
+    const census = normalizeDate(censusDate) || isoToday();
+    if (!birth || !census) return null;
+    const b = new Date(`${birth}T00:00:00`);
+    const c = new Date(`${census}T00:00:00`);
+    if (!Number.isFinite(b.getTime()) || !Number.isFinite(c.getTime()) || b > c) return null;
+    let years = c.getFullYear() - b.getFullYear();
+    const beforeBirthday = c.getMonth() < b.getMonth() || (c.getMonth() === b.getMonth() && c.getDate() < b.getDate());
+    if (beforeBirthday) years -= 1;
+    if (years >= 1) return years;
+    const days = daysBetween(birth, census);
+    if (days === null) return null;
+    if (days < 31) return `${days} ${days === 1 ? "día" : "días"}`;
+    const months = Math.max(1, Math.floor(days / 30.44));
+    return `${months} ${months === 1 ? "mes" : "meses"}`;
+  }
+
+  function normalizeSectorImport(value) {
+    const key = normalizeText(value).replace(/\s+/g, " ").trim();
+    if (!key || ["NO APLICA", "SIN DATO", "SD", "S/D"].includes(key)) return "";
+    if (["MAG", "MAGISTERIO"].includes(key)) return "MAGISTERIO";
+    if (["BUR", "BUROCRACIA"].includes(key)) return "BUROCRACIA";
+    if (["PIM", "PENSIONADO ISSTECH MAGISTERIO", "PENSIONADO MAGISTERIO"].includes(key)) return "PENSIONADO ISSTECH MAGISTERIO";
+    if (["PIB", "PENSIONADO ISSTECH BUROCRACIA", "PENSIONADO BUROCRACIA"].includes(key)) return "PENSIONADO ISSTECH BUROCRACIA";
+    if (key.includes("ISSTECH")) return key.includes("PENSIONADO") ? cleanCell(value).toUpperCase() : "ISSTECH";
+    if (["PRIV", "PRIVADO", "PARTICULAR", "NA", "N/A"].includes(key)) return "PRIVADO";
+    return "";
+  }
+
+  function normalizeImportState(value, service, bed) {
+    const key = normalizeText(value);
+    const explicit = STATE_OPTIONS.find(option => normalizeText(option) === key);
+    if (explicit) return displayState(explicit);
+    const serviceKey = normalizeText(service);
+    const bedKey = normalizeText(bed);
+    if (serviceKey === "AMBULATORIO") return "ESTABLE";
+    if (/\b(AIS|AISLAD|OBS|OBSERVACION|OBSERVACIÓN|UCIA|UCIN|UCIP)\b/.test(`${serviceKey} ${bedKey}`)) return "GRAVE";
+    return "DELICADO";
+  }
+
+  function normalizeImportDeih(value, admissionDate, censusDate, service) {
+    if (isAmbulatoryStayService(service)) return "NA";
+    const explicit = cleanCell(value).match(/\d+/)?.[0];
+    if (explicit !== undefined) return Math.max(0, Number(explicit));
+    const calculated = daysBetween(admissionDate, censusDate);
+    return calculated === null ? null : calculated;
   }
 
   function normalizeDate(value) {
@@ -8245,13 +9674,20 @@
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return validIsoDate(text) ? text : "";
     const m = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
     if (m) {
-      const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+      const year = m[3].length === 2 ? expandTwoDigitYear(m[3]) : m[3];
       const iso = `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
       return validIsoDate(iso) ? iso : "";
     }
     if (/^\d+(?:\.\d+)?$/.test(text)) return "";
+    if (/[A-Za-zÁÉÍÓÚÑ]/i.test(text)) return "";
     const d = new Date(text);
     return Number.isFinite(d.getTime()) ? toIsoDate(d) : "";
+  }
+
+  function expandTwoDigitYear(value) {
+    const n = Number(value);
+    const current = new Date().getFullYear() % 100;
+    return `${n <= current + 1 ? 2000 + n : 1900 + n}`;
   }
 
   function validIsoDate(iso) {
@@ -8414,7 +9850,7 @@
   }
 
   function riskFromImport(row) {
-    const text = normalizeText(`${row.estado} ${row.riesgo_iaas} ${row.dx_epidemiologico} ${row.pendientes} ${row.diagnostico_actual}`);
+    const text = normalizeText(`${row.estado} ${row.riesgo_iaas} ${row.pendientes} ${row.diagnostico_actual}`);
     if (text.includes("CRITICO")) return "Crítico";
     if (text.includes("ALTO") || text.includes("IAAS")) return "Alto";
     if (text.includes("MODERADO") || text.includes("RIESGO")) return "Moderado";
@@ -8462,7 +9898,9 @@
       revisado: "Revisado",
       incompleto: "Incompleto",
       alerta: "Alerta IAAS",
-      "requiere_conciliación": "Requiere conciliación"
+      "requiere_conciliación": "Requiere conciliación",
+      alta_probable: "Alta probable",
+      alta_reportada: "Alta por verificar"
     }[status] || "Pendiente";
   }
 
@@ -8513,7 +9951,13 @@
 
   function sectorLabel(value) {
     const key = normalizeText(value).replace(/\s+/g, "");
-    return SECTOR_LABELS[key] || "";
+    return SECTOR_LABELS[key] || normalizeSectorImport(value) || "";
+  }
+
+  function sectorMatches(value, filterValue) {
+    const left = normalizeSectorImport(value) || sectorLabel(value) || cleanCell(value);
+    const right = normalizeSectorImport(filterValue) || sectorLabel(filterValue) || cleanCell(filterValue);
+    return normalizeText(left) === normalizeText(right);
   }
 
   function displayState(value) {
@@ -8632,5 +10076,31 @@
 
   function waitFrame() {
     return new Promise(resolve => requestAnimationFrame(resolve));
+  }
+
+  if (window.__EPIVIDA_TEST_MODE__) {
+    window.__EPIVIDA_TEST__ = {
+      store,
+      ui,
+      buildImportDraft,
+      parseDelimitedText,
+      executeImportPlanLocalV2,
+      buildPrintReportModel,
+      applyHospitalDischarge,
+      serviceMatchesFilter,
+      normalizeService,
+      dischargePrintTextFor,
+      isIaasFollowUpCandidate,
+      getReviewDraft,
+      setReviewDraft,
+      addDeviceDraft,
+      updateDeviceDraft,
+      renderPatientRound,
+      validateReviewDraft,
+      defaultPreventiveDevice,
+      packageCreatesDevice,
+      preventiveCompliance,
+      isoToday
+    };
   }
 })();
