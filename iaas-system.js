@@ -3,6 +3,7 @@
 
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
+  const ROUND_NAV_COLLAPSE_KEY = "epivida-round-nav-collapsed-v1";
   const AUTH_FLOW_KEY = "epivida-auth-redirect-flow";
   const SHEETS_SESSION_KEY = "epivida-sheets-session-v1";
   const FIREBASE_VERSION = "10.12.4";
@@ -4095,10 +4096,25 @@
     const rows = roundNavigationRows(date, patientId, mode, patient);
     const items = bedBoardItems(rows, date, mode);
     if (!items.length) return "";
-    return h("div", { class: `round-nav-board ${mode}` }, [
+    const roundNavMode = mode;
+
+    const collapsed = roundNavCollapsed(roundNavMode);
+
+    return h("div", { class: "round-nav-board " + roundNavMode + (collapsed ? " collapsed" : "") }, [
       h("div", { class: "round-nav-head" }, [
         h("strong", {}, [mode === "iaas" ? "Camas IAAS" : `Camas ${serviceDisplayLabel(patient.currentService)}`]),
-        h("span", {}, ["Seleccionar cama"])
+        h("div", { class: "round-nav-actions" }, [
+        h("span", {}, ["Seleccionar cama"]),
+        h("button", {
+          type: "button",
+          class: "round-nav-toggle",
+          "aria-expanded": String(!collapsed),
+          onclick: event => {
+            event.preventDefault();
+            setRoundNavCollapsed(roundNavMode, !collapsed);
+          }
+        }, [roundNavToggleLabel(roundNavMode, collapsed)])
+      ])
       ]),
       h("div", { class: "round-nav-grid" }, items.map(item => renderRoundNavTile(item, date, mode, patientId)))
     ]);
@@ -4213,6 +4229,33 @@
       row.pendingIssues,
       row.notes
     ].filter(Boolean).join(" "));
+  }
+
+
+  function roundNavStorageKey(mode) {
+    return ROUND_NAV_COLLAPSE_KEY + "-" + (mode || "default");
+  }
+
+  function roundNavCollapsed(mode) {
+    try {
+      return sessionStorage.getItem(roundNavStorageKey(mode)) === "1";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function setRoundNavCollapsed(mode, collapsed) {
+    try {
+      sessionStorage.setItem(roundNavStorageKey(mode), collapsed ? "1" : "0");
+    } catch (error) {
+      // La preferencia de vista no es critica si el navegador bloquea sessionStorage.
+    }
+    render();
+  }
+
+  function roundNavToggleLabel(mode, collapsed) {
+    const label = mode === "iaas" ? "camas IAAS" : "camas";
+    return (collapsed ? "Mostrar " : "Ocultar ") + label;
   }
 
   function renderPatientRound(date, patientId, requestedSection = null) {
