@@ -1,0 +1,196 @@
+name: Apply IAAS round navigation toggle
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-iaas-round-nav-toggle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply collapsible bed selector
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const cacheVersion = '2026-05-07-iaas-navtoggle01';
+          const workflowPath = '.github/workflows/apply-iaas-round-nav-toggle.yml';
+          const jsPath = 'iaas-system.js';
+          const cssPath = 'iaas-system.css';
+          const htmlPath = 'index.html';
+          let js = fs.readFileSync(jsPath, 'utf8');
+          let css = fs.readFileSync(cssPath, 'utf8');
+          let html = fs.readFileSync(htmlPath, 'utf8');
+
+          function assertChanged(before, after, label) {
+            if (before === after) throw new Error(`No se pudo aplicar el cambio esperado en ${label}.`);
+          }
+
+          const originalJs = js;
+          if (!js.includes('ROUND_NAV_COLLAPSE_KEY')) {
+            const anchor = '  const DRAFT_KEY = "epivida-iaas-drafts-v1";';
+            if (!js.includes(anchor)) throw new Error('No se encontro DRAFT_KEY para insertar ROUND_NAV_COLLAPSE_KEY.');
+            js = js.replace(anchor, `${anchor}\n  const ROUND_NAV_COLLAPSE_KEY = "epivida-round-nav-collapsed-v1";`);
+          }
+
+          if (!js.includes('function roundNavCollapsed(')) {
+            const helpers = `
+
+  function roundNavStorageKey(mode) {
+    return `${ROUND_NAV_COLLAPSE_KEY}-${mode || "default"}`;
+  }
+
+  function roundNavCollapsed(mode) {
+    try {
+      return sessionStorage.getItem(roundNavStorageKey(mode)) === "1";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function setRoundNavCollapsed(mode, collapsed) {
+    try {
+      sessionStorage.setItem(roundNavStorageKey(mode), collapsed ? "1" : "0");
+    } catch (error) {
+      // La preferencia de vista no es critica si el navegador bloquea sessionStorage.
+    }
+    render();
+  }
+
+  function roundNavToggleLabel(mode, collapsed) {
+    const label = mode === "iaas" ? "camas IAAS" : "camas";
+    return collapsed ? `Mostrar ${label}` : `Ocultar ${label}`;
+  }
+`;
+            const renderAnchor = /\n  function renderPatientRound\(/;
+            if (!renderAnchor.test(js)) throw new Error('No se encontro renderPatientRound para insertar helpers.');
+            js = js.replace(renderAnchor, `${helpers}\n  function renderPatientRound(`);
+          }
+
+          if (!js.includes('round-nav-toggle')) {
+            const returnPattern = /(\s*)return h\("div", \{ class: `round-nav-board \$\{([^}]+)\}` \}, \[/;
+            const match = js.match(returnPattern);
+            if (!match) throw new Error('No se encontro el contenedor round-nav-board para hacerlo colapsable.');
+            const indent = match[1];
+            const modeExpression = match[2].trim();
+            js = js.replace(returnPattern, `${indent}const roundNavMode = ${modeExpression};\n${indent}const collapsed = roundNavCollapsed(roundNavMode);\n${indent}return h("div", { class: `round-nav-board ${roundNavMode}${collapsed ? " collapsed" : ""}` }, [`);
+
+            const headerSpan = 'h("span", {}, ["Seleccionar cama"])';
+            if (!js.includes(headerSpan)) throw new Error('No se encontro el texto Seleccionar cama en el encabezado del selector.');
+            js = js.replace(headerSpan, `h("div", { class: "round-nav-actions" }, [
+        h("span", {}, ["Seleccionar cama"]),
+        h("button", {
+          type: "button",
+          class: "round-nav-toggle",
+          "aria-expanded": String(!collapsed),
+          onclick: event => {
+            event.preventDefault();
+            setRoundNavCollapsed(roundNavMode, !collapsed);
+          }
+        }, [roundNavToggleLabel(roundNavMode, collapsed)])
+      ])`);
+          }
+          assertChanged(originalJs, js, jsPath);
+          fs.writeFileSync(jsPath, js);
+
+          const originalCss = css;
+          if (!css.includes('.round-nav-actions')) {
+            const cssAnchor = `.round-nav-head span {
+  color: #64748b;
+  font-weight: 800;
+}
+`;
+            if (!css.includes(cssAnchor)) throw new Error('No se encontro .round-nav-head span para insertar estilos del toggle.');
+            css = css.replace(cssAnchor, `${cssAnchor}
+.round-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.round-nav-toggle {
+  min-height: 30px;
+  border: 1px solid rgba(96, 120, 170, .28);
+  border-radius: 999px;
+  padding: 6px 11px;
+  color: #0c193d;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.round-nav-toggle:hover,
+.round-nav-toggle:focus-visible {
+  border-color: rgba(36, 87, 214, .46);
+  background: #eef4ff;
+}
+
+.round-nav-board.collapsed {
+  gap: 0;
+  padding-block: 8px;
+}
+
+.round-nav-board.collapsed .round-nav-grid {
+  display: none;
+}
+`);
+          }
+          if (!css.includes('.command-shell .round-nav-board.collapsed')) {
+            css += `
+.command-shell .round-nav-board.collapsed {
+  min-height: 48px;
+}
+
+.command-shell .round-nav-toggle {
+  color: #0b1848 !important;
+  border-color: rgba(96,120,170,.38) !important;
+  background: linear-gradient(135deg, #ffffff, #eef4ff) !important;
+}
+
+@media screen and (max-width: 760px) {
+  .command-shell .round-nav-actions {
+    justify-content: space-between !important;
+  }
+
+  .command-shell .round-nav-toggle {
+    min-height: 34px !important;
+    width: auto !important;
+    padding: 7px 10px !important;
+    font-size: 11px !important;
+  }
+}
+`;
+          }
+          assertChanged(originalCss, css, cssPath);
+          fs.writeFileSync(cssPath, css);
+
+          const originalHtml = html;
+          html = html.replace(/iaas-system\.css\?v=[^"']+/g, `iaas-system.css?v=${cacheVersion}`);
+          html = html.replace(/iaas-system\.js\?v=[^"']+/g, `iaas-system.js?v=${cacheVersion}`);
+          assertChanged(originalHtml, html, htmlPath);
+          fs.writeFileSync(htmlPath, html);
+
+          if (!js.includes('ROUND_NAV_COLLAPSE_KEY') || !js.includes('round-nav-toggle') || !css.includes('.round-nav-board.collapsed') || !html.includes(cacheVersion)) {
+            throw new Error('Verificacion final incompleta del toggle de camas.');
+          }
+
+          fs.rmSync(workflowPath, { force: true });
+          NODE
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add iaas-system.js iaas-system.css index.html .github/workflows/apply-iaas-round-nav-toggle.yml
+          git commit -m "Add collapsible IAAS bed selector" || exit 0
+          git push
