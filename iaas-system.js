@@ -4090,6 +4090,46 @@
     return h("a", { ...attrs, href: bedTileHref(date, item.row.patientId, mode) }, content);
   }
 
+  function renderRoundNavigationBoard(date, patientId, section, patient) {
+    const mode = section === "iaas" ? "iaas" : "preventive";
+    const rows = roundNavigationRows(date, patientId, mode, patient);
+    const items = bedBoardItems(rows, date, mode);
+    if (!items.length) return "";
+    return h("div", { class: `round-nav-board ${mode}` }, [
+      h("div", { class: "round-nav-head" }, [
+        h("strong", {}, [mode === "iaas" ? "Camas IAAS" : `Camas ${serviceDisplayLabel(patient.currentService)}`]),
+        h("span", {}, ["Seleccionar cama"])
+      ]),
+      h("div", { class: "round-nav-grid" }, items.map(item => renderRoundNavTile(item, date, mode, patientId)))
+    ]);
+  }
+
+  function roundNavigationRows(date, patientId, mode, patient) {
+    if (mode === "iaas") return iaasFollowUpRows(date).map(item => item.row);
+    const service = normalizeService(patient.currentService || store.dailyCensus?.[date]?.patients?.[patientId]?.service);
+    return getCensusRows(date)
+      .filter(row => normalizeService(row.service) === service)
+      .sort(sortByServiceBed);
+  }
+
+  function renderRoundNavTile(item, date, mode, currentPatientId) {
+    const state = bedTileState(item.row, date, mode);
+    const bed = item.bed || item.row?.bed || "S/C";
+    const patient = item.row ? store.patients[item.row.patientId] || {} : null;
+    const content = [
+      h("strong", {}, [bed]),
+      h("span", {}, [state.label]),
+      h("small", {}, [patient ? truncateText(patientLabel(patient, item.row), mode === "iaas" ? 34 : 22) : "Sin paciente"])
+    ];
+    const attrs = {
+      class: `bed-tile round-nav-tile ${state.status} ${item.row?.patientId === currentPatientId ? "current" : ""}`,
+      title: state.title,
+      "aria-label": `${bed}: ${state.title}`
+    };
+    if (state.disabled) return h("button", { ...attrs, type: "button", disabled: true }, content);
+    return h("a", { ...attrs, href: bedTileHref(date, item.row.patientId, mode) }, content);
+  }
+
   function bedTileState(row, date, mode) {
     if (!row?.patientId) {
       return { status: "vacant", disabled: true, label: "Vacía", title: "Cama desocupada" };
@@ -4183,29 +4223,38 @@
     const draft = getReviewDraft(date, patientId, section);
     const active = activeEpisodes(patientId, date);
     const patientDevices = episodesForPatient(patientId);
-    const stay = isAmbulatoryStayService(patient.currentService) ? "Ambulatorio" : `${daysBetween(patient.admissionDate, date) ?? "NA"} días`;
+    const stay = isAmbulatoryStayService(patient.currentService) ? "Ambulatorio" : `${daysBetween(patient.admissionDate, date) ?? "NA"} dias`;
     const backHref = section === "iaas" ? "#/seguimiento-iaas" : `#/ronda/${date}`;
     return h("div", { class: "iaas-page patient-round" }, [
-      h("section", { class: "iaas-panel patient-sticky-summary" }, [
-        h("div", {}, [
-          h("a", { href: backHref, class: "back-link" }, ["Volver al servicio"]),
-          h("h1", {}, [`Cama ${patient.currentBed} · ${patientLabel(patient)}`]),
-          h("p", {}, [`${patient.currentService} · Estancia: ${stay}`])
-        ]),
-        h("span", { class: `risk ${riskClass(patient.currentRiskLevel)}` }, [patient.currentRiskLevel || "Sin riesgo"])
-      ]),
+      renderPatientRoundSummary(date, patientId, patient, stay, backHref, section),
       ...(section === "iaas"
-        ? [renderIaasInvasiveSummary(patientDevices), renderIaasAssessmentPanel(date, patientId, patient, active, draft)]
+        ? [renderIaasInvasiveSummary(patientDevices, date, patientId), renderIaasAssessmentPanel(date, patientId, patient, active, draft)]
         : renderPreventiveReviewSections(date, patientId, patient, active, draft)),
       h("div", { class: "round-save-bar" }, [
+        renderRoundNavigationBoard(date, patientId, section, patient),
         h("button", { class: "iaas-button ghost", onclick: () => saveRoundEntry(date, patientId, "incompleto", false) }, ["Guardar como incompleto"]),
         h("button", { class: "iaas-button", onclick: () => saveRoundEntry(date, patientId, "pendiente", false) }, ["Marcar pendiente"]),
+        h("button", { class: "iaas-button primary", onclick: () => saveRoundEntry(date, patientId, "revisado", "previous") }, ["Guardar y anterior cama"]),
         h("button", { class: "iaas-button primary", onclick: () => saveRoundEntry(date, patientId, "revisado", false) }, ["Guardar"]),
-        h("button", { class: "iaas-button primary strong", onclick: () => saveRoundEntry(date, patientId, "revisado", true) }, ["Guardar y siguiente cama"])
+        h("button", { class: "iaas-button primary strong", onclick: () => saveRoundEntry(date, patientId, "revisado", "next") }, ["Guardar y siguiente cama"])
       ])
     ]);
   }
 
+  function renderPatientRoundSummary(date, patientId, patient, stay, backHref, section) {
+    return h("section", { class: "iaas-panel patient-sticky-summary" }, [
+      h("div", { class: "patient-summary-main" }, [
+        h("a", { href: backHref, class: "back-link" }, ["Volver al servicio"]),
+        h("h1", {}, [`Cama ${patient.currentBed} - ${patientLabel(patient)}`]),
+        h("p", {}, [`${patient.currentService} - Estancia: ${stay}`]),
+        renderPatientDiagnosisSummary(date, patientId, patient)
+      ]),
+      h("div", { class: "patient-summary-side" }, [
+        h("span", { class: `risk ${riskClass(patient.currentRiskLevel)}` }, [patient.currentRiskLevel || "Sin riesgo"]),
+        section === "iaas" ? renderPatientCultureAlerts(patientId, date) : ""
+      ])
+    ]);
+  }
   function renderPreventiveReviewSections(date, patientId, patient, active, draft) {
     const deviceCards = preventiveDeviceCards(active, draft, date);
     const hasAnyInvasive = active.length > 0 || (draft.deviceDrafts || []).some(packageCreatesDevice);
@@ -4216,7 +4265,11 @@
             h("h2", {}, ["Dispositivos invasivos actuales"]),
             h("p", {}, ["Vista compacta para revisar tipo, French, instalación, retiro y días de invasivo."])
           ]),
-          hasAnyInvasive ? h("span", { class: "badge device" }, [`${active.length} registrado(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos"])
+          h("div", { class: "iaas-panel-actions" }, [
+            h("a", { class: "iaas-button ghost compact", href: `#/seguimiento-iaas/${date}/paciente/${patientId}` }, ["Ir a seguimiento IAAS"]),
+            h("a", { class: "iaas-button ghost compact", href: "#/censo-hospitalario" }, ["Ir a vigilancia hospitalaria"]),
+            hasAnyInvasive ? h("span", { class: "badge device" }, [`${active.length} registrado(s)`]) : h("span", { class: "badge neutral" }, ["Sin invasivos"])
+          ])
         ]),
         deviceCards.length ? h("div", { class: "device-list compact-device-grid" }, deviceCards.map(ep => renderActiveDevice(ep, draft, date))) : h("p", { class: "muted" }, ["No hay invasivos activos capturados."]),
         !hasAnyInvasive ? h("button", { class: draft.noInvasivesConfirmed ? "iaas-button primary" : "iaas-button", onclick: () => toggleNoInvasives(date, patientId) }, [draft.noInvasivesConfirmed ? "Sin invasivos confirmado" : "Confirmar sin invasivos"]) : ""
@@ -4375,7 +4428,7 @@
     ));
   }
 
-  function renderIaasInvasiveSummary(episodes = []) {
+  function renderIaasInvasiveSummary(episodes = [], date = activeDate(), patientId = "") {
     const rows = [...episodes].sort((a, b) =>
       String(a.installationDate || "").localeCompare(String(b.installationDate || ""))
         || String(deviceDisplayName(a)).localeCompare(String(deviceDisplayName(b)), "es")
@@ -4386,7 +4439,10 @@
           h("h2", {}, ["Invasivos colocados por enfermería"]),
           h("p", {}, ["Resumen de paquetes preventivos: tipo de invasivo, instalación y retiro."])
         ]),
-        h("span", { class: "badge device" }, [`${rows.length} invasivo(s)`])
+        h("div", { class: "iaas-panel-actions" }, [
+          patientId ? h("a", { class: "iaas-button ghost compact", href: `#/ronda/${date}/paciente/${patientId}` }, ["Revisar paquetes preventivos"]) : "",
+          h("span", { class: "badge device" }, [`${rows.length} invasivo(s)`])
+        ])
       ]),
       rows.length ? h("div", { class: "iaas-invasive-list summary-grid" }, rows.map(ep => {
         const active = isSummaryDeviceActive(ep);
@@ -4412,7 +4468,7 @@
     return h("article", { class: "iaas-assessment-block" }, [
       h("h3", {}, ["Signos vitales"]),
       h("div", { class: "iaas-field-grid" }, [
-        iaasDateInput(date, patientId, "vitalSigns", "studyDate", "Fecha del estudio", assessment.vitalSigns?.studyDate || date),
+        iaasDateInput(date, patientId, "vitalSigns", "studyDate", "Fecha del estudio", assessment.vitalSigns?.studyDate || isoToday()),
         ...fields,
         ...ventilationFields
       ])
@@ -4423,7 +4479,7 @@
     return h("article", { class: "iaas-assessment-block" }, [
       h("h3", {}, ["Biometría hemática"]),
       h("div", { class: "iaas-field-grid three" }, [
-        iaasDateInput(date, patientId, "cbc", "studyDate", "Fecha del estudio", assessment.cbc?.studyDate || date),
+        iaasDateInput(date, patientId, "cbc", "studyDate", "Fecha del estudio", assessment.cbc?.studyDate || isoToday()),
         ...IAAS_CBC_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "cbc", key, label, assessment.cbc?.[key]))
       ])
     ]);
@@ -4433,7 +4489,7 @@
     return h("article", { class: "iaas-assessment-block" }, [
       h("h3", {}, ["Examen general de orina"]),
       h("div", { class: "iaas-field-grid three" }, [
-        iaasDateInput(date, patientId, "urinalysis", "studyDate", "Fecha del estudio", assessment.urinalysis?.studyDate || date),
+        iaasDateInput(date, patientId, "urinalysis", "studyDate", "Fecha del estudio", assessment.urinalysis?.studyDate || isoToday()),
         ...IAAS_URINALYSIS_SELECTS.map(([key, label, values]) => iaasSelectInput(date, patientId, "urinalysis", key, label, values, assessment.urinalysis?.[key])),
         iaasTextInput(date, patientId, "urinalysis", "leukocytes", "Leucocitos", assessment.urinalysis?.leukocytes)
       ])
@@ -4448,7 +4504,7 @@
         h("button", { class: "iaas-button ghost compact", type: "button", onclick: () => addIaasViralPanel(date, patientId, viralOptions[0]) }, ["Agregar panel viral"])
       ]),
       h("div", { class: `iaas-field-grid ${limited ? "" : "four"}` }, [
-        iaasDateInput(date, patientId, "otherStudies", "studyDate", "Fecha del estudio", assessment.otherStudies?.studyDate || date),
+        iaasDateInput(date, patientId, "otherStudies", "studyDate", "Fecha del estudio", assessment.otherStudies?.studyDate || isoToday()),
         ...(limited ? [] : IAAS_OTHER_STUDY_FIELDS.map(([key, label]) => iaasTextInput(date, patientId, "otherStudies", key, label, assessment.otherStudies?.[key])))
       ]),
       h("div", { class: "iaas-repeat-list viral-panel-list" }, viralRows.map((row, index) =>
@@ -4720,69 +4776,114 @@
     const series = vitalChartSeries().map(item => ({
       ...item,
       points: dates
-        .map(day => ({ date: day, value: item.parse(saved.get(day)?.vitalSigns?.[item.key]) }))
+        .map(day => {
+          const raw = saved.get(day)?.vitalSigns?.[item.key];
+          return { date: day, raw: cleanCell(raw), value: item.parse(raw) };
+        })
         .filter(point => Number.isFinite(point.value))
     })).filter(item => item.points.length);
     if (!series.length) {
       return h("div", { class: "iaas-temperature-chart empty" }, [
-        h("strong", {}, ["Gráfica de signos vitales"]),
-        h("span", {}, ["Sin signos vitales guardados todavía."])
+        h("strong", {}, ["Grafica de signos vitales"]),
+        h("span", {}, ["Sin signos vitales guardados todavia."])
       ]);
     }
-    const width = 760;
-    const height = 270;
-    const left = 48;
-    const right = 26;
-    const top = 26;
-    const bottom = 54;
-    const xForDate = day => {
-      const index = Math.max(0, dates.indexOf(day));
-      return left + index * ((width - left - right) / Math.max(1, dates.length - 1));
-    };
-    const lineFor = item => {
-      const values = item.points.map(point => point.value);
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const spread = Math.max(1, max - min);
-      if (item.points.length === 1) {
-        const point = item.points[0];
-        const x = xForDate(point.date);
-        const y = top + ((max - point.value) / spread) * (height - top - bottom);
-        const start = Math.max(left, x - 8);
-        const end = Math.min(width - right, x + 8);
-        return `${roundForSvg(start)},${roundForSvg(y)} ${roundForSvg(end)},${roundForSvg(y)}`;
-      }
-      return item.points.map(point => {
-        const x = xForDate(point.date);
-        const y = top + ((max - point.value) / spread) * (height - top - bottom);
-        return `${roundForSvg(x)},${roundForSvg(y)}`;
-      }).join(" ");
-    };
-    const tickStep = Math.max(1, Math.ceil(dates.length / 8));
-    const tickDates = dates.filter((_, index) => index % tickStep === 0 || index === dates.length - 1);
     return h("div", { class: "iaas-temperature-chart vital-signs-chart" }, [
       h("div", { class: "chart-head" }, [
-        h("strong", {}, ["Gráfica de signos vitales"]),
-        h("span", {}, ["Líneas por variable desde el ingreso hospitalario."])
+        h("strong", {}, ["Grafica de signos vitales"]),
+        h("span", {}, ["Cada variable se muestra en su propia escala para que la tendencia sea legible."])
       ]),
-      h("div", { class: "vital-chart-legend" }, series.map(item =>
-        h("span", {}, [
-          h("i", { style: `background:${item.color}` }),
-          `${item.label} (${item.unit})`
-        ])
-      )),
-      h("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Gráfica longitudinal de signos vitales IAAS" }, [
-        h("line", { x1: String(left), y1: String(height - bottom), x2: String(width - right), y2: String(height - bottom) }),
-        h("line", { x1: String(left), y1: String(top), x2: String(left), y2: String(height - bottom) }),
-        ...tickDates.map(day => h("text", { x: String(xForDate(day) - 17), y: String(height - 18), class: "axis-label" }, [formatShortDate(day)])),
-        ...series.map(item => h("polyline", {
-          points: lineFor(item),
-          fill: "none",
-          style: `stroke:${item.color}`,
-          "data-series": item.key
-        }))
+      h("div", { class: "vital-trend-grid" }, series.map(item => renderVitalTrendCard(item)))
+    ]);
+  }
+
+  function renderVitalTrendCard(item) {
+    const width = 320;
+    const height = 116;
+    const left = 38;
+    const right = 18;
+    const top = 16;
+    const bottom = 30;
+    const values = item.points.map(point => point.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const spread = Math.max(1, max - min);
+    const xForIndex = index => left + index * ((width - left - right) / Math.max(1, item.points.length - 1));
+    const yForValue = value => top + ((max - value) / spread) * (height - top - bottom);
+    const points = item.points.length === 1
+      ? `${left},${roundForSvg(yForValue(item.points[0].value))} ${width - right},${roundForSvg(yForValue(item.points[0].value))}`
+      : item.points.map((point, index) => `${roundForSvg(xForIndex(index))},${roundForSvg(yForValue(point.value))}`).join(" ");
+    const latest = item.points[item.points.length - 1];
+    return h("article", { class: "vital-trend-card" }, [
+      h("div", { class: "vital-trend-head" }, [
+        h("span", {}, [h("i", { style: `background:${item.color}` }), item.label]),
+        h("strong", {}, [formatVitalValue(item, latest)])
+      ]),
+      h("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": `${item.label} ${formatVitalValue(item, latest)}` }, [
+        h("line", { x1: String(left), y1: String(height - bottom), x2: String(width - right), y2: String(height - bottom), class: "trend-axis" }),
+        h("text", { x: "2", y: String(top + 5), class: "axis-label" }, [formatVitalValue(item, { value: max, raw: String(max) })]),
+        h("text", { x: "2", y: String(height - bottom + 4), class: "axis-label" }, [formatVitalValue(item, { value: min, raw: String(min) })]),
+        h("polyline", { points, fill: "none", style: `stroke:${item.color}` }),
+        ...item.points.map((point, index) => h("circle", { cx: String(roundForSvg(xForIndex(index))), cy: String(roundForSvg(yForValue(point.value))), r: "3.5", style: `fill:${item.color}` })),
+        h("text", { x: String(left), y: String(height - 8), class: "axis-label" }, [formatShortDate(item.points[0].date)]),
+        h("text", { x: String(width - right - 38), y: String(height - 8), class: "axis-label" }, [formatShortDate(latest.date)])
       ])
     ]);
+  }
+
+  function formatVitalValue(item, point) {
+    const raw = cleanCell(point?.raw);
+    if (raw && item.key === "bloodPressure") return appendUnit(raw, item.unit);
+    if (raw) return appendUnit(raw, item.unit);
+    const value = Number.isFinite(point?.value) ? String(point.value) : "";
+    return appendUnit(value, item.unit);
+  }
+  function renderPatientDiagnosisSummary(date, patientId, patient) {
+    const row = store.dailyCensus?.[date]?.patients?.[patientId] || {};
+    const diagnoses = [];
+    const seen = new Set();
+    [
+      ["Dx hospitalario", patient.currentDiagnosis || row.diagnosis],
+      ["Dx epidemiologico", patient.epidemiologicalDiagnosis || row.epidemiologicalDiagnosis],
+      ...((patient.diagnosisHistory || []).map(item => ["Historial Dx", item.value]).filter(([, value]) => cleanCell(value))),
+      ["Observaciones", patient.observations || row.observations || row.notes]
+    ].forEach(([label, value]) => {
+      const text = cleanCell(value);
+      const key = normalizeText(text);
+      if (!text || seen.has(key)) return;
+      seen.add(key);
+      diagnoses.push([label, text]);
+    });
+    return diagnoses.length ? h("div", { class: "patient-diagnosis-list" }, diagnoses.map(([label, value]) =>
+      h("span", {}, [h("strong", {}, [label]), cleanCell(value)])
+    )) : h("div", { class: "patient-diagnosis-list empty" }, [
+      h("span", {}, [h("strong", {}, ["Diagnosticos"]), "Sin diagnosticos capturados"])
+    ]);
+  }
+
+  function renderPatientCultureAlerts(patientId, date) {
+    const items = patientCulturePendingItems(patientId, date);
+    return h("div", { class: "patient-culture-alerts" }, [
+      h("strong", {}, ["Cultivos pendientes"]),
+      items.length ? h("div", {}, items.map(item =>
+        h("span", { class: `culture-alert-chip ${item.due ? "due" : "pending"}` }, [
+          h("b", {}, [item.type]),
+          `${item.due ? "Recabar resultado" : "Pendiente de resultado"} - Dia ${item.day}/${item.threshold}`
+        ])
+      )) : h("span", { class: "culture-alert-chip clear" }, ["Sin cultivos pendientes"])
+    ]);
+  }
+
+  function patientCulturePendingItems(patientId, date) {
+    const current = isoToday() || normalizeDate(date);
+    return cultureTimelineItems(patientId, dailyIaasAssessmentMap(patientId))
+      .filter(item => item.type && item.collectionDate && !item.resultDate && !item.microorganism)
+      .map(item => {
+        const day = daysBetween(item.collectionDate, current) ?? 0;
+        const threshold = isBloodCulture(item.type) ? 7 : 2;
+        return { ...item, day, threshold, due: day >= threshold };
+      })
+      .sort((a, b) => Number(b.due) - Number(a.due) || b.day - a.day || String(a.type).localeCompare(String(b.type), "es"));
   }
 
   function vitalChartSeries() {
@@ -5060,31 +5161,44 @@
     return h("details", { class: "iaas-study-history" }, [
       h("summary", {}, ["Historial de estudios ingresados y ediciones"]),
       h("div", { class: "iaas-history-list" }, [
-        ...entries.map(entry => renderIaasHistoryCard(patient, entry, false)),
-        ...revisionEntries.map(entry => renderIaasHistoryCard(patient, entry, true))
+        ...entries.map(entry => renderIaasHistoryCard(patient, patientId, entry, false)),
+        ...revisionEntries.map(entry => renderIaasHistoryCard(patient, patientId, entry, true))
       ])
     ]);
   }
 
-  function renderIaasHistoryCard(patient, entry, revision) {
+  function renderIaasHistoryCard(patient, patientId, entry, revision) {
     const assessment = normalizeIaasAssessment(entry.assessment);
-    const limited = isLimitedIaasAssessmentService(patient.currentService);
-    const hemodialysis = isHemodialysisService(patient.currentService);
-    const lines = [
-      `Signos vitales (${formatDisplayDate(assessment.vitalSigns.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.vitalSigns, [...IAAS_VITAL_FIELDS, ...IAAS_VENTILATION_FIELDS]) || "sin datos"}`,
-      !limited ? `Biometría hemática (${formatDisplayDate(assessment.cbc.studyDate || entry.date) || "sin fecha"}): ${summarizeSection(assessment.cbc, IAAS_CBC_FIELDS) || "sin datos"}` : "",
-      !limited ? `Examen general de orina (${formatDisplayDate(assessment.urinalysis.studyDate || entry.date) || "sin fecha"}): ${summarizeUrinalysis(assessment.urinalysis) || "sin datos"}` : "",
-      `Otros estudios (${formatDisplayDate(assessment.otherStudies.studyDate || entry.date) || "sin fecha"}): ${summarizeOtherStudies(assessment.otherStudies) || "sin datos"}`,
-      hemodialysis ? `Seguimiento infecciones: ${summarizeHemodialysisInfection(assessment.infectionTracking) || "sin datos"}` : "",
-      assessment.observations ? `Observaciones IAAS: ${assessment.observations}` : ""
-    ].filter(Boolean);
+    const lines = iaasHistorySections(patient, assessment, entry.date);
     return h("article", { class: `iaas-history-card ${revision ? "revision" : ""}` }, [
-      h("strong", {}, [revision ? `Edición previa · ${formatDisplayDate(entry.date) || entry.date}` : `Registro guardado · ${formatDisplayDate(entry.date) || entry.date}`]),
-      entry.editedAt ? h("small", {}, [`Guardado originalmente: ${formatDateTime(entry.editedAt)}`]) : "",
-      h("ul", {}, lines.map(line => h("li", {}, [line])))
+      h("div", { class: "iaas-history-card-head" }, [
+        h("strong", {}, [revision ? `Edicion previa - ${formatDisplayDate(entry.date) || entry.date}` : `Registro guardado - ${formatDisplayDate(entry.date) || entry.date}`]),
+        entry.editedAt ? h("small", {}, [`Guardado originalmente: ${formatDateTime(entry.editedAt)}`]) : ""
+      ]),
+      h("ul", {}, lines.map(line => h("li", {}, [
+        h("span", {}, [line.text]),
+        !revision ? h("div", { class: "iaas-history-actions" }, [
+          h("button", { class: "iaas-mini-action", type: "button", onclick: () => editIaasAssessmentSection(entry.date, patientId, assessment, line.key) }, ["Editar"]),
+          h("button", { class: "iaas-mini-action danger", type: "button", onclick: () => deleteIaasAssessmentSection(entry.date, patientId, line.key) }, ["Eliminar"])
+        ]) : ""
+      ])))
     ]);
   }
 
+  function iaasHistorySections(patient, assessment, date) {
+    const limited = isLimitedIaasAssessmentService(patient.currentService);
+    const hemodialysis = isHemodialysisService(patient.currentService);
+    return [
+      { key: "vitalSigns", text: `Signos vitales (${formatDisplayDate(assessment.vitalSigns.studyDate || date) || "sin fecha"}): ${summarizeSection(assessment.vitalSigns, [...IAAS_VITAL_FIELDS, ...IAAS_VENTILATION_FIELDS]) || "sin datos"}` },
+      !limited ? { key: "cbc", text: `Biometria hematica (${formatDisplayDate(assessment.cbc.studyDate || date) || "sin fecha"}): ${summarizeSection(assessment.cbc, IAAS_CBC_FIELDS) || "sin datos"}` } : null,
+      !limited ? { key: "urinalysis", text: `Examen general de orina (${formatDisplayDate(assessment.urinalysis.studyDate || date) || "sin fecha"}): ${summarizeUrinalysis(assessment.urinalysis) || "sin datos"}` } : null,
+      { key: "otherStudies", text: `Otros estudios (${formatDisplayDate(assessment.otherStudies.studyDate || date) || "sin fecha"}): ${summarizeOtherStudies(assessment.otherStudies) || "sin datos"}` },
+      hemodialysis ? { key: "infectionTracking", text: `Seguimiento infecciones: ${summarizeHemodialysisInfection(assessment.infectionTracking) || "sin datos"}` } : null,
+      { key: "cultures", text: `Cultivos: ${summarizeCultures(assessment.cultures) || "sin datos"}` },
+      { key: "treatments", text: `Tratamiento: ${summarizeTreatments(assessment.treatments) || "sin datos"}` },
+      { key: "observations", text: `Observaciones IAAS (${formatDisplayDate(assessment.observationsDate || date) || "sin fecha"}): ${assessment.observations || "sin datos"}` }
+    ].filter(Boolean);
+  }
   function iaasRevisionHistoryEntries(patientId) {
     return Object.values(store.dailyRounds || {}).flatMap(round =>
       Object.values(round.entries || {})
@@ -5097,6 +5211,62 @@
           }))
           : [])
     ).filter(entry => entry.assessment);
+  }
+
+  function editIaasAssessmentSection(date, patientId, assessment, sectionKey) {
+    const draft = getReviewDraft(date, patientId, "iaas");
+    draft.activeRoundSection = "iaas";
+    draft.editingIaasAssessment = true;
+    draft.iaasAssessment = normalizeIaasAssessment(assessment);
+    setReviewDraft(date, patientId, draft);
+    ui.iaasMobileSection = iaasSectionTabForHistory(sectionKey);
+    flashIaas("Estudio cargado para edición.");
+    renderIaas();
+  }
+
+  async function deleteIaasAssessmentSection(date, patientId, sectionKey) {
+    if (!window.confirm("Eliminar esta sección del seguimiento IAAS guardado?")) return;
+    const entry = store.dailyRounds?.[date]?.entries?.[patientId];
+    if (!entry?.iaasAssessment) return;
+    const before = clone(entry.iaasAssessment);
+    const assessment = normalizeIaasAssessment(entry.iaasAssessment);
+    clearIaasAssessmentSection(assessment, sectionKey);
+    entry.iaasAssessmentHistory = buildIaasAssessmentHistory(entry, assessment, date);
+    entry.iaasAssessment = iaasAssessmentHasContent(assessment) ? assessment : null;
+    entry.iaasAssessmentUpdatedAt = nowIso();
+    entry.reviewedAt = nowIso();
+    entry.syncStatus = syncStatusForNewWrite();
+    addAudit("IAAS_ASSESSMENT_SECTION_DELETED", { patientId, roundDate: date, before, after: entry.iaasAssessment, metadata: { sectionKey } });
+    recalculateRound(date);
+    saveStore();
+    await enqueueWrite({ type: "roundEntry", date, patientId, entry, patient: store.patients[patientId], episodes: [] });
+    clearReviewDraftAfterSave(date, patientId, "iaas");
+    flashIaas("Sección eliminada del seguimiento.");
+    renderIaas();
+  }
+
+  function clearIaasAssessmentSection(assessment, sectionKey) {
+    const blank = defaultIaasAssessment();
+    if (sectionKey === "observations") {
+      assessment.observations = "";
+      assessment.observationsDate = "";
+      return;
+    }
+    if (sectionKey === "cultures" || sectionKey === "treatments") {
+      assessment[sectionKey] = [];
+      return;
+    }
+    if (blank[sectionKey]) assessment[sectionKey] = clone(blank[sectionKey]);
+  }
+
+  function iaasSectionTabForHistory(sectionKey) {
+    if (sectionKey === "cultures") return "cultivos";
+    if (sectionKey === "treatments") return "antibioticos";
+    if (sectionKey === "observations") return "observaciones";
+    if (sectionKey === "vitalSigns") return "signos";
+    if (sectionKey === "cbc") return "biometria";
+    if (sectionKey === "urinalysis") return "ego";
+    return "otros";
   }
 
   function dailyIaasEntries(patientId) {
@@ -7067,8 +7237,9 @@
     const alerts = buildAlertsForPatient(patient, activeNow, draft);
     const status = forcedIncomplete ? "incompleto" : alerts.length ? "alerta" : requestedStatus;
     const previousEntry = store.dailyRounds[date]?.entries?.[patientId] || {};
-    const iaasAssessment = completeIaasAssessmentForSave(draft.iaasAssessment, date);
-    const storesIaasAssessment = draft.activeRoundSection === "iaas" || iaasAssessmentHasContent(iaasAssessment) || Boolean(previousEntry.iaasAssessment);
+    const completedIaasAssessment = completeIaasAssessmentForSave(draft.iaasAssessment, date);
+    const iaasAssessment = mergeIaasAssessmentForSave(previousEntry.iaasAssessment, completedIaasAssessment);
+    const storesIaasAssessment = draft.activeRoundSection === "iaas" || iaasAssessmentHasContent(completedIaasAssessment) || Boolean(previousEntry.iaasAssessment);
     const iaasAssessmentHistory = storesIaasAssessment
       ? buildIaasAssessmentHistory(previousEntry, iaasAssessment, date)
       : (Array.isArray(previousEntry.iaasAssessmentHistory) ? previousEntry.iaasAssessmentHistory : []);
@@ -7113,7 +7284,7 @@
     patient.updatedBy = currentUserId();
     addAudit("ROUND_ENTRY_SAVED", { patientId, roundDate: date, after: entry });
     recalculateRound(date);
-    clearReviewDraft(date, patientId);
+    clearReviewDraftAfterSave(date, patientId, draft.activeRoundSection);
     saveStore();
     const syncItem = await enqueueWrite({ type: "roundEntry", date, patientId, entry, patient, episodes: createdEpisodeIds.map(id => store.deviceEpisodes[id]) });
     const finalSyncStatus = syncItem?.status === "server_synced" ? "server_synced" : syncItem?.status === "error" ? "error" : "local_pending";
@@ -7129,10 +7300,11 @@
       : finalSyncStatus === "error"
         ? "Guardado localmente. No se pudo sincronizar; quedo pendiente."
         : "Guardado localmente. Pendiente de sincronizar.");
-    if (goNext) {
-      const next = draft.activeRoundSection === "iaas" ? nextIaasPatientId(date, patientId) : nextPatientId(date, patientId);
-      location.hash = next
-        ? (draft.activeRoundSection === "iaas" ? `#/seguimiento-iaas/${date}/paciente/${next}` : `#/ronda/${date}/paciente/${next}`)
+    const direction = goNext === true ? "next" : goNext;
+    if (direction) {
+      const target = navigationPatientId(date, patientId, draft.activeRoundSection, direction);
+      location.hash = target
+        ? (draft.activeRoundSection === "iaas" ? `#/seguimiento-iaas/${date}/paciente/${target}` : `#/ronda/${date}/paciente/${target}`)
         : `#/${draft.activeRoundSection === "iaas" ? "seguimiento-iaas" : `ronda/${date}`}`;
     } else {
       renderIaas();
@@ -9251,7 +9423,7 @@
     ].forEach(([section, dateKey]) => {
       if (!assessment[section]) return;
       if (!assessment[section][dateKey] && iaasSectionHasValues(assessment[section], [dateKey])) {
-        assessment[section][dateKey] = normalizeDate(date) || isoToday();
+        assessment[section][dateKey] = isoToday() || normalizeDate(date);
       }
     });
     if (assessment.observations && !assessment.observationsDate) {
@@ -9266,6 +9438,58 @@
       startDate: normalizeDate(treatment.startDate) || isoToday()
     }));
     return assessment;
+  }
+
+  function mergeIaasAssessmentForSave(previousValue, nextValue) {
+    const previous = normalizeIaasAssessment(previousValue);
+    const next = normalizeIaasAssessment(nextValue);
+    const merged = normalizeIaasAssessment(previous);
+    [
+      ["vitalSigns", "studyDate"],
+      ["cbc", "studyDate"],
+      ["urinalysis", "studyDate"],
+      ["otherStudies", "studyDate"],
+      ["infectionTracking", "assessmentDate"]
+    ].forEach(([section, dateKey]) => {
+      if (iaasSectionHasValues(next[section], [dateKey])) merged[section] = next[section];
+    });
+    if ((next.cultures || []).length) merged.cultures = mergeCultureAssessments(previous.cultures, next.cultures);
+    if ((next.treatments || []).length) merged.treatments = mergeTreatmentAssessments(previous.treatments, next.treatments);
+    if (cleanCell(next.observations)) {
+      merged.observations = cleanCell(next.observations);
+      merged.observationsDate = normalizeDate(next.observationsDate) || isoToday();
+    }
+    return merged;
+  }
+
+  function mergeCultureAssessments(previousRows = [], nextRows = []) {
+    const map = new Map();
+    [...previousRows, ...nextRows].forEach(row => {
+      const item = normalizeCultureTimelineItem(row, row.collectionDate || row.resultDate || isoToday());
+      if (!item.type) return;
+      const key = cultureTimelineKey(item);
+      const previous = map.get(key);
+      map.set(key, previous ? mergeCultureTimelineItem(previous, item) : item);
+    });
+    return [...map.values()];
+  }
+
+  function mergeTreatmentAssessments(previousRows = [], nextRows = []) {
+    const map = new Map();
+    [...previousRows, ...nextRows].forEach(row => {
+      const item = normalizeTreatmentTimelineItem(row, row.startDate || row.endDate || isoToday());
+      if (!item.drugName) return;
+      const key = treatmentTimelineKey(item);
+      const previous = map.get(key);
+      map.set(key, previous ? mergeTreatmentTimelineItem(previous, item) : item);
+    });
+    return [...map.values()].map(item => ({
+      drug: item.drug,
+      customDrug: item.customDrug,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      notes: item.notes
+    }));
   }
 
   function iaasSectionHasValues(section = {}, ignoredKeys = []) {
@@ -9298,6 +9522,7 @@
     const key = `${date}:${patientId}`;
     const savedEntry = store.dailyRounds?.[date]?.entries?.[patientId] || {};
     const existing = ui.reviewDrafts[key] || {};
+    const isIaasNewCapture = requestedSection === "iaas" && !existing.editingIaasAssessment && !existing.iaasAssessment;
     const draft = {
       deviceDrafts: [],
       removals: {},
@@ -9305,7 +9530,7 @@
       notes: savedEntry.notes || "",
       noInvasivesConfirmed: Boolean(savedEntry.noInvasivesConfirmed),
       activeRoundSection: savedEntry.activeRoundSection || "preventive",
-      iaasAssessment: normalizeIaasAssessment(savedEntry.iaasAssessment),
+      iaasAssessment: isIaasNewCapture ? defaultIaasAssessment() : normalizeIaasAssessment(savedEntry.iaasAssessment),
       ...existing
     };
     draft.iaasAssessment = normalizeIaasAssessment(draft.iaasAssessment);
@@ -9327,6 +9552,17 @@
 
   function clearReviewDraft(date, patientId) {
     delete ui.reviewDrafts[`${date}:${patientId}`];
+    ui.draftsDirty = true;
+    flushDraftSave();
+  }
+
+  function clearReviewDraftAfterSave(date, patientId, section = "preventive") {
+    clearReviewDraft(date, patientId);
+    if (section !== "iaas") return;
+    ui.reviewDrafts[`${date}:${patientId}`] = {
+      activeRoundSection: "iaas",
+      iaasAssessment: defaultIaasAssessment()
+    };
     ui.draftsDirty = true;
     flushDraftSave();
   }
@@ -9725,15 +9961,34 @@
   }
 
   function nextPatientId(date, patientId) {
-    const rows = getCensusRows(date).sort(sortByServiceBed);
+    const patient = store.patients[patientId] || {};
+    const rows = roundNavigationRows(date, patientId, "preventive", patient);
     const index = rows.findIndex(row => row.patientId === patientId);
     return rows[index + 1]?.patientId || null;
+  }
+
+  function previousPatientId(date, patientId) {
+    const patient = store.patients[patientId] || {};
+    const rows = roundNavigationRows(date, patientId, "preventive", patient);
+    const index = rows.findIndex(row => row.patientId === patientId);
+    return rows[index - 1]?.patientId || null;
   }
 
   function nextIaasPatientId(date, patientId) {
     const rows = iaasFollowUpRows(date);
     const index = rows.findIndex(item => item.row.patientId === patientId);
     return rows[index + 1]?.row.patientId || null;
+  }
+
+  function previousIaasPatientId(date, patientId) {
+    const rows = iaasFollowUpRows(date);
+    const index = rows.findIndex(item => item.row.patientId === patientId);
+    return rows[index - 1]?.row.patientId || null;
+  }
+
+  function navigationPatientId(date, patientId, section, direction) {
+    if (section === "iaas") return direction === "previous" ? previousIaasPatientId(date, patientId) : nextIaasPatientId(date, patientId);
+    return direction === "previous" ? previousPatientId(date, patientId) : nextPatientId(date, patientId);
   }
 
   function sortByServiceBed(a, b) {

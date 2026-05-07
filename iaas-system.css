@@ -745,10 +745,93 @@
   position: sticky;
   top: 72px;
   z-index: 15;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 360px);
   justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: start;
+}
+
+.patient-summary-main,
+.patient-summary-side {
+  min-width: 0;
+}
+
+.patient-summary-side {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.patient-diagnosis-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.patient-diagnosis-list span {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: rgba(232,241,255,.88);
+  background: rgba(8,17,42,.34);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.patient-diagnosis-list strong {
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.patient-culture-alerts {
+  width: 100%;
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 12px;
+  background: rgba(6,12,24,.42);
+}
+
+.patient-culture-alerts > strong {
+  color: #fff;
+  font-size: 12px;
+}
+
+.patient-culture-alerts > div {
+  display: grid;
+  gap: 6px;
+}
+
+.culture-alert-chip {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.18;
+}
+
+.culture-alert-chip b {
+  font-size: 11px;
+}
+
+.culture-alert-chip.due {
+  background: rgba(127,29,29,.92);
+}
+
+.culture-alert-chip.pending {
+  background: rgba(30,64,175,.88);
+}
+
+.culture-alert-chip.clear {
+  background: rgba(15,23,42,.76);
 }
 
 .back-link {
@@ -1015,16 +1098,68 @@
   position: sticky;
   bottom: 0;
   z-index: 30;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
   gap: 9px;
-  flex-wrap: wrap;
   padding: 14px;
   border: 1px solid rgba(216, 223, 240, .92);
   border-radius: 18px;
   background: rgba(255,255,255,.94);
   backdrop-filter: blur(16px);
   box-shadow: 0 -12px 32px rgba(26, 42, 83, .08);
+}
+
+.round-save-bar .iaas-button {
+  min-height: 42px;
+  justify-content: center;
+  white-space: normal;
+}
+
+.round-nav-board {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(96,120,170,.24);
+  border-radius: 14px;
+  background: rgba(248,251,255,.78);
+}
+
+.round-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #0c193d;
+  font-size: 12px;
+}
+
+.round-nav-head span {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.round-nav-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(78px, 118px);
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.round-nav-board.iaas .round-nav-grid {
+  grid-auto-columns: minmax(132px, 170px);
+}
+
+.round-nav-tile {
+  min-height: 58px;
+  border-radius: 12px;
+}
+
+.round-nav-tile.current {
+  outline: 3px solid rgba(79,70,229,.55);
+  outline-offset: 2px;
 }
 
 .bars {
@@ -4052,14 +4187,21 @@ body {
   }
 
   .iaas-invasive-summary .summary-grid {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(118px, 132px));
+    justify-content: start;
   }
 
   .iaas-invasive-card {
     border: 1px solid rgba(255,255,255,.18);
-    border-radius: 18px;
-    padding: 12px;
+    border-radius: 12px;
+    padding: 9px;
+    min-height: 118px;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    align-content: center;
+    gap: 4px;
     color: #fff;
+    text-align: center;
   }
 
   .iaas-invasive-card.active {
@@ -4089,6 +4231,16 @@ body {
 
   .iaas-invasive-card span {
     color: rgba(248,251,255,.84);
+    font-size: 10.5px;
+    line-height: 1.18;
+  }
+
+  .iaas-panel-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .iaas-repeat-list {
@@ -4170,6 +4322,56 @@ body {
     border-radius: 999px;
   }
 
+  .vital-trend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .vital-trend-card {
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(7,13,31,.56);
+  }
+
+  .vital-trend-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .vital-trend-head span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(232,241,255,.88);
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .vital-trend-head i {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+  }
+
+  .vital-trend-head strong {
+    color: #fff;
+    font-size: 12px;
+  }
+
+  .vital-trend-card svg {
+    min-height: 96px;
+  }
+
+  .vital-trend-card .trend-axis {
+    stroke: rgba(255,255,255,.22);
+  }
+
   .iaas-temperature-chart svg {
     width: 100%;
     min-height: 190px;
@@ -4219,22 +4421,26 @@ body {
 
   .daily-iaas-table th,
   .daily-iaas-table td {
-    min-width: 128px;
-    max-width: 230px;
+    width: 82px;
+    min-width: 82px;
+    max-width: 82px;
     border: 1px solid rgba(148,163,184,.18);
-    padding: 7px 8px;
+    padding: 5px 6px;
     vertical-align: top;
     color: rgba(248,251,255,.92);
-    font-size: 11px;
-    line-height: 1.26;
+    font-size: 10px;
+    line-height: 1.18;
     text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   .daily-iaas-table .daily-iaas-field-head {
     position: sticky;
     left: 0;
     z-index: 5;
-    min-width: 250px;
+    min-width: 150px;
     color: #fff;
     text-align: center;
     background: rgba(7,13,31,.98);
@@ -4252,13 +4458,13 @@ body {
     position: sticky;
     left: 0;
     z-index: 2;
-    width: 112px;
-    min-width: 112px;
-    max-width: 112px;
+    width: 66px;
+    min-width: 66px;
+    max-width: 66px;
     color: #fff;
     text-align: center;
     vertical-align: middle;
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 1000;
     letter-spacing: .02em;
     text-transform: uppercase;
@@ -4267,14 +4473,14 @@ body {
 
   .daily-iaas-table .daily-iaas-attribute {
     position: sticky;
-    left: 112px;
+    left: 66px;
     z-index: 2;
-    width: 138px;
-    min-width: 138px;
-    max-width: 138px;
+    width: 84px;
+    min-width: 84px;
+    max-width: 84px;
     color: rgba(248,251,255,.94);
     text-align: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 850;
     background: rgba(7,18,43,.98);
   }
@@ -4386,9 +4592,42 @@ body {
   }
 
   .iaas-history-card li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
     margin: 4px 0;
     font-size: 12px;
     line-height: 1.45;
+  }
+
+  .iaas-history-card-head {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 8px;
+  }
+
+  .iaas-history-actions {
+    display: inline-flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .iaas-mini-action {
+    min-height: 25px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    padding: 4px 8px;
+    color: #fff;
+    background: rgba(37,99,235,.65);
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .iaas-mini-action.danger {
+    background: rgba(127,29,29,.72);
   }
 }
 
@@ -7600,28 +7839,31 @@ body {
 
   .command-shell .daily-iaas-table th,
   .command-shell .daily-iaas-table td {
-    min-width: 112px;
-    max-width: 176px;
-    padding: 6px;
-    font-size: 10px;
+    width: 82px;
+    min-width: 82px;
+    max-width: 82px;
+    padding: 5px;
+    font-size: 9.5px;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .command-shell .daily-iaas-table .daily-iaas-field-head {
-    min-width: 200px;
+    min-width: 156px;
   }
 
   .command-shell .daily-iaas-table .daily-iaas-group {
-    width: 88px;
-    min-width: 88px;
-    max-width: 88px;
+    width: 68px;
+    min-width: 68px;
+    max-width: 68px;
     font-size: 9px;
   }
 
   .command-shell .daily-iaas-table .daily-iaas-attribute {
-    left: 88px;
-    width: 112px;
-    min-width: 112px;
-    max-width: 112px;
+    left: 68px;
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
     font-size: 10px;
   }
 
@@ -8395,6 +8637,22 @@ body {
     font-size: 11px !important;
     line-height: 1.08 !important;
     white-space: normal !important;
+  }
+
+  .command-shell .round-nav-board {
+    grid-column: 1 / -1 !important;
+  }
+
+  .command-shell .round-nav-grid {
+    grid-auto-columns: minmax(96px, 132px) !important;
+  }
+
+  .command-shell .patient-sticky-summary {
+    grid-template-columns: 1fr !important;
+  }
+
+  .command-shell .patient-summary-side {
+    justify-items: stretch !important;
   }
 
   .command-shell .iaas-field-grid,
