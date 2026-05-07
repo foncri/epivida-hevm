@@ -742,9 +742,7 @@
 }
 
 .patient-sticky-summary {
-  position: sticky;
-  top: 72px;
-  z-index: 15;
+  position: static;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(230px, 360px);
   justify-content: space-between;
