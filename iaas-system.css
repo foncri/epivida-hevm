@@ -1115,6 +1115,20 @@
   white-space: normal;
 }
 
+.command-shell .round-save-bar .iaas-button {
+  color: #0b1848 !important;
+  border-color: rgba(96,120,170,.38) !important;
+  background: linear-gradient(135deg, #ffffff, #eef4ff) !important;
+  box-shadow: 0 8px 18px rgba(20,35,80,.10) !important;
+}
+
+.command-shell .round-save-bar .iaas-button.primary {
+  color: #fff !important;
+  border-color: transparent !important;
+  background: linear-gradient(135deg, #226cff, #7048ff 58%, #ec3f91) !important;
+  box-shadow: 0 12px 28px rgba(84,72,255,.26) !important;
+}
+
 .round-nav-board {
   grid-column: 1 / -1;
   display: grid;
