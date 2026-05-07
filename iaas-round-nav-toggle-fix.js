@@ -55,22 +55,16 @@
     persist(board?.dataset?.roundMode || currentMode(), collapsed);
   }
 
-  function syncExistingBoards() {
+  function syncVisibleBoards() {
     document.querySelectorAll(".round-nav-board").forEach(board => {
       const mode = board.dataset.roundMode || currentMode();
-      const collapsed = board.classList.contains("collapsed") || readPersisted(mode);
-      applyBoardState(board, collapsed);
+      if (readPersisted(mode)) applyBoardState(board, true);
+      else setToggleLabel(board.querySelector(".round-nav-toggle"), board.classList.contains("collapsed"));
     });
   }
 
-  let syncQueued = false;
-  function scheduleSync() {
-    if (syncQueued) return;
-    syncQueued = true;
-    requestAnimationFrame(() => {
-      syncQueued = false;
-      syncExistingBoards();
-    });
+  function scheduleSync(delay = 80) {
+    window.setTimeout(syncVisibleBoards, delay);
   }
 
   document.addEventListener("click", event => {
@@ -84,12 +78,11 @@
     setBoardCollapsed(board, !board.classList.contains("collapsed"));
   }, true);
 
-  const observer = new MutationObserver(scheduleSync);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener("hashchange", () => scheduleSync(120));
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", syncExistingBoards, { once: true });
+    document.addEventListener("DOMContentLoaded", () => scheduleSync(0), { once: true });
   } else {
-    syncExistingBoards();
+    scheduleSync(0);
   }
 })();
