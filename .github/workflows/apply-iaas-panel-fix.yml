@@ -1,0 +1,47 @@
+name: Apply IAAS panel scroll fix
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, 'Fix IAAS patient summary scroll behavior') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch IAAS panel behavior
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          css = Path('iaas-system.css')
+          text = css.read_text(encoding='utf-8')
+          old = ".patient-sticky-summary {\n  position: sticky;\n  top: 72px;\n  z-index: 15;\n  display: flex;"
+          new = ".patient-sticky-summary {\n  position: static;\n  display: flex;"
+          if old not in text and new not in text:
+            raise SystemExit('No se encontro la regla esperada de patient-sticky-summary')
+          text = text.replace(old, new)
+          css.write_text(text, encoding='utf-8')
+
+          html = Path('index.html')
+          page = html.read_text(encoding='utf-8')
+          page = page.replace('2026-05-06-packages02', '2026-05-07-iaas-panel01')
+          html.write_text(page, encoding='utf-8')
+
+          Path('.github/workflows/apply-iaas-panel-fix.yml').unlink(missing_ok=True)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "Codex"
+          git config user.email "codex@openai.com"
+          git add -A
+          git status --short
+          git commit -m "Fix IAAS patient summary scroll behavior"
+          git push origin HEAD:main
