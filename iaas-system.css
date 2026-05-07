@@ -4221,7 +4221,7 @@ body {
   .daily-iaas-table td {
     min-width: 128px;
     max-width: 230px;
-    border: 1px solid rgba(255,255,255,.16);
+    border: 1px solid rgba(148,163,184,.18);
     padding: 7px 8px;
     vertical-align: top;
     color: rgba(248,251,255,.92);
@@ -4237,7 +4237,7 @@ body {
     min-width: 250px;
     color: #fff;
     text-align: center;
-    background: rgba(20,40,98,.98);
+    background: rgba(7,13,31,.98);
   }
 
   .daily-iaas-table thead th {
@@ -4245,7 +4245,7 @@ body {
     top: 0;
     z-index: 3;
     color: #fff;
-    background: rgba(20,40,98,.96);
+    background: rgba(8,16,38,.98);
   }
 
   .daily-iaas-table .daily-iaas-group {
@@ -4262,7 +4262,7 @@ body {
     font-weight: 1000;
     letter-spacing: .02em;
     text-transform: uppercase;
-    background: rgba(7,20,64,.96);
+    background: rgba(5,12,28,.98);
   }
 
   .daily-iaas-table .daily-iaas-attribute {
@@ -4276,45 +4276,45 @@ body {
     text-align: center;
     font-size: 11px;
     font-weight: 850;
-    background: rgba(10,28,73,.97);
+    background: rgba(7,18,43,.98);
   }
 
   .daily-iaas-table .daily-group-vitals {
-    background: rgba(15, 23, 42, .74);
+    background: rgba(6, 12, 24, .96);
   }
 
   .daily-iaas-table .daily-group-ventilation {
-    background: rgba(30, 64, 175, .72);
+    background: rgba(10, 25, 64, .96);
   }
 
   .daily-iaas-table .daily-group-cbc {
-    background: rgba(153, 27, 27, .72);
+    background: rgba(61, 13, 20, .96);
   }
 
   .daily-iaas-table .daily-group-urinalysis {
-    color: #3a2d03;
-    background: rgba(245, 208, 94, .82);
+    color: rgba(255,250,220,.95);
+    background: rgba(54, 45, 13, .96);
   }
 
   .daily-iaas-table .daily-group-other {
-    background: rgba(120, 53, 15, .72);
+    background: rgba(49, 25, 13, .96);
   }
 
   .daily-iaas-table .daily-group-cultures {
-    background: rgba(21, 128, 61, .72);
+    background: rgba(8, 48, 32, .96);
   }
 
   .daily-iaas-table .daily-group-treatment {
-    background: rgba(194, 65, 12, .74);
+    background: rgba(60, 29, 12, .96);
   }
 
   .daily-iaas-table .daily-group-observations {
-    background: rgba(107, 33, 168, .74);
+    background: rgba(40, 18, 67, .96);
   }
 
   .daily-iaas-table td.daily-group-urinalysis .muted,
   .daily-iaas-table th.daily-group-urinalysis {
-    color: #3a2d03;
+    color: rgba(255,250,220,.95);
   }
 
   .daily-treatment-stopped {
