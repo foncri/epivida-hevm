@@ -4046,6 +4046,30 @@ body {
     gap: 10px;
   }
 
+  .iaas-invasive-summary.top-summary {
+    border-color: rgba(255,255,255,.24);
+    background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,64,175,.52));
+  }
+
+  .iaas-invasive-summary .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+
+  .iaas-invasive-card {
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 18px;
+    padding: 12px;
+    color: #fff;
+  }
+
+  .iaas-invasive-card.active {
+    background: linear-gradient(135deg, rgba(127, 29, 29, .92), rgba(239, 68, 68, .48));
+  }
+
+  .iaas-invasive-card.inactive {
+    background: linear-gradient(135deg, rgba(30, 64, 175, .92), rgba(37, 99, 235, .48));
+  }
+
   .iaas-invasive-list > div {
     border-radius: 18px;
     padding: 12px;
@@ -4061,6 +4085,10 @@ body {
   .iaas-invasive-list span,
   .iaas-locked-note {
     color: rgba(232,241,255,.72);
+  }
+
+  .iaas-invasive-card span {
+    color: rgba(248,251,255,.84);
   }
 
   .iaas-repeat-list {
@@ -4100,14 +4128,46 @@ body {
   }
 
   .iaas-temperature-chart strong,
-  .iaas-temperature-chart span {
+  .iaas-temperature-chart > span {
     display: block;
     color: #fff;
   }
 
-  .iaas-temperature-chart span {
+  .iaas-temperature-chart > span {
     margin-top: 4px;
     color: rgba(232,241,255,.70);
+  }
+
+  .iaas-temperature-chart .chart-head span {
+    display: block;
+    margin-top: 4px;
+    color: rgba(232,241,255,.70);
+  }
+
+  .vital-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .vital-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    padding: 6px 9px;
+    color: #fff;
+    background: rgba(255,255,255,.10);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .vital-chart-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
   }
 
   .iaas-temperature-chart svg {
@@ -4122,8 +4182,7 @@ body {
   }
 
   .iaas-temperature-chart polyline {
-    stroke: #23d6de;
-    stroke-width: 5;
+    stroke-width: 4;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
@@ -4138,6 +4197,10 @@ body {
     fill: rgba(232,241,255,.78);
     font-size: 13px;
     font-weight: 900;
+  }
+
+  .iaas-temperature-chart .axis-label {
+    font-size: 12px;
   }
 
   .daily-iaas-scroll {
@@ -4164,6 +4227,7 @@ body {
     color: rgba(248,251,255,.92);
     font-size: 11px;
     line-height: 1.26;
+    text-align: center;
   }
 
   .daily-iaas-table .daily-iaas-field-head {
@@ -4209,10 +4273,63 @@ body {
     min-width: 138px;
     max-width: 138px;
     color: rgba(248,251,255,.94);
-    text-align: left;
+    text-align: center;
     font-size: 11px;
     font-weight: 850;
     background: rgba(10,28,73,.97);
+  }
+
+  .daily-iaas-table .daily-group-vitals {
+    background: rgba(15, 23, 42, .74);
+  }
+
+  .daily-iaas-table .daily-group-ventilation {
+    background: rgba(30, 64, 175, .72);
+  }
+
+  .daily-iaas-table .daily-group-cbc {
+    background: rgba(153, 27, 27, .72);
+  }
+
+  .daily-iaas-table .daily-group-urinalysis {
+    color: #3a2d03;
+    background: rgba(245, 208, 94, .82);
+  }
+
+  .daily-iaas-table .daily-group-other {
+    background: rgba(120, 53, 15, .72);
+  }
+
+  .daily-iaas-table .daily-group-cultures {
+    background: rgba(21, 128, 61, .72);
+  }
+
+  .daily-iaas-table .daily-group-treatment {
+    background: rgba(194, 65, 12, .74);
+  }
+
+  .daily-iaas-table .daily-group-observations {
+    background: rgba(107, 33, 168, .74);
+  }
+
+  .daily-iaas-table td.daily-group-urinalysis .muted,
+  .daily-iaas-table th.daily-group-urinalysis {
+    color: #3a2d03;
+  }
+
+  .daily-treatment-stopped {
+    color: #fecaca;
+    font-weight: 1000;
+  }
+
+  .daily-culture-result {
+    color: #bbf7d0;
+    font-weight: 1000;
+  }
+
+  .daily-treatment-active,
+  .daily-culture-pending {
+    font-weight: 850;
   }
 
   .daily-iaas-table thead .daily-iaas-field-head {
