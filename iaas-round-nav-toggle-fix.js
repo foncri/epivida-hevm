@@ -19,6 +19,14 @@
     ];
   }
 
+  function readPersisted(mode) {
+    try {
+      return storageKeys(mode).some(key => sessionStorage.getItem(key) === "1");
+    } catch (error) {
+      return false;
+    }
+  }
+
   function persist(mode, collapsed) {
     try {
       storageKeys(mode).forEach(key => sessionStorage.setItem(key, collapsed ? "1" : "0"));
@@ -34,21 +42,34 @@
     button.setAttribute("aria-pressed", collapsed ? "true" : "false");
   }
 
-  function setBoardCollapsed(board, collapsed) {
+  function applyBoardState(board, collapsed) {
     if (!board) return;
     board.classList.toggle("collapsed", collapsed);
     const grid = board.querySelector(".round-nav-grid");
     if (grid) grid.hidden = collapsed;
     setToggleLabel(board.querySelector(".round-nav-toggle"), collapsed);
-    persist(board.dataset.roundMode || currentMode(), collapsed);
+  }
+
+  function setBoardCollapsed(board, collapsed) {
+    applyBoardState(board, collapsed);
+    persist(board?.dataset?.roundMode || currentMode(), collapsed);
   }
 
   function syncExistingBoards() {
     document.querySelectorAll(".round-nav-board").forEach(board => {
-      const collapsed = board.classList.contains("collapsed");
-      const grid = board.querySelector(".round-nav-grid");
-      if (grid) grid.hidden = collapsed;
-      setToggleLabel(board.querySelector(".round-nav-toggle"), collapsed);
+      const mode = board.dataset.roundMode || currentMode();
+      const collapsed = board.classList.contains("collapsed") || readPersisted(mode);
+      applyBoardState(board, collapsed);
+    });
+  }
+
+  let syncQueued = false;
+  function scheduleSync() {
+    if (syncQueued) return;
+    syncQueued = true;
+    requestAnimationFrame(() => {
+      syncQueued = false;
+      syncExistingBoards();
     });
   }
 
@@ -63,7 +84,7 @@
     setBoardCollapsed(board, !board.classList.contains("collapsed"));
   }, true);
 
-  const observer = new MutationObserver(syncExistingBoards);
+  const observer = new MutationObserver(scheduleSync);
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   if (document.readyState === "loading") {
