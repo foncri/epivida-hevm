@@ -47,10 +47,20 @@
   font-size: 11px !important;
 }
 
-.patient-round .preventive-culture-summary {
+.patient-round .preventive-summary-rail {
+  display: grid;
+  gap: 10px;
   justify-self: end;
   align-self: start;
   width: min(360px, 100%);
+}
+
+.patient-round .preventive-summary-rail .risk {
+  justify-self: end;
+}
+
+.patient-round .preventive-culture-summary {
+  width: 100%;
   padding: 12px;
   border: 1px solid rgba(186, 230, 253, .34);
   border-radius: 12px;
@@ -151,7 +161,7 @@
     grid-template-columns: 1fr !important;
   }
 
-  .patient-round .preventive-culture-summary {
+  .patient-round .preventive-summary-rail {
     justify-self: stretch;
     width: 100%;
   }
