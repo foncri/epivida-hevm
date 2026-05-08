@@ -7,8 +7,24 @@
 
   function placePreventiveCultures() {
     if (!isPreventivePatientRound()) return;
-    document.querySelectorAll(".patient-round .preventive-culture-summary").forEach(panel => {
-      panel.style.display = "block";
+    document.querySelectorAll(".patient-round .preventive-summary-rail").forEach(rail => {
+      const risk = rail.querySelector(".risk");
+      const panel = rail.querySelector(".preventive-culture-summary");
+      rail.style.display = "grid";
+      rail.style.alignContent = "start";
+      rail.style.justifyItems = "end";
+      if (risk) {
+        risk.style.order = "0";
+        risk.style.margin = "0";
+        rail.prepend(risk);
+      }
+      if (panel) {
+        panel.style.display = "block";
+        panel.style.order = "1";
+        panel.style.margin = "0";
+        panel.style.justifySelf = "end";
+        if (risk && panel.previousElementSibling !== risk) risk.after(panel);
+      }
     });
   }
 
