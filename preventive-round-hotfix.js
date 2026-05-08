@@ -82,12 +82,25 @@
     return unique.slice(0, 4);
   }
 
+  function summaryRail(summary) {
+    let rail = summary.querySelector(":scope > .preventive-summary-rail");
+    const risk = summary.querySelector(":scope > .risk");
+    if (!rail) {
+      rail = document.createElement("aside");
+      rail.className = "preventive-summary-rail";
+      summary.append(rail);
+    }
+    if (risk && risk.parentElement !== rail) rail.prepend(risk);
+    return rail;
+  }
+
   function renderCultures() {
     const route = routePatient();
     if (!route) return;
     const summary = document.querySelector(".patient-round .patient-sticky-summary");
     if (!summary) return;
-    summary.querySelector(".preventive-culture-summary")?.remove();
+    const rail = summaryRail(summary);
+    rail.querySelector(".preventive-culture-summary")?.remove();
     const cultures = patientCultures(loadStore(), route.date, route.patientId);
     const panel = document.createElement("aside");
     panel.className = "preventive-culture-summary";
@@ -112,7 +125,7 @@
       });
       panel.append(list);
     }
-    summary.append(panel);
+    rail.append(panel);
   }
 
   function removeRedundantPendingPanel() {
@@ -164,17 +177,22 @@
   let onlineRestore = null;
   function forceFastLocalQueue() {
     if (!onlineRestore) {
-      const proto = Navigator.prototype;
-      const descriptor = Object.getOwnPropertyDescriptor(proto, "onLine");
-      try {
-        Object.defineProperty(proto, "onLine", { configurable: true, get: () => false });
-        onlineRestore = () => {
-          if (descriptor) Object.defineProperty(proto, "onLine", descriptor);
-          else delete proto.onLine;
-        };
-      } catch (error) {
-        onlineRestore = () => {};
+      const restorers = [];
+      const targets = [Navigator.prototype, navigator];
+      for (const target of targets) {
+        const descriptor = Object.getOwnPropertyDescriptor(target, "onLine");
+        try {
+          Object.defineProperty(target, "onLine", { configurable: true, get: () => false });
+          restorers.push(() => {
+            if (descriptor) Object.defineProperty(target, "onLine", descriptor);
+            else delete target.onLine;
+          });
+          break;
+        } catch (error) {
+          // Continue with the next target; some browsers expose onLine differently.
+        }
       }
+      onlineRestore = () => restorers.reverse().forEach(restore => restore());
     }
     window.clearTimeout(restoreOnlineTimer);
     restoreOnlineTimer = window.setTimeout(() => {
