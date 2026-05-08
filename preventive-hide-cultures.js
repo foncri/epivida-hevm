@@ -5,23 +5,25 @@
     return /^#\/ronda\/[^/]+\/paciente\/[^/]+/.test(String(location.hash || ""));
   }
 
-  function removePreventiveCultures() {
+  function placePreventiveCultures() {
     if (!isPreventivePatientRound()) return;
-    document.querySelectorAll(".patient-round .preventive-culture-summary").forEach(panel => panel.remove());
+    document.querySelectorAll(".patient-round .preventive-culture-summary").forEach(panel => {
+      panel.style.display = "block";
+    });
   }
 
-  function scheduleRemoval() {
-    [0, 40, 120, 300, 800, 1600].forEach(delay => window.setTimeout(removePreventiveCultures, delay));
+  function schedulePlacement() {
+    [0, 40, 120, 300, 800, 1600].forEach(delay => window.setTimeout(placePreventiveCultures, delay));
   }
 
-  const observer = new MutationObserver(() => removePreventiveCultures());
+  const observer = new MutationObserver(() => placePreventiveCultures());
 
   function start() {
-    scheduleRemoval();
+    schedulePlacement();
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  window.addEventListener("hashchange", scheduleRemoval);
+  window.addEventListener("hashchange", schedulePlacement);
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", start, { once: true });
   } else {
