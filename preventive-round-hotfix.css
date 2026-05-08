@@ -49,10 +49,10 @@
 
 .patient-round .preventive-summary-rail {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   justify-self: end;
   align-self: start;
-  width: min(360px, 100%);
+  width: min(330px, 100%);
 }
 
 .patient-round .preventive-summary-rail .risk {
@@ -61,18 +61,19 @@
 
 .patient-round .preventive-culture-summary {
   width: 100%;
-  padding: 12px;
-  border: 1px solid rgba(186, 230, 253, .34);
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, .28);
   border-radius: 12px;
-  background: rgba(8, 18, 48, .54);
+  background: rgba(10, 20, 52, .82);
   color: #eef7ff;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 14px 26px rgba(4, 10, 28, .22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
 }
 
 .patient-round .preventive-culture-summary strong {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   font-size: 12px;
+  line-height: 1.15;
   letter-spacing: 0;
 }
 
@@ -87,9 +88,9 @@
 .patient-round .preventive-culture-summary li {
   display: grid;
   gap: 2px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: rgba(255,255,255,.08);
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(3, 10, 30, .88);
   font-size: 11px;
   line-height: 1.25;
 }
@@ -99,8 +100,157 @@
 }
 
 .patient-round .preventive-culture-summary .empty {
-  color: rgba(238, 247, 255, .72);
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(3, 10, 30, .88);
+  color: rgba(238, 247, 255, .9);
   font-size: 11px;
+}
+
+.patient-round > .preventive-invasive-history {
+  margin: 10px 20px 12px;
+  padding: 0;
+  border: 1px solid rgba(147, 197, 253, .28);
+  border-radius: 14px;
+  background: rgba(19, 36, 83, .78);
+  color: #eef7ff;
+  overflow: hidden;
+}
+
+.patient-round > .preventive-invasive-history > summary {
+  cursor: pointer;
+  padding: 14px 16px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 900;
+  list-style: none;
+}
+
+.patient-round > .preventive-invasive-history > summary::-webkit-details-marker,
+.patient-round .preventive-invasive-editor > summary::-webkit-details-marker {
+  display: none;
+}
+
+.patient-round > .preventive-invasive-history > summary::after {
+  content: "Abrir";
+  float: right;
+  min-width: 70px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(238, 247, 255, .94);
+  color: #0b1b4d;
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+
+.patient-round > .preventive-invasive-history[open] > summary::after {
+  content: "Cerrar";
+}
+
+.patient-round .preventive-invasive-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.patient-round .preventive-invasive-editor {
+  border: 1px solid rgba(186, 230, 253, .25);
+  border-radius: 12px;
+  background: rgba(9, 20, 54, .62);
+  overflow: hidden;
+}
+
+.patient-round .preventive-invasive-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, 240px) 1fr auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  padding: 12px;
+  list-style: none;
+}
+
+.patient-round .preventive-invasive-summary strong {
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.15;
+}
+
+.patient-round .preventive-invasive-summary span {
+  color: rgba(238, 247, 255, .78);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.patient-round .preventive-invasive-summary em {
+  justify-self: end;
+  min-width: 70px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(187, 247, 208, .95);
+  color: #064e3b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+}
+
+.patient-round .preventive-invasive-summary em.removed {
+  background: rgba(191, 219, 254, .95);
+  color: #1e3a8a;
+}
+
+.patient-round .preventive-invasive-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(186, 230, 253, .18);
+  background: rgba(255, 255, 255, .96);
+}
+
+.patient-round .preventive-editor-field {
+  display: grid;
+  gap: 5px;
+  color: #0b1b4d;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patient-round .preventive-editor-field input,
+.patient-round .preventive-editor-field select,
+.patient-round .preventive-editor-field textarea {
+  min-height: 36px;
+  border: 1px solid #b9c8e8;
+  border-radius: 9px;
+  padding: 8px 10px;
+  color: #0b1b4d;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.patient-round .preventive-editor-field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.patient-round .preventive-editor-field:has(textarea),
+.patient-round .preventive-invasive-actions {
+  grid-column: 1 / -1;
+}
+
+.patient-round .preventive-invasive-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.patient-round .preventive-invasive-actions .iaas-button {
+  min-height: 40px;
+  min-width: 210px;
 }
 
 .patient-round .package-draft label.field > span,
@@ -168,5 +318,17 @@
 
   .patient-round .compact-device-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .patient-round .preventive-invasive-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-round .preventive-invasive-summary em {
+    justify-self: start;
+  }
+
+  .patient-round .preventive-invasive-form {
+    grid-template-columns: 1fr;
   }
 }
