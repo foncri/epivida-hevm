@@ -226,7 +226,8 @@
       scheduleEnhance(100);
     }
     const saveButton = event.target.closest?.(".patient-round .round-save-bar .iaas-button, .patient-round .round-save-bar button");
-    if (saveButton) {
+    const saveText = clean(saveButton?.textContent).toLowerCase();
+    if (saveButton && (saveText.includes("guardar") || saveText.includes("marcar pendiente"))) {
       forceFastLocalQueue();
       saveButton.classList.add("hotfix-saving");
       showToast("Guardando sin bloquear la pantalla. La sincronización quedará en cola si Sheets tarda.");
