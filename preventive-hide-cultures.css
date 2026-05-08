@@ -1,3 +1,31 @@
+.patient-round .patient-sticky-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 360px) !important;
+  align-items: start !important;
+}
+
+.patient-round .preventive-summary-rail {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  display: grid !important;
+  gap: 8px !important;
+  justify-self: end !important;
+  align-self: start !important;
+  width: min(360px, 100%) !important;
+  margin-top: 0 !important;
+}
+
 .patient-round .preventive-culture-summary {
-  display: none !important;
+  display: block !important;
+}
+
+@media (max-width: 900px) {
+  .patient-round .patient-sticky-summary {
+    grid-template-columns: 1fr !important;
+  }
+
+  .patient-round .preventive-summary-rail {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    width: 100% !important;
+  }
 }
