@@ -8,14 +8,26 @@
   grid-row: 1 !important;
   display: grid !important;
   gap: 8px !important;
+  align-content: start !important;
+  justify-items: end !important;
   justify-self: end !important;
   align-self: start !important;
   width: min(360px, 100%) !important;
   margin-top: 0 !important;
 }
 
+.patient-round .preventive-summary-rail .risk {
+  order: 0 !important;
+  justify-self: end !important;
+  align-self: start !important;
+  margin: 0 !important;
+}
+
 .patient-round .preventive-culture-summary {
   display: block !important;
+  order: 1 !important;
+  justify-self: end !important;
+  margin: 0 !important;
 }
 
 @media (max-width: 900px) {
