@@ -280,6 +280,78 @@
   background: linear-gradient(145deg, #64748b, #273449) !important;
 }
 
+/* Bed map state colors shared by Preventive Packages and IAAS Follow-up. */
+.command-shell .bed-board-legend .legend {
+  gap: 8px !important;
+  border-color: rgba(96, 120, 170, .24) !important;
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title) !important;
+  background: #fff !important;
+}
+
+.command-shell .bed-board-legend .legend::before {
+  width: 14px !important;
+  height: 14px !important;
+  margin-right: 0 !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(8, 22, 62, .24) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 2px rgba(255,255,255,.75) !important;
+}
+
+.command-shell .bed-board-legend .legend.available::before {
+  background: #ffffff !important;
+  border-color: rgba(96, 120, 170, .45) !important;
+}
+
+.command-shell .bed-board-legend .legend.vacant::before {
+  background: #6b7280 !important;
+  border-color: #4b5563 !important;
+}
+
+.command-shell .bed-board-legend .legend.reviewed::before {
+  background: #86efac !important;
+  border-color: #22c55e !important;
+}
+
+.command-shell .bed-board-legend .legend.overdue::before {
+  background: #dc2626 !important;
+  border-color: #991b1b !important;
+}
+
+.command-shell .bed-tile.available {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title) !important;
+  background: #ffffff !important;
+  border-color: rgba(96, 120, 170, .30) !important;
+}
+
+.command-shell .bed-tile.vacant,
+.command-shell .bed-tile.locked {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  background: #6b7280 !important;
+  border-color: #4b5563 !important;
+}
+
+.command-shell .bed-tile.reviewed {
+  color: #052e20 !important;
+  -webkit-text-fill-color: #052e20 !important;
+  background: #bbf7d0 !important;
+  border-color: #22c55e !important;
+}
+
+.command-shell .bed-tile.overdue {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: #dc2626 !important;
+  border-color: #991b1b !important;
+}
+
+.command-shell .bed-tile :where(strong, span, small, b, em, div) {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
 .command-shell img[alt="Tendencia de invasivos activos"] {
   filter: invert(1) brightness(1.35) contrast(1.2) !important;
 }
