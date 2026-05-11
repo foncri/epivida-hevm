@@ -61,6 +61,21 @@
       };
     </script>
     <script>
+      (() => {
+        const resetVersion = "2026-05-11-empty-pilot01";
+        const resetKey = `epivida-pilot-reset-${resetVersion}`;
+        try {
+          if (localStorage.getItem(resetKey) !== "done") {
+            localStorage.removeItem("epivida-iaas-os-v1");
+            localStorage.removeItem("epivida-iaas-drafts-v1");
+            localStorage.setItem(resetKey, "done");
+          }
+        } catch (error) {
+          console.warn("No se pudo limpiar el estado local para piloto", error);
+        }
+      })();
+    </script>
+    <script>
       const epividaScripts = ["./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
