@@ -1,37 +1,48 @@
-/* Paquetes Preventivos: show the patient icon in the individual review header. */
-.patient-sticky-summary .patient-summary-side:not(:has(.patient-culture-alerts)) {
-  justify-items: end;
-  align-content: start;
+/* Paquetes Preventivos: remove the temporary icon and keep the risk badge aligned above cultures. */
+.patient-sticky-summary .patient-summary-side::before,
+.patient-round .preventive-summary-rail::before {
+  content: none !important;
+  display: none !important;
+  background-image: none !important;
 }
 
-.patient-sticky-summary .patient-summary-side:not(:has(.patient-culture-alerts))::before {
-  content: "";
-  display: block;
-  width: min(100%, 340px);
-  min-height: 118px;
-  border: 1px solid rgba(163, 190, 255, .35);
-  border-radius: 22px;
-  background-color: rgba(5, 12, 30, .54);
-  background-image:
-    url("./assets/epivida-pro/icons/extras/futuristic_medical_avatar_with_neon_glow.webp"),
-    radial-gradient(circle at 50% 42%, rgba(56, 189, 248, .32) 0 34%, transparent 36%),
-    linear-gradient(135deg, rgba(37, 99, 235, .34), rgba(217, 70, 239, .22));
-  background-repeat: no-repeat;
-  background-position: center 18px, center 8px, center;
-  background-size: 78px 78px, 170px 170px, 100% 100%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 16px 32px rgba(3, 7, 18, .22);
+.patient-round .preventive-summary-rail,
+.patient-round .patient-summary-side.preventive-summary-rail {
+  display: grid !important;
+  gap: 8px !important;
+  align-content: start !important;
+  justify-items: end !important;
+  justify-self: end !important;
+  align-self: start !important;
+  width: min(360px, 100%) !important;
+  margin-top: 0 !important;
 }
 
-@media (max-width: 760px) {
-  .patient-sticky-summary .patient-summary-side:not(:has(.patient-culture-alerts)) {
-    justify-items: stretch;
+.patient-round .preventive-summary-rail .risk {
+  order: 0 !important;
+  justify-self: end !important;
+  align-self: start !important;
+  margin: 0 0 2px 0 !important;
+}
+
+.patient-round .preventive-summary-rail .preventive-culture-summary,
+.patient-round .preventive-summary-rail .patient-culture-alerts {
+  display: block !important;
+  order: 1 !important;
+  justify-self: end !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .patient-round .preventive-summary-rail,
+  .patient-round .patient-summary-side.preventive-summary-rail {
+    justify-items: stretch !important;
+    justify-self: stretch !important;
+    width: 100% !important;
   }
 
-  .patient-sticky-summary .patient-summary-side:not(:has(.patient-culture-alerts))::before {
-    width: 100%;
-    min-height: 96px;
-    border-radius: 18px;
-    background-position: center 12px, center 2px, center;
-    background-size: 64px 64px, 142px 142px, 100% 100%;
+  .patient-round .preventive-summary-rail .risk {
+    justify-self: start !important;
   }
 }
