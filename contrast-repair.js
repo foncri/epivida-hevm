@@ -14,14 +14,35 @@
   ].join(",");
   const LIGHT_SURFACE_SELECTOR = [
     ".iaas-metric", ".round-card", ".device-card", ".device-draft",
-    ".patient-follow-card", ".iaas-follow-card", ".import-help", ".import-recommendation",
-    ".import-file-picker", ".import-progress", ".round-nav-board", ".round-save-bar",
-    ".sheets-notice", ".check-selector", ".compliance-box", ".button-group-field",
-    ".bed-board-picker", ".package-draft", ".empty-chart", ".timeline-row"
+    ".import-help", ".import-recommendation", ".import-file-picker", ".import-progress",
+    ".round-nav-board", ".round-save-bar", ".sheets-notice", ".check-selector",
+    ".compliance-box", ".button-group-field", ".bed-board-picker", ".package-draft",
+    ".empty-chart", ".timeline-row"
   ].join(",");
   const DARK_PANEL_SELECTOR = [
-    ".import-panel", ".iaas-hero", ".round-header", ".follow-hero", ".report-hero",
-    ".census-hero-panel", ".command-dashboard", ".command-panel"
+    ".iaas-panel", ".patient-follow-card", ".iaas-follow-card", ".monitor-census-block",
+    ".census-table-panel", ".import-panel", ".iaas-hero", ".round-header", ".follow-hero",
+    ".report-hero", ".census-hero-panel", ".command-dashboard", ".command-panel"
+  ].join(",");
+  const LIGHT_CONTROL_SELECTOR = [
+    ".monitor-census-switch button:not(.active)",
+    ".monitor-census-switch button[aria-selected='false']",
+    ".iaas-mobile-section-tabs button:not(.active)",
+    ".iaas-mobile-section-tabs button[aria-selected='false']",
+    ".monitor-census-block [class*='progress']",
+    ".monitor-census-block [class*='counter']",
+    ".monitor-census-block [class*='pager']",
+    ".monitor-census-block [class*='pagination']",
+    ".census-table-panel [class*='progress']",
+    ".census-table-panel [class*='counter']",
+    ".census-table-panel [class*='pager']",
+    ".census-table-panel [class*='pagination']",
+    ".iaas-table .badge",
+    ".iaas-table .chip",
+    ".iaas-table [class*='pill']",
+    ".iaas-table [class*='tag']",
+    ".iaas-table [class*='status']",
+    ".iaas-table [class*='estado']"
   ].join(",");
 
   const colorCache = new Map();
@@ -143,14 +164,18 @@
   function forcedColor(element) {
     if (element.closest(".iaas-sidebar")) return LIGHT_TEXT;
 
+    if (element.closest(LIGHT_CONTROL_SELECTOR)) return DARK_TEXT;
+
+    if (element.closest("input, select, textarea")) return DARK_TEXT;
+
     if (element.closest(".iaas-topbar-actions, .command-actions")) {
       const action = element.closest(".iaas-button, .sync, .badge, button, a");
       if (action) return LIGHT_TEXT;
     }
 
     if (element.closest(DARK_PANEL_SELECTOR) && !isInsideLightSurface(element)) {
-      if (element.closest(".iaas-button:not(.primary):not(.danger), button, a")) return LIGHT_TEXT;
-      if (element.matches("h1,h2,h3,h4,h5,h6,p,small,strong,span,label,legend,div")) return LIGHT_TEXT;
+      if (element.closest("button:not(.primary):not(.danger), a:not(.primary):not(.danger), .iaas-button:not(.primary):not(.danger)")) return LIGHT_TEXT;
+      if (element.matches("h1,h2,h3,h4,h5,h6,p,small,strong,span,label,legend,div,td,th")) return LIGHT_TEXT;
       if (element.closest(".field")) return LIGHT_TEXT;
     }
 
