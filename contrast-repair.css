@@ -146,3 +146,47 @@
   color: #fff !important;
   -webkit-text-fill-color: #fff;
 }
+
+/* Exhaustive hardening for IAAS dark panels and dark tables. */
+.command-shell :where(.iaas-panel, .patient-follow-card, .iaas-follow-card, .monitor-census-block, .census-table-panel, .report-hero, .follow-hero, .round-header, .import-panel, .command-panel, .command-dashboard) {
+  color: #fff !important;
+}
+
+.command-shell :where(.iaas-panel, .patient-follow-card, .iaas-follow-card, .monitor-census-block, .census-table-panel, .report-hero, .follow-hero, .round-header, .import-panel, .command-panel, .command-dashboard) :where(h1, h2, h3, h4, h5, h6, p, label, legend, dt, strong, small) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+.command-shell :where(.iaas-panel, .patient-follow-card, .iaas-follow-card, .monitor-census-block, .census-table-panel, .report-hero, .follow-hero, .round-header, .import-panel, .command-panel, .command-dashboard) :where(.iaas-button:not(.primary):not(.danger), a.iaas-button, button.iaas-button) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+  border-color: rgba(255, 255, 255, .58) !important;
+}
+
+.command-shell :where(.iaas-panel, .patient-follow-card, .iaas-follow-card, .monitor-census-block, .census-table-panel, .report-hero, .follow-hero, .round-header, .import-panel, .command-panel, .command-dashboard) :where(.iaas-button:not(.primary):not(.danger), a.iaas-button, button.iaas-button) :where(span, strong, small, b) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+.command-shell :where(.import-help, .import-recommendation, .import-file-picker, .round-nav-board, .round-save-bar, .sheets-notice, .check-selector, .compliance-box, .bed-board-picker, .package-draft) {
+  color: var(--epivida-contrast-ink) !important;
+}
+
+.command-shell :where(.import-help, .import-recommendation, .import-file-picker, .round-nav-board, .round-save-bar, .sheets-notice, .check-selector, .compliance-box, .bed-board-picker, .package-draft) :where(h1, h2, h3, h4, h5, h6, p, label, legend, dt, strong, small, span, b, li, dd) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title);
+}
+
+.command-shell .iaas-table :where(.badge, .chip, .service-pill, .epi-pill, .status-pill, .sector-pill, [class*="pill"], [class*="tag"]):not(.risk):not(.bed-badge):not(.culture-alert-chip) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title);
+}
+
+.command-shell .iaas-table :where(.badge, .chip, .service-pill, .epi-pill, .status-pill, .sector-pill, [class*="pill"], [class*="tag"]):not(.risk):not(.bed-badge):not(.culture-alert-chip) :where(span, strong, small, b) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title);
+}
+
+.command-shell img[alt="Tendencia de invasivos activos"] {
+  filter: invert(1) brightness(1.35) contrast(1.2) !important;
+}
