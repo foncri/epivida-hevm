@@ -44,19 +44,19 @@
   ];
 
   const HEADER_ALIASES = {
-    cama: [/^CAMA$/, /^CAM$/, /^UBICACION$/, /^UBICACION\s*CAMA$/],
-    patientName: [/^NOMBRE$/, /^NOMBRE\s+DEL\s+PACIENTE$/, /^PACIENTE$/],
-    birthDate: [/^FECHA\s+DE\s+NACIMIENTO$/, /^NACIMIENTO$/, /^FECHA\s+NACIMIENTO$/],
-    rfc: [/^RFC$/, /^AFILIACION$/, /^AFILIACION\s*$/],
+    cama: [/^CAMA$/, /^CAM$/, /^CAMA\s*\/\s*SILLON$/, /^SILLON$/, /^UBICACION$/, /^UBICACION\s*CAMA$/, /^SERVICIO\s*\/\s*CAMA$/],
+    patientName: [/^NOMBRE$/, /^NOMBRE\s+DEL\s+PACIENTE$/, /^NOMBRE\s+COMPLETO$/, /^PACIENTE$/, /^APELLIDOS?\s+Y\s+NOMBRES?$/],
+    birthDate: [/^FECHA\s+DE\s+NACIMIENTO$/, /^NACIMIENTO$/, /^FECHA\s+NACIMIENTO$/, /^F\.?\s*NAC\.?$/, /^FNAC$/, /^FECHA\s+NAC\.?$/],
+    rfc: [/^RFC$/, /^AFILIACION$/, /^AFILIACION\s*$/, /^EXPEDIENTE$/, /^NSS$/, /^NUMERO\s+DE\s+AFILIACION$/],
     age: [/^EDAD$/],
-    sex: [/^SEXO$/, /^GENERO$/],
-    sector: [/^SECTOR$/, /^DERECHOHABIENCIA$/, /^TIPO\s+DERECHOHABIENTE$/],
-    admissionDate: [/^FECHA\s+DE\s+INGRESO$/, /^FECHA\s+INGRESO$/, /^INGRESO$/],
-    deih: [/^DEIH$/, /^EIH$/, /^D\.?E\.?I\.?H\.?$/, /^DIAS\s+ESTANCIA$/, /^ESTANCIA$/],
+    sex: [/^SEXO$/, /^GENERO$/, /^SEX$/],
+    sector: [/^SECTOR$/, /^DERECHOHABIENCIA$/, /^DERECHO\s*HABIENCIA$/, /^TIPO\s+DERECHOHABIENTE$/, /^TIPO\s+DE\s+DERECHOHABIENTE$/],
+    admissionDate: [/^FECHA\s+DE\s+INGRESO$/, /^FECHA\s+INGRESO$/, /^F\.?\s*INGRESO$/, /^INGRESO$/, /^FECHA\s+DE\s+ADMISION$/, /^ADMISION$/],
+    deih: [/^DEIH$/, /^EIH$/, /^D\.?E\.?I\.?H\.?$/, /^DIAS\s+ESTANCIA$/, /^DIAS\s+DE\s+ESTANCIA$/, /^ESTANCIA$/],
     state: [/^ESTADO$/, /^ESTADO\s+DE\s+SALUD$/, /^ESTADO\s+CLINICO$/],
-    diagnosisIn: [/^DIAGNOSTICO\s+DE\s+INGRESO$/, /^DX\s+INGRESO$/, /^DIAGNOSTICO\s+INGRESO$/],
-    diagnosisNow: [/^DIAGNOSTICO\s+ACTUAL$/, /^DX\s+ACTUAL$/, /^DIAGNOSTICO$/, /^DX\s+HOSPITALARIO$/],
-    observations: [/^PENDIENTES$/, /^OBSERVACIONES$/, /^OBSERVACIONES\s+Y\s+PENDIENTES$/]
+    diagnosisIn: [/^DIAGNOSTICO\s+DE\s+INGRESO$/, /^DX\s+INGRESO$/, /^DX\s+DE\s+INGRESO$/, /^DIAGNOSTICO\s+INGRESO$/],
+    diagnosisNow: [/^DIAGNOSTICO\s+ACTUAL$/, /^DX\s+ACTUAL$/, /^DIAGNOSTICO$/, /^DX$/, /^DX\s+HOSPITALARIO$/, /^DX\s+HOSPITALARIOS$/, /^DIAGNOSTICOS\s+HOSPITALARIOS$/, /^PADECIMIENTO$/],
+    observations: [/^PENDIENTES$/, /^OBSERVACIONES$/, /^OBS$/, /^OBSERVACIONES\s+Y\s+PENDIENTES$/, /^PENDIENTES\s+Y\s+OBSERVACIONES$/, /^INDICACIONES$/]
   };
 
   const cleanCell = value => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -102,6 +102,8 @@
       const iso = `${year}-${full[2].padStart(2, "0")}-${full[1].padStart(2, "0")}`;
       return validIsoDate(iso) ? iso : "";
     }
+    const embedded = text.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    if (embedded) return normalizeDate(embedded[0]);
     if (/^\d+(?:\.\d+)?$/.test(text)) return excelSerialDateToIso(text);
     return "";
   }
@@ -133,6 +135,11 @@
     if (exact) return exact[0];
     const alias = SERVICE_ALIASES.find(([, pattern]) => pattern.test(target));
     return alias ? alias[0] : "";
+  }
+
+  function localIsoToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   function looksLikeStandaloneService(value) {
@@ -236,8 +243,14 @@
     return String(n);
   }
 
+  function normalizeState(value) {
+    const key = normalizeText(value);
+    if (key === "CRITICO") return "CRITICO";
+    return STATE_OPTIONS.find(option => normalizeText(option) === key) || "";
+  }
+
   function looksLikeState(value) {
-    return STATE_OPTIONS.includes(normalizeText(value));
+    return Boolean(normalizeState(value));
   }
 
   function isAdministrativeCell(value) {
@@ -353,7 +366,7 @@
       Sexo: normalizeSex(getMapped(values, map, "sex")) || "PENDIENTE",
       Ingreso: normalizeDate(getMapped(values, map, "admissionDate")),
       DEIH: cleanCell(getMapped(values, map, "deih")).match(/\d+/)?.[0] || "",
-      Estado: looksLikeState(getMapped(values, map, "state")) ? getMapped(values, map, "state") : "",
+      Estado: normalizeState(getMapped(values, map, "state")),
       "Diagnosticos hospitalarios": dxParts.join(" / ") || "PENDIENTE",
       "Observaciones y pendientes": obs || "SP"
     };
@@ -366,7 +379,7 @@
     const rawBed = bedIndex >= 0 ? values[bedIndex] : "";
     const entries = values.map((value, index) => ({ value, index })).filter(item => item.value);
     const dates = entries.map(item => ({ ...item, iso: normalizeDate(item.value) })).filter(item => item.iso);
-    const censusDate = currentDate || new Date().toISOString().slice(0, 10);
+    const censusDate = currentDate || localIsoToday();
     const birth = dates.find(item => Number(item.iso.slice(0, 4)) <= Number(censusDate.slice(0, 4)) - 1);
     const admission = dates.find(item => item.index !== birth?.index && item.index > patientIndex && item.iso <= censusDate) || dates.find(item => item.index !== birth?.index);
     const rfc = entries.find(item => looksLikeRfc(item.value));
@@ -402,7 +415,7 @@
       Sexo: normalizeSex(sex?.value) || "PENDIENTE",
       Ingreso: admission?.iso || "",
       DEIH: "",
-      Estado: state?.value || "",
+      Estado: normalizeState(state?.value),
       "Diagnosticos hospitalarios": unique(diagnosis).join(" / ") || "PENDIENTE",
       "Observaciones y pendientes": unique(observations).join(" / ") || "SP"
     };
@@ -414,7 +427,7 @@
     const delimiter = detectDelimiter(lines);
     const matrix = lines.map(line => splitLine(line, delimiter));
     const joined = normalizeText(`${sourceName} ${text}`);
-    const hospitalLike = /\b(NOMBRE\s+DEL\s+PACIENTE|NOMBRE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA|DX\s+ACTUAL|DIAGNOSTICO\s+ACTUAL)\b/.test(joined);
+    const hospitalLike = /\b(NOMBRE\s+DEL\s+PACIENTE|NOMBRE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA|DX\s+ACTUAL|DIAGNOSTICO\s+ACTUAL)\b/.test(joined) || matrixLooksLikeCensus(matrix);
     if (!hospitalLike) return null;
 
     const headerInfo = findHeaderInfo(matrix);
@@ -435,7 +448,20 @@
       if (row) rows.push(row);
     });
 
-    return rows.length ? rows : null;
+    return rows.length ? rows : [];
+  }
+
+  function matrixLooksLikeCensus(matrix) {
+    let candidates = 0;
+    matrix.forEach(values => {
+      const patientIndex = values.findIndex(looksLikeName);
+      if (patientIndex < 0) return;
+      const hasBed = findBedIndex(values, patientIndex) >= 0;
+      const dates = values.map(normalizeDate).filter(Boolean).length;
+      const hasClinicalText = values.some((value, index) => index > patientIndex && isDiagnosisCell(value));
+      if ((hasBed || dates >= 1) && hasClinicalText) candidates += 1;
+    });
+    return candidates >= 2;
   }
 
   function toTsv(rows) {
@@ -451,7 +477,17 @@
     if (!textarea) return false;
     const date = document.querySelector("#import-date")?.value || "";
     const rows = parseHospitalRows(text, date, sourceName);
-    const repaired = rows ? toTsv(rows) : text;
+    if (!rows) return { ok: false, attempted: false, rows: 0 };
+    if (!rows.length) {
+      window.__EPIVIDA_LAST_CENSUS_REPAIR__ = {
+        repairedAt: new Date().toISOString(),
+        rows: 0,
+        sourceName,
+        error: "No se reconocieron pacientes importables en el censo hospitalario."
+      };
+      return { ok: false, attempted: true, rows: 0 };
+    }
+    const repaired = toTsv(rows);
     textarea.value = repaired;
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     window.__EPIVIDA_LAST_CENSUS_REPAIR__ = {
@@ -459,13 +495,13 @@
       rows: rows?.length || 0,
       sourceName
     };
-    return Boolean(rows);
+    return { ok: true, attempted: true, rows: rows.length };
   }
 
   function repairImportTextarea() {
     const textarea = document.querySelector("#import-text");
-    if (!textarea || !textarea.value.trim()) return;
-    writeRepairedText(textarea.value, "");
+    if (!textarea || !textarea.value.trim()) return { ok: false, attempted: false, rows: 0 };
+    return writeRepairedText(textarea.value, "");
   }
 
   function findValidateButton() {
@@ -477,7 +513,12 @@
     const button = event.target?.closest?.("button");
     if (!button) return;
     if (!/PEGAR\s+Y\s+VALIDAR\s+CENSO/i.test(normalizeText(button.textContent || ""))) return;
-    repairImportTextarea();
+    const result = repairImportTextarea();
+    if (result?.attempted && !result.ok) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      alert("No se importo el censo porque el formato no se pudo interpretar con seguridad. Revisa que el archivo tenga al menos cama, paciente y datos clinicos, o pega el censo completo con sus encabezados.");
+    }
   }, true);
 
   document.addEventListener("change", event => {
@@ -488,8 +529,12 @@
     event.stopImmediatePropagation();
     const reader = new FileReader();
     reader.onload = () => {
-      writeRepairedText(String(reader.result || ""), file.name);
-      setTimeout(() => findValidateButton()?.click(), 0);
+      const result = writeRepairedText(String(reader.result || ""), file.name);
+      if (result?.attempted && !result.ok) {
+        alert("No se importo el censo porque el formato no se pudo interpretar con seguridad. Revisa que el archivo tenga al menos cama, paciente y datos clinicos, o pega el censo completo con sus encabezados.");
+        return;
+      }
+      if (result?.ok) setTimeout(() => findValidateButton()?.click(), 0);
     };
     reader.readAsText(file);
   }, true);
