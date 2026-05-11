@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-05-11-contrast10";
+  const VERSION = "2026-05-11-contrast11";
   const MIN_NORMAL = 4.5;
   const MIN_LARGE = 3.05;
   const DARK_TEXT = "#081633";
@@ -10,7 +10,7 @@
   const LIGHT_MUTED = "#eaf2ff";
   const TEXT_SELECTOR = [
     "h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "strong", "small",
-    "label", "legend", "li", "td", "th", "button", "a", "b", "em", "dt", "dd", "div"
+    "label", "legend", "li", "td", "th", "button", "a", "b", "em", "dt", "dd"
   ].join(",");
   const FORM_SELECTOR = "input, select, textarea";
   const LIGHT_SURFACE_SELECTOR = [
@@ -252,7 +252,6 @@
   window.EPIVIDA_CONTRAST_REPAIR = { version: VERSION, scan, scheduleScan };
   window.addEventListener("hashchange", () => setTimeout(scheduleScan, 120));
   window.addEventListener("resize", scheduleScan);
-  window.addEventListener("scroll", scheduleScan, true);
   document.addEventListener("input", scheduleScan, true);
   document.addEventListener("change", scheduleScan, true);
   document.addEventListener("click", () => setTimeout(scheduleScan, 80), true);
@@ -261,7 +260,7 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "style", "hidden", "aria-expanded", "aria-selected", "data-state"]
+    attributeFilter: ["class", "hidden", "aria-expanded", "aria-selected", "data-state"]
   });
 
   scheduleScan();
