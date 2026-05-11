@@ -141,3 +141,8 @@
   color: #d91445 !important;
   -webkit-text-fill-color: #d91445;
 }
+
+.command-shell :where(.iaas-panel, .report-hero, .command-panel, .command-dashboard) img[alt] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
