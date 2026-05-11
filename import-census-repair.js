@@ -13,7 +13,7 @@
     "Ingreso",
     "DEIH",
     "Estado",
-    "Dx hospitalario",
+    "Diagnosticos hospitalarios",
     "Observaciones y pendientes"
   ];
 
@@ -43,9 +43,20 @@
     "CRITICO INTUBADO"
   ];
 
-  const nowIsoDate = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const HEADER_ALIASES = {
+    cama: [/^CAMA$/, /^CAM$/, /^UBICACION$/, /^UBICACION\s*CAMA$/],
+    patientName: [/^NOMBRE$/, /^NOMBRE\s+DEL\s+PACIENTE$/, /^PACIENTE$/],
+    birthDate: [/^FECHA\s+DE\s+NACIMIENTO$/, /^NACIMIENTO$/, /^FECHA\s+NACIMIENTO$/],
+    rfc: [/^RFC$/, /^AFILIACION$/, /^AFILIACION\s*$/],
+    age: [/^EDAD$/],
+    sex: [/^SEXO$/, /^GENERO$/],
+    sector: [/^SECTOR$/, /^DERECHOHABIENCIA$/, /^TIPO\s+DERECHOHABIENTE$/],
+    admissionDate: [/^FECHA\s+DE\s+INGRESO$/, /^FECHA\s+INGRESO$/, /^INGRESO$/],
+    deih: [/^DEIH$/, /^EIH$/, /^D\.?E\.?I\.?H\.?$/, /^DIAS\s+ESTANCIA$/, /^ESTANCIA$/],
+    state: [/^ESTADO$/, /^ESTADO\s+DE\s+SALUD$/, /^ESTADO\s+CLINICO$/],
+    diagnosisIn: [/^DIAGNOSTICO\s+DE\s+INGRESO$/, /^DX\s+INGRESO$/, /^DIAGNOSTICO\s+INGRESO$/],
+    diagnosisNow: [/^DIAGNOSTICO\s+ACTUAL$/, /^DX\s+ACTUAL$/, /^DIAGNOSTICO$/, /^DX\s+HOSPITALARIO$/],
+    observations: [/^PENDIENTES$/, /^OBSERVACIONES$/, /^OBSERVACIONES\s+Y\s+PENDIENTES$/]
   };
 
   const cleanCell = value => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -85,10 +96,10 @@
     const text = cleanCell(value);
     if (!text || ["AMB", "NA", "N/A"].includes(normalizeText(text))) return "";
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return validIsoDate(text) ? text : "";
-    const direct = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-    if (direct) {
-      const year = direct[3].length === 2 ? expandTwoDigitYear(direct[3]) : direct[3];
-      const iso = `${year}-${direct[2].padStart(2, "0")}-${direct[1].padStart(2, "0")}`;
+    const full = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (full) {
+      const year = full[3].length === 2 ? expandTwoDigitYear(full[3]) : full[3];
+      const iso = `${year}-${full[2].padStart(2, "0")}-${full[1].padStart(2, "0")}`;
       return validIsoDate(iso) ? iso : "";
     }
     if (/^\d+(?:\.\d+)?$/.test(text)) return excelSerialDateToIso(text);
@@ -110,11 +121,7 @@
 
   function validIsoDate(iso) {
     const d = new Date(`${iso}T00:00:00`);
-    return Number.isFinite(d.getTime()) && nowIsoFromDate(d) === iso;
-  }
-
-  function nowIsoFromDate(date) {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return Number.isFinite(d.getTime()) && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` === iso;
   }
 
   function knownServiceFromText(value) {
@@ -128,22 +135,47 @@
     return alias ? alias[0] : "";
   }
 
+  function looksLikeStandaloneService(value) {
+    const key = normalizeText(value).replace(/\s+/g, " ");
+    if (!key || key.length > 52 || /[\/,;]/.test(key)) return false;
+    return Boolean(knownServiceFromText(key));
+  }
+
+  function serviceFromSourceName(name) {
+    const key = normalizeText(name);
+    if (key.includes("PEDIATRIA")) return "PEDIATRIA";
+    if (key.includes("URGENCIAS")) return "URGENCIAS";
+    return knownServiceFromText(key);
+  }
+
   function serviceFromBed(value) {
     const key = normalizeText(value);
+    if (/\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/.test(key)) return "CUNEROS";
+    if (/\bUCIN\b/.test(key)) return "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES";
+    if (/\b(UCIP|UTIP)\b/.test(key)) return "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS";
+    if (/^(F|UX|URX|P)\s*-?\s*\d+\b/.test(key)) return "URGENCIAS";
     if (/\b(CX|TX|CIR|TRAUMA)\b/.test(key)) return "CIRUGIA Y TRAUMATOLOGIA";
     if (/\b(MI|MED\s*INT)\b/.test(key)) return "MEDICINA INTERNA";
     if (/\b(PED|PEDS)\b/.test(key)) return "PEDIATRIA";
-    if (/\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/.test(key)) return "CUNEROS";
-    if (/\b(GYO|GO)\b/.test(key)) return "GINECOLOGIA Y OBSTETRICIA";
-    if (/\b(UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB)\b/.test(key)) return knownServiceFromText(key);
+    if (/\b(GYO|GO|ALOJA)\b/.test(key)) return "GINECOLOGIA Y OBSTETRICIA";
+    if (/\b(UCIA|HEMO|HD|ONCO|URG|AMB)\b/.test(key)) return knownServiceFromText(key);
     return "";
+  }
+
+  function serviceForRow(bed, currentService, sourceName) {
+    const sourceService = currentService || serviceFromSourceName(sourceName);
+    const bedService = serviceFromBed(bed);
+    if (["CUNEROS", "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS"].includes(bedService)) return bedService;
+    if (sourceService) return sourceService;
+    return bedService || "PENDIENTE";
   }
 
   function looksLikeBedCell(value) {
     const text = normalizeText(value);
-    if (!text || normalizeDate(value) || text.length > 24 || /[\/()]/.test(text)) return false;
-    if (/^(CAMA|CAM|SILLON|AIS|AISLADO|AISLADA|OBS|OBSERVACION|AMB|AMBULATORIO|UCIA|UCIN|UCIP|CUNERO|ESCOLAR|CUBICULO|CAMILLA)[\s:-]*[A-Z0-9-]+/.test(text)) return true;
-    return /^\d{1,3}(?:\s|-)?(?:CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB)?$/.test(text);
+    if (!text || normalizeDate(value) || text.length > 28 || /[\/()]/.test(text)) return false;
+    if (/^\d{1,3}(?:\.0)?(?:\s|-)?(?:CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB)?$/.test(text)) return true;
+    if (/^(F|UX|URX|P)\s*-?\s*\d+\b/.test(text)) return true;
+    return /^(CAMA|CAM|SILLON|AIS|AISLADO|AISLADA|OBS|OBSERVACION|ALOJA|ESC|UTIP|UCIA|UCIN|UCIP|CUNERO|CUNEROS|ESCOLAR|CUBICULO|CAMILLA)[\s:-]*[A-Z0-9-]+/.test(text);
   }
 
   function normalizeBed(value) {
@@ -151,8 +183,9 @@
       .replace(/^CAMA\s*[:#-]?\s*/i, "")
       .replace(/\s+/g, " ")
       .toUpperCase();
-    if (!text || normalizeDate(text) || /[\/()]/.test(text) || text.length > 24) return "";
+    if (!text || normalizeDate(text) || /[\/()]/.test(text) || text.length > 28) return "";
     return text
+      .replace(/^(\d+)\.0$/, "$1")
       .replace(/\s+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "")
       .replace(/(\d+)[\s-]+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "$1")
       .trim();
@@ -163,13 +196,13 @@
     const key = normalizeText(text);
     if (!text || text.length < 5) return false;
     if (knownServiceFromText(text) || looksLikeBedCell(text) || looksLikeRfc(text) || normalizeDate(text)) return false;
-    if (/\b(NOMBRE|PACIENTE|SERVICIO|FECHA|SECTOR|GUARDIA|MEDICO|PENDIENTES|ESPECIALIDAD|RESUMENES|INGRESOS|GRAVES)\b/.test(key)) return false;
+    if (/\b(NOMBRE|PACIENTE|SERVICIO|FECHA|SECTOR|GUARDIA|MEDICO|PENDIENTES|ESPECIALIDAD|RESUMENES|INGRESOS|GRAVES|TOTAL)\b/.test(key)) return false;
     if (/[\/:;]/.test(text) && text.length > 36) return false;
-    return /[A-Z]{2,}\s+[A-Z]{2,}/i.test(normalizeText(text));
+    return /[A-Z]{2,}\s+[A-Z]{2,}/i.test(key);
   }
 
   function looksLikeRfc(value) {
-    return /^[A-Z&]{3,5}\d{6}-?[A-Z0-9]{1,4}$/.test(normalizeText(value).replace(/\s+/g, ""));
+    return /^[A-Z&]{3,5}\d{6}-?[A-Z0-9]{1,4}$/.test(normalizeText(value).replace(/\s+/g, "").replace(/\s*-\s*/g, "-"));
   }
 
   function normalizeSector(value) {
@@ -204,16 +237,15 @@
   }
 
   function looksLikeState(value) {
-    const key = normalizeText(value);
-    return STATE_OPTIONS.includes(key);
+    return STATE_OPTIONS.includes(normalizeText(value));
   }
 
   function isAdministrativeCell(value) {
     const key = normalizeText(value);
     if (!key) return true;
-    if (/^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}$/.test(key)) return true;
-    if (/^(AMERITA|NO AMERITA|DR|DRA|DR\.|DRA\.|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD)$/.test(key)) return true;
-    if (/^(TUXTLA|TUXTLA GUTIERREZ|SAN CRISTOBAL|JIQUIPILAS|VILLA CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA DE CORZO|CHIAPAS)$/.test(key)) return true;
+    if (/^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}(?:\s*HRS?)?$/.test(key)) return true;
+    if (/^(AMERITA|NO AMERITA|DR|DRA|DR\.|DRA\.|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD|GASTRO|NEFRO)$/.test(key)) return true;
+    if (/^(TUXTLA|TUXTLA GUTIERREZ|SAN CRISTOBAL|JIQUIPILAS|VILLA CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA DE CORZO|CHIAPAS|TONALA|VILLAFLORES|VILLACORZO)$/.test(key)) return true;
     if (/\bDR\.?\s|DRA\.?\s|GUARDIA|MEDICO|ESPECIALIDAD\b/.test(key)) return true;
     return false;
   }
@@ -222,23 +254,46 @@
     const key = normalizeText(value);
     if (!key) return false;
     if (/^(SP|S\/P|S P|NA|N\/A|PENDIENTE)$/.test(key)) return true;
-    return /\b(CITA|PROGRAMAR|VALORACION|LABORATORIO|PENDIENTE|VIGILAR|PROCEDIMIENTO|CONSULTA|PREALTA|ALTA|EGRESO|DEFUNCION|AYUNO|CIRUGIA\s+MANANA)\b/.test(key);
+    return /\b(CITA|PROGRAMAR|VALORACION|LABORATORIO|PENDIENTE|VIGILAR|PROCEDIMIENTO|CONSULTA|PREALTA|ALTA|EGRESO|DEFUNCION|AYUNO|CIRUGIA\s+MANANA|RR\s+|UROCULTIVO|HEMOCULTIVO|TAMIZ|USG|RX|TAC|IC\s+|LABS)\b/.test(key);
   }
 
   function isDiagnosisCell(value) {
     const key = normalizeText(value);
     if (key.length < 3) return false;
-    if (isAdministrativeCell(value) || knownServiceFromText(value) || looksLikeBedCell(value) || looksLikeRfc(value) || normalizeSector(value) || normalizeSex(value) || looksLikeState(value) || normalizeDate(value)) return false;
+    if (isAdministrativeCell(value) || looksLikeStandaloneService(value) || looksLikeBedCell(value) || looksLikeRfc(value) || normalizeSector(value) || normalizeSex(value) || looksLikeState(value) || normalizeDate(value)) return false;
     if (isObservationCell(value)) return false;
     return /[A-Z]{3,}/.test(key);
+  }
+
+  function headerKey(value) {
+    const key = normalizeText(value).replace(/\s+/g, " ").trim();
+    if (!key) return "";
+    return Object.entries(HEADER_ALIASES).find(([, tests]) => tests.some(pattern => pattern.test(key)))?.[0] || "";
+  }
+
+  function findHeaderInfo(matrix) {
+    let best = null;
+    matrix.forEach((row, rowIndex) => {
+      const map = {};
+      row.forEach((cell, index) => {
+        const key = headerKey(cell);
+        if (key && map[key] === undefined) map[key] = index;
+      });
+      if (map.patientName !== undefined && map.birthDate !== undefined && (map.diagnosisNow !== undefined || map.diagnosisIn !== undefined)) {
+        if (map.cama === undefined && row[0] === "" && map.patientName === 1) map.cama = 0;
+        const score = Object.keys(map).length;
+        if (!best || score > best.score) best = { rowIndex, map, score };
+      }
+    });
+    return best;
   }
 
   function isGuideRow(cells) {
     const values = cells.map(cleanCell).filter(Boolean);
     if (!values.length) return true;
     const text = normalizeText(values.join(" "));
-    if (/\b(NOMBRE\s+DEL\s+PACIENTE|FECHA\s+INGRESO|GUARDIA|ESPECIALIDAD|MEDICO|PENDIENTES|E\s*C\s*D|RESUMENES|INGRESOS|GRAVES)\b/.test(text)) return true;
-    if (/\.(DOCX?|XLSX?|PDF|CSV|TXT)\b/.test(text)) return true;
+    if (/\b(NOMBRE\s+DEL\s+PACIENTE|FECHA\s+INGRESO|GUARDIA|ESPECIALIDAD|MEDICO|PENDIENTES|E\s*C\s*D|RESUMENES|INGRESOS|GRAVES|TOTAL|PACIENTES\s+EN\s+OTROS\s+SERVICIOS|ESPACIOS\s+SIN\s+CAMAS|ESPACIOS\s+CON\s+CAMAS|CAMAS\s+PARA|ALTAS)\b/.test(text)) return true;
+    if (/https?:\/\//i.test(values.join(" ")) || /\.(DOCX?|XLSX?|PDF|CSV|TXT)\b/i.test(values.join(" "))) return true;
     return false;
   }
 
@@ -246,12 +301,24 @@
     const nonEmpty = cells.map(cleanCell).filter(Boolean);
     const explicit = cells.find(cell => /\bSERVICIO\b/i.test(cell) && knownServiceFromText(cell));
     if (explicit) return knownServiceFromText(explicit);
-    return nonEmpty.length <= 3 ? knownServiceFromText(nonEmpty.join(" ")) : "";
+    if (nonEmpty.some(looksLikeBedCell)) return "";
+    return nonEmpty.length <= 4 ? knownServiceFromText(nonEmpty.join(" ")) : "";
+  }
+
+  function inferDefaultService(matrix, sourceName) {
+    const fromName = serviceFromSourceName(sourceName);
+    if (fromName) return fromName;
+    const sample = normalizeText(matrix.slice(0, 18).map(row => row.filter(Boolean).join(" ")).join(" "));
+    if (sample.includes("MEDICINA INTERNA")) return "MEDICINA INTERNA";
+    if (sample.includes("GYO")) return "GINECOLOGIA Y OBSTETRICIA";
+    if (/\b(UX\s*\d+|F\d+|URGENCIAS)\b/.test(sample)) return "URGENCIAS";
+    if (/\b(CUNERO|CUNEROS|UCIN|UTIP|CAMA\s+7[0-9])\b/.test(sample)) return "PEDIATRIA";
+    return knownServiceFromText(sample);
   }
 
   function rowDate(cells) {
     const joined = cells.map(cleanCell).filter(Boolean).join(" ");
-    if (!/\b(SERVICIO|CENSO|FECHA)\b/i.test(joined)) return "";
+    if (!/\b(SERVICIO|CENSO|FECHA|GUARDIA)\b/i.test(joined)) return "";
     return cells.map(normalizeDate).find(Boolean) || "";
   }
 
@@ -263,75 +330,109 @@
     return -1;
   }
 
-  function parseHospitalRows(text, fallbackDate) {
+  function getMapped(values, map, key) {
+    const index = map[key];
+    return index === undefined ? "" : cleanCell(values[index]);
+  }
+
+  function rowFromHeader(values, map, currentService, currentDate, sourceName) {
+    const patient = getMapped(values, map, "patientName");
+    if (!looksLikeName(patient)) return null;
+    const rawBed = getMapped(values, map, "cama") || values[0] || "";
+    const bed = normalizeBed(rawBed);
+    const dxParts = unique([getMapped(values, map, "diagnosisIn"), getMapped(values, map, "diagnosisNow")].filter(isDiagnosisCell));
+    const obs = cleanCell(getMapped(values, map, "observations"));
+    return {
+      Servicio: serviceForRow(rawBed, currentService, sourceName),
+      Cama: bed || "PENDIENTE",
+      Paciente: patient.toUpperCase(),
+      "Fecha de nacimiento": normalizeDate(getMapped(values, map, "birthDate")),
+      Edad: normalizeAge(getMapped(values, map, "age")),
+      Sector: normalizeSector(getMapped(values, map, "sector")) || "PENDIENTE",
+      RFC: cleanCell(getMapped(values, map, "rfc")),
+      Sexo: normalizeSex(getMapped(values, map, "sex")) || "PENDIENTE",
+      Ingreso: normalizeDate(getMapped(values, map, "admissionDate")),
+      DEIH: cleanCell(getMapped(values, map, "deih")).match(/\d+/)?.[0] || "",
+      Estado: looksLikeState(getMapped(values, map, "state")) ? getMapped(values, map, "state") : "",
+      "Diagnosticos hospitalarios": dxParts.join(" / ") || "PENDIENTE",
+      "Observaciones y pendientes": obs || "SP"
+    };
+  }
+
+  function rowFromSignals(values, currentService, currentDate, sourceName) {
+    const patientIndex = values.findIndex(looksLikeName);
+    if (patientIndex < 0) return null;
+    const bedIndex = findBedIndex(values, patientIndex);
+    const rawBed = bedIndex >= 0 ? values[bedIndex] : "";
+    const entries = values.map((value, index) => ({ value, index })).filter(item => item.value);
+    const dates = entries.map(item => ({ ...item, iso: normalizeDate(item.value) })).filter(item => item.iso);
+    const censusDate = currentDate || new Date().toISOString().slice(0, 10);
+    const birth = dates.find(item => Number(item.iso.slice(0, 4)) <= Number(censusDate.slice(0, 4)) - 1);
+    const admission = dates.find(item => item.index !== birth?.index && item.index > patientIndex && item.iso <= censusDate) || dates.find(item => item.index !== birth?.index);
+    const rfc = entries.find(item => looksLikeRfc(item.value));
+    const sex = entries.find(item => normalizeSex(item.value));
+    const sector = entries.find(item => normalizeSector(item.value));
+    const state = entries.find(item => looksLikeState(item.value));
+    const age = entries.find(item => item.index > (birth?.index ?? patientIndex) && item.index < (rfc?.index ?? values.length) && normalizeAge(item.value));
+    const observations = entries.filter(item => item.index > patientIndex && isObservationCell(item.value)).map(item => item.value);
+    const usedIndexes = new Set([
+      bedIndex,
+      patientIndex,
+      birth?.index,
+      admission?.index,
+      rfc?.index,
+      sex?.index,
+      sector?.index,
+      state?.index,
+      age?.index,
+      ...observations.map(obs => values.findIndex(value => value === obs)).filter(index => index >= 0)
+    ].filter(index => Number.isFinite(index) && index >= 0));
+    const diagnosis = entries
+      .filter(item => item.index > patientIndex && !usedIndexes.has(item.index))
+      .filter(item => isDiagnosisCell(item.value))
+      .map(item => item.value);
+    return {
+      Servicio: serviceForRow(rawBed, currentService, sourceName),
+      Cama: normalizeBed(rawBed) || "PENDIENTE",
+      Paciente: values[patientIndex].toUpperCase(),
+      "Fecha de nacimiento": birth?.iso || "",
+      Edad: normalizeAge(age?.value) || "",
+      Sector: normalizeSector(sector?.value) || "PENDIENTE",
+      RFC: cleanCell(rfc?.value || ""),
+      Sexo: normalizeSex(sex?.value) || "PENDIENTE",
+      Ingreso: admission?.iso || "",
+      DEIH: "",
+      Estado: state?.value || "",
+      "Diagnosticos hospitalarios": unique(diagnosis).join(" / ") || "PENDIENTE",
+      "Observaciones y pendientes": unique(observations).join(" / ") || "SP"
+    };
+  }
+
+  function parseHospitalRows(text, fallbackDate = "", sourceName = "") {
     const lines = text.replace(/\r/g, "").split("\n").filter(line => line.trim());
     if (!lines.length) return null;
     const delimiter = detectDelimiter(lines);
     const matrix = lines.map(line => splitLine(line, delimiter));
-    const joined = normalizeText(text);
-    const hospitalLike = /\b(NOMBRE\s+DEL\s+PACIENTE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA)\b/.test(joined);
+    const joined = normalizeText(`${sourceName} ${text}`);
+    const hospitalLike = /\b(NOMBRE\s+DEL\s+PACIENTE|NOMBRE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA|DX\s+ACTUAL|DIAGNOSTICO\s+ACTUAL)\b/.test(joined);
     if (!hospitalLike) return null;
 
-    let currentService = "";
+    const headerInfo = findHeaderInfo(matrix);
+    let currentService = inferDefaultService(matrix, sourceName);
     let currentDate = normalizeDate(fallbackDate) || "";
+    const startIndex = headerInfo ? headerInfo.rowIndex + 1 : 0;
     const rows = [];
 
-    matrix.forEach(cells => {
-      const values = cells.map(cleanCell);
-      const nonEmpty = values.filter(Boolean);
-      if (!nonEmpty.length) return;
+    matrix.forEach((values, index) => {
       const service = rowService(values);
       const date = rowDate(values);
       if (service) currentService = service;
       if (date && !normalizeDate(fallbackDate)) currentDate = date;
-      if (isGuideRow(values)) return;
-
-      const patientIndex = values.findIndex(looksLikeName);
-      if (patientIndex < 0) return;
-      const bedIndex = findBedIndex(values, patientIndex);
-      const entries = values.map((value, index) => ({ value, index })).filter(item => item.value);
-      const dates = entries.map(item => ({ ...item, iso: normalizeDate(item.value) })).filter(item => item.iso);
-      const censusDate = currentDate || normalizeDate(fallbackDate) || nowIsoDate();
-      const birth = dates.find(item => Number(item.iso.slice(0, 4)) <= Number(censusDate.slice(0, 4)) - 1);
-      const admission = dates.find(item => item.index !== birth?.index && item.index > patientIndex && item.iso <= censusDate) || dates.find(item => item.index !== birth?.index);
-      const rfc = entries.find(item => looksLikeRfc(item.value));
-      const sex = entries.find(item => normalizeSex(item.value));
-      const sector = entries.find(item => normalizeSector(item.value));
-      const state = entries.find(item => looksLikeState(item.value));
-      const age = entries.find(item => item.index > (birth?.index ?? patientIndex) && item.index < (rfc?.index ?? values.length) && normalizeAge(item.value));
-      const observations = entries.filter(item => item.index > patientIndex && isObservationCell(item.value)).map(item => item.value);
-      const usedIndexes = new Set([
-        bedIndex,
-        patientIndex,
-        birth?.index,
-        admission?.index,
-        rfc?.index,
-        sex?.index,
-        sector?.index,
-        state?.index,
-        age?.index,
-        ...observations.map(obs => values.findIndex(value => value === obs)).filter(index => index >= 0)
-      ].filter(index => Number.isFinite(index) && index >= 0));
-      const diagnosis = entries
-        .filter(item => item.index > patientIndex && !usedIndexes.has(item.index))
-        .filter(item => isDiagnosisCell(item.value))
-        .map(item => item.value);
-
-      rows.push({
-        Servicio: currentService || serviceFromBed(values[bedIndex]) || "PENDIENTE",
-        Cama: normalizeBed(values[bedIndex]) || "PENDIENTE",
-        Paciente: values[patientIndex].toUpperCase(),
-        "Fecha de nacimiento": birth?.iso || "",
-        Edad: normalizeAge(age?.value) || "",
-        Sector: normalizeSector(sector?.value) || "PENDIENTE",
-        RFC: cleanCell(rfc?.value || ""),
-        Sexo: normalizeSex(sex?.value) || "PENDIENTE",
-        Ingreso: admission?.iso || "",
-        DEIH: "",
-        Estado: state?.value || "",
-        "Dx hospitalario": unique(diagnosis).join(" / ") || "PENDIENTE",
-        "Observaciones y pendientes": unique(observations).join(" / ") || "SP"
-      });
+      if (index < startIndex || isGuideRow(values)) return;
+      const row = headerInfo
+        ? rowFromHeader(values, headerInfo.map, currentService, currentDate, sourceName)
+        : rowFromSignals(values, currentService, currentDate, sourceName);
+      if (row) rows.push(row);
     });
 
     return rows.length ? rows : null;
@@ -345,20 +446,31 @@
     return [OUTPUT_HEADERS.join("\t"), ...rows.map(row => OUTPUT_HEADERS.map(header => escapeCell(row[header])).join("\t"))].join("\n");
   }
 
-  function repairImportTextarea() {
+  function writeRepairedText(text, sourceName = "") {
     const textarea = document.querySelector("#import-text");
-    if (!textarea || !textarea.value.trim()) return;
+    if (!textarea) return false;
     const date = document.querySelector("#import-date")?.value || "";
-    const rows = parseHospitalRows(textarea.value, date);
-    if (!rows) return;
-    const repaired = toTsv(rows);
-    if (!repaired || repaired === textarea.value) return;
+    const rows = parseHospitalRows(text, date, sourceName);
+    const repaired = rows ? toTsv(rows) : text;
     textarea.value = repaired;
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     window.__EPIVIDA_LAST_CENSUS_REPAIR__ = {
       repairedAt: new Date().toISOString(),
-      rows: rows.length
+      rows: rows?.length || 0,
+      sourceName
     };
+    return Boolean(rows);
+  }
+
+  function repairImportTextarea() {
+    const textarea = document.querySelector("#import-text");
+    if (!textarea || !textarea.value.trim()) return;
+    writeRepairedText(textarea.value, "");
+  }
+
+  function findValidateButton() {
+    return [...document.querySelectorAll("button")]
+      .find(button => /PEGAR\s+Y\s+VALIDAR\s+CENSO/i.test(normalizeText(button.textContent || "")));
   }
 
   document.addEventListener("click", event => {
@@ -366,5 +478,19 @@
     if (!button) return;
     if (!/PEGAR\s+Y\s+VALIDAR\s+CENSO/i.test(normalizeText(button.textContent || ""))) return;
     repairImportTextarea();
+  }, true);
+
+  document.addEventListener("change", event => {
+    const input = event.target?.closest?.("#census-file");
+    const file = input?.files?.[0];
+    if (!file || !/\.(csv|txt|tsv)$/i.test(file.name)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const reader = new FileReader();
+    reader.onload = () => {
+      writeRepairedText(String(reader.result || ""), file.name);
+      setTimeout(() => findValidateButton()?.click(), 0);
+    };
+    reader.readAsText(file);
   }, true);
 })();
