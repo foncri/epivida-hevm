@@ -1,0 +1,47 @@
+.command-shell .import-preview .table-wrap {
+  border-color: rgba(147, 197, 253, .34) !important;
+  background: rgba(6, 18, 48, .96) !important;
+}
+
+.command-shell .iaas-table.import-census-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  color: #f8fbff !important;
+  background: rgba(6, 18, 48, .96) !important;
+}
+
+.command-shell .iaas-table.import-census-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: #eaf2ff !important;
+  border-color: rgba(147, 197, 253, .34) !important;
+  background: #071a46 !important;
+}
+
+.command-shell .iaas-table.import-census-table td {
+  color: #f8fbff !important;
+  border-color: rgba(147, 197, 253, .22) !important;
+  background: rgba(18, 39, 91, .96) !important;
+  line-height: 1.35;
+}
+
+.command-shell .iaas-table.import-census-table tbody tr:nth-child(even) td {
+  background: rgba(24, 48, 105, .96) !important;
+}
+
+.command-shell .iaas-table.import-census-table tbody tr.has-warning td {
+  color: #fff7ed !important;
+  background: rgba(101, 72, 20, .96) !important;
+}
+
+.command-shell .iaas-table.import-census-table tbody tr.has-error td {
+  color: #fff1f2 !important;
+  background: rgba(111, 28, 52, .96) !important;
+}
+
+.command-shell .iaas-table.import-census-table td:nth-child(12),
+.command-shell .iaas-table.import-census-table td:nth-child(13),
+.command-shell .iaas-table.import-census-table td:nth-child(14) {
+  overflow-wrap: anywhere;
+}
