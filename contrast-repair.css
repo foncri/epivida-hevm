@@ -217,6 +217,69 @@
   -webkit-text-fill-color: currentColor;
 }
 
+.command-shell :where(.sync.pending, .iaas-topbar .sync.pending, .command-topbar .sync.pending),
+.command-shell :where(.sync.pending, .iaas-topbar .sync.pending, .command-topbar .sync.pending) :where(span, strong, small, b, em, div) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title) !important;
+}
+
+.command-shell :where(.iaas-topbar .sync.pending, .command-topbar .sync.pending) {
+  background: #fff2dd !important;
+  border-color: #efcf9d !important;
+}
+
+.command-shell .epi-tag-chip,
+.command-shell .epi-tag-chip :where(span, strong, small, b, em, div) {
+  color: var(--epivida-contrast-light) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
+}
+
+.command-shell .epi-tag-chip strong {
+  background: rgba(0, 0, 0, .42) !important;
+  border: 1px solid rgba(255, 255, 255, .28) !important;
+}
+
+.command-shell .epi-tag-chip.epi-iaas {
+  background: linear-gradient(135deg, rgba(169, 24, 100, .82), rgba(80, 45, 176, .74)) !important;
+}
+
+.command-shell .epi-tag-chip.epi-no-iaas {
+  background: linear-gradient(135deg, rgba(12, 112, 82, .84), rgba(8, 95, 120, .78)) !important;
+}
+
+.command-shell .epi-tag-chip.epi-riesgo-iaas {
+  background: linear-gradient(135deg, rgba(148, 76, 0, .86), rgba(154, 30, 84, .72)) !important;
+}
+
+.command-shell .epi-tag-chip.epi-vig,
+.command-shell .epi-tag-chip.epi-vig-no {
+  background: linear-gradient(135deg, rgba(7, 95, 125, .86), rgba(25, 74, 171, .78)) !important;
+}
+
+.command-shell .epi-tag-chip.epi-esavis,
+.command-shell .epi-tag-chip.epi-covid,
+.command-shell .epi-tag-chip.epi-materna {
+  background: linear-gradient(135deg, rgba(82, 45, 172, .84), rgba(166, 26, 98, .76)) !important;
+}
+
+.command-shell .sex-square,
+.command-shell .sex-square :where(span, strong, small, b, em, div) {
+  color: var(--epivida-contrast-light) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
+}
+
+.command-shell .sex-square.sex-f {
+  background: linear-gradient(145deg, #b41461, #79113f) !important;
+}
+
+.command-shell .sex-square.sex-m {
+  background: linear-gradient(145deg, #1557c7, #092f7a) !important;
+}
+
+.command-shell .sex-square.sex-unknown {
+  background: linear-gradient(145deg, #64748b, #273449) !important;
+}
+
 .command-shell img[alt="Tendencia de invasivos activos"] {
   filter: invert(1) brightness(1.35) contrast(1.2) !important;
 }
