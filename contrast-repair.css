@@ -104,7 +104,6 @@
   opacity: 1 !important;
 }
 
-/* Light panels and white cards must always use dark text. */
 .command-shell :where(
   .iaas-metric,
   .round-card,
@@ -200,12 +199,12 @@
   .monitor-census-block,
   .census-table-panel,
   .iaas-panel
-) :where([class*="progress"], [class*="counter"], [class*="pager"], [class*="pagination"], [class*="result-count"]),
+) :where([class*="progress"], [class*="counter"], [class*="count"], [class*="pager"], [class*="pagination"], [class*="result-count"]),
 .command-shell :where(
   .monitor-census-block,
   .census-table-panel,
   .iaas-panel
-) :where([class*="progress"], [class*="counter"], [class*="pager"], [class*="pagination"], [class*="result-count"]) :where(span, strong, small, b, em, div) {
+) :where([class*="progress"], [class*="counter"], [class*="count"], [class*="pager"], [class*="pagination"], [class*="result-count"]) :where(span, strong, small, b, em, div) {
   color: var(--epivida-contrast-title) !important;
   -webkit-text-fill-color: var(--epivida-contrast-title) !important;
 }
