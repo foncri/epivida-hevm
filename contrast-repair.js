@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-05-11-contrast07";
+  const VERSION = "2026-05-11-contrast08";
   const MIN_NORMAL = 4.5;
   const MIN_LARGE = 3.05;
   const DARK_TEXT = "#081633";
@@ -201,19 +201,45 @@
     return applyColor(element, best);
   }
 
+  function hasLowContrast(element) {
+    const style = getComputedStyle(element);
+    if (!isVisible(element, style) || !hasReadableText(element)) return false;
+    const background = effectiveBackground(element);
+    const foreground = parseColor(style.webkitTextFillColor) || parseColor(style.color);
+    if (!foreground || foreground.a < 0.55) return true;
+    return contrast(foreground, background) < thresholdFor(style);
+  }
+
+  function describeLowContrast(element) {
+    const text = (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ").slice(0, 70);
+    const cls = String(element.className || "").replace(/\s+/g, ".").slice(0, 90);
+    return `${element.tagName.toLowerCase()}${cls ? "." + cls : ""}:${text}`;
+  }
+
   function scan() {
     scheduled = false;
     const root = document.querySelector(".command-shell") || document.querySelector(".iaas-shell") || document.querySelector("#app") || document.body;
     if (!root) return;
 
     let fixed = 0;
-    root.querySelectorAll(TEXT_SELECTOR).forEach(element => {
+    const elements = Array.from(root.querySelectorAll(TEXT_SELECTOR));
+    elements.forEach(element => {
       if (auditElement(element)) fixed += 1;
+    });
+
+    let low = 0;
+    const examples = [];
+    elements.forEach(element => {
+      if (!hasLowContrast(element)) return;
+      low += 1;
+      if (examples.length < 10) examples.push(describeLowContrast(element));
     });
 
     lastFixedCount = fixed;
     document.documentElement.dataset.epividaContrastRepair = VERSION;
     document.documentElement.dataset.epividaContrastFixedCount = String(lastFixedCount);
+    document.documentElement.dataset.epividaContrastLowCount = String(low);
+    document.documentElement.dataset.epividaContrastLowExamples = examples.join(" | ").slice(0, 700);
   }
 
   function scheduleScan() {
