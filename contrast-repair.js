@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "2026-05-11-contrast08";
+  const VERSION = "2026-05-11-contrast10";
   const MIN_NORMAL = 4.5;
   const MIN_LARGE = 3.05;
   const DARK_TEXT = "#081633";
@@ -14,15 +14,16 @@
   ].join(",");
   const FORM_SELECTOR = "input, select, textarea";
   const LIGHT_SURFACE_SELECTOR = [
-    ".import-help", ".import-recommendation", ".import-file-picker", ".import-progress",
-    ".round-save-bar", ".round-nav-board", ".round-nav-toggle", ".round-nav-tile",
-    ".monitor-filter-count", ".check-selector", ".compliance-box", ".button-group-field",
-    ".bed-board", ".bed-board-picker", ".package-draft", ".empty-chart", ".timeline-row",
-    ".round-dot", ".reconciliation-card", ".discharge-review-panel", ".discharge-review-card",
-    ".notice.warn", ".notice.ok", ".compact-device-card", ".service-atlas button",
-    ".monitor-census-switch button:not(.active)", ".monitor-census-switch button[aria-selected='false']",
-    ".iaas-mobile-section-tabs button:not(.active)", ".iaas-mobile-section-tabs button[aria-selected='false']",
-    ".service-filter button:not(.active)", "[role='tab'][aria-selected='false']"
+    ".import-file-picker",
+    ".monitor-filter-count",
+    ".notice.warn",
+    ".notice.ok",
+    ".monitor-census-switch button:not(.active)",
+    ".monitor-census-switch button[aria-selected='false']",
+    ".iaas-mobile-section-tabs button:not(.active)",
+    ".iaas-mobile-section-tabs button[aria-selected='false']",
+    ".service-filter button:not(.active)",
+    "[role='tab'][aria-selected='false']"
   ].join(",");
 
   const colorCache = new Map();
