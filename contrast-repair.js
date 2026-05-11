@@ -13,12 +13,15 @@
     "li", "td", "th", "button", "a", "b", "em", "dt", "dd"
   ].join(",");
   const LIGHT_SURFACE_SELECTOR = [
-    ".iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel)",
     ".iaas-metric", ".round-card", ".device-card", ".device-draft",
     ".patient-follow-card", ".iaas-follow-card", ".import-help", ".import-recommendation",
     ".import-file-picker", ".import-progress", ".round-nav-board", ".round-save-bar",
     ".sheets-notice", ".check-selector", ".compliance-box", ".button-group-field",
     ".bed-board-picker", ".package-draft", ".empty-chart", ".timeline-row"
+  ].join(",");
+  const DARK_PANEL_SELECTOR = [
+    ".import-panel", ".iaas-hero", ".round-header", ".follow-hero", ".report-hero",
+    ".census-hero-panel", ".command-dashboard", ".command-panel"
   ].join(",");
 
   const colorCache = new Map();
@@ -97,11 +100,11 @@
     let node = element;
     while (node && node.nodeType === 1) {
       const style = getComputedStyle(node);
-      const bg = parseColor(style.backgroundColor);
-      if (bg && bg.a > 0.65) return bg;
-
       const imageColor = averageColor(colorsFromImage(style.backgroundImage));
       if (imageColor) return imageColor;
+
+      const bg = parseColor(style.backgroundColor);
+      if (bg && bg.a > 0.65) return bg;
 
       node = node.parentElement;
     }
@@ -145,9 +148,8 @@
       if (action) return LIGHT_TEXT;
     }
 
-    const importPanel = element.closest(".import-panel");
-    if (importPanel && !isInsideLightSurface(element)) {
-      if (element.closest(".iaas-button:not(.primary):not(.danger)")) return LIGHT_TEXT;
+    if (element.closest(DARK_PANEL_SELECTOR) && !isInsideLightSurface(element)) {
+      if (element.closest(".iaas-button:not(.primary):not(.danger), button, a")) return LIGHT_TEXT;
       if (element.matches("h1,h2,h3,h4,h5,h6,p,small,strong,span,label,legend,div")) return LIGHT_TEXT;
       if (element.closest(".field")) return LIGHT_TEXT;
     }
