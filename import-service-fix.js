@@ -39,18 +39,40 @@
     return SERVICES.find(([service]) => service === target)?.[0] || SERVICES.find(([, rx]) => rx.test(target))?.[0] || "";
   }
 
-  function serviceFromBed(value) {
+  function serviceFromBed(value, currentService = "") {
     const key = norm(value);
     if (/\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/.test(key)) return "CUNEROS";
     if (/\bUCIN\b/.test(key)) return "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES";
     if (/\b(UCIP|UTIP)\b/.test(key)) return "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS";
-    if (/^(F|UX|URX|P)\s*-?\s*\d+\b/.test(key)) return "URGENCIAS";
+    if (/^(F|UX|URX|P|B)\s*-?\s*\d+\b/.test(key) || /\b(CHOQUE|AISLADO\s*P)\b/.test(key)) return "URGENCIAS";
     if (/\b(CX|TX|CIR|TRAUMA)\b/.test(key)) return "CIRUGIA Y TRAUMATOLOGIA";
     if (/\b(MI|MED\s*INT)\b/.test(key)) return "MEDICINA INTERNA";
     if (/\b(PED|PEDS)\b/.test(key)) return "PEDIATRIA";
-    if (/\b(GYO|GO|ALOJA)\b/.test(key)) return "GINECOLOGIA Y OBSTETRICIA";
+    if (/\b(GYO|GO|ALOJA|ALOJAMIENTO)\b/.test(key)) return "GINECOLOGIA Y OBSTETRICIA";
     if (/\b(UCIA|HEMO|HD|ONCO|URG|AMB)\b/.test(key)) return serviceFromText(key);
+    const n = Number(key.match(/^\d{1,3}$/)?.[0]);
+    if (Number.isFinite(n)) {
+      const service = serviceFromText(currentService);
+      if (n >= 43 && n <= 66) return "CIRUGIA Y TRAUMATOLOGIA";
+      if (n >= 67 && n <= 74) return "PEDIATRIA";
+      if (service === "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS" && n >= 1 && n <= 8) return service;
+      if (service === "MEDICINA INTERNA" && n >= 1 && n <= 30) return service;
+    }
     return "";
+  }
+
+  function resolveRowService(rawBed, currentService, sourceName) {
+    const current = serviceFromText(currentService) || serviceFromText(sourceName);
+    const physical = serviceFromBed(rawBed, current);
+    if (!physical) return current || "PENDIENTE";
+    if (!current || current === physical) return physical;
+    if (current === "GINECOLOGIA Y OBSTETRICIA" && physical === "CIRUGIA Y TRAUMATOLOGIA") {
+      return `${current} / ${physical}`;
+    }
+    if (current === "PEDIATRIA" && ["CUNEROS", "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS"].includes(physical)) {
+      return `${current} / ${physical}`;
+    }
+    return physical;
   }
 
   function delimiter(lines) {
@@ -222,7 +244,7 @@
     const used = new Set([bedIndex, patientIndex, birth?.index, admission?.index, sexItem?.index, sectorItem?.index, rfcItem?.index, ageItem?.index, stateItem?.index].filter(index => index >= 0));
     const dx = unique(entries.filter(item => item.index > patientIndex && !used.has(item.index) && diagnosis(item.value)).map(item => item.value));
     return {
-      Servicio: serviceFromBed(rawBed) || currentService || serviceFromText(sourceName) || "PENDIENTE",
+      Servicio: resolveRowService(rawBed, currentService, sourceName),
       Cama: bedLabel(rawBed) || "PENDIENTE",
       Paciente: clean(values[patientIndex]).toUpperCase(),
       "Fecha de nacimiento": birth?.iso || "",
