@@ -1,4 +1,4 @@
-/* Contrast repair 2026-05-11: global readability hardening for EpiVida IAAS. */
+/* Contrast repair 2026-05-11: stable readable surfaces for EpiVida IAAS. */
 :root {
   --epivida-contrast-ink: #081633;
   --epivida-contrast-title: #0b1848;
@@ -8,94 +8,11 @@
   --epivida-contrast-light-soft: #eaf2ff;
 }
 
-.command-shell :where(
-  .iaas-panel,
-  .patient-follow-card,
-  .iaas-follow-card,
-  .monitor-census-block,
-  .census-table-panel,
-  .census-hero-panel,
-  .report-hero,
-  .follow-hero,
-  .round-header,
-  .import-panel,
-  .command-panel,
-  .command-dashboard
-) {
-  color: var(--epivida-contrast-light) !important;
-}
-
-.command-shell :where(
-  .iaas-panel,
-  .patient-follow-card,
-  .iaas-follow-card,
-  .monitor-census-block,
-  .census-table-panel,
-  .census-hero-panel,
-  .report-hero,
-  .follow-hero,
-  .round-header,
-  .import-panel,
-  .command-panel,
-  .command-dashboard
-) :where(h1, h2, h3, h4, h5, h6, p, li, td, th, label, legend, dt, dd, strong, small, span, b, em, div) {
-  color: var(--epivida-contrast-light) !important;
-  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
-}
-
-.command-shell :where(
-  .iaas-panel,
-  .patient-follow-card,
-  .iaas-follow-card,
-  .monitor-census-block,
-  .census-table-panel,
-  .census-hero-panel,
-  .report-hero,
-  .follow-hero,
-  .round-header,
-  .import-panel,
-  .command-panel,
-  .command-dashboard
-) :where(button:not(.primary):not(.danger), a:not(.primary):not(.danger), .iaas-button:not(.primary):not(.danger)) {
-  color: var(--epivida-contrast-light) !important;
-  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
-  border-color: rgba(255, 255, 255, .62) !important;
-}
-
-.command-shell :where(
-  .iaas-panel,
-  .patient-follow-card,
-  .iaas-follow-card,
-  .monitor-census-block,
-  .census-table-panel,
-  .census-hero-panel,
-  .report-hero,
-  .follow-hero,
-  .round-header,
-  .import-panel,
-  .command-panel,
-  .command-dashboard
-) :where(button:not(.primary):not(.danger), a:not(.primary):not(.danger), .iaas-button:not(.primary):not(.danger)) :where(span, strong, small, b, em, div) {
-  color: var(--epivida-contrast-light) !important;
-  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
-}
-
-.command-shell :where(.iaas-button.primary, button.primary, .service-filter button.active, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active),
-.command-shell :where(.iaas-button.primary, button.primary, .service-filter button.active, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active) :where(span, strong, small, b, em, div) {
-  color: var(--epivida-contrast-light) !important;
-  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
-}
-
-.command-shell .iaas-button.danger,
-.command-shell .iaas-button.danger :where(span, strong, small, b, em) {
-  color: #d91445 !important;
-  -webkit-text-fill-color: #d91445 !important;
-}
-
 .command-shell :where(input, select, textarea) {
   color: var(--epivida-contrast-ink) !important;
   -webkit-text-fill-color: var(--epivida-contrast-ink) !important;
   background: #fff !important;
+  border-color: rgba(96, 120, 170, .42) !important;
 }
 
 .command-shell :where(input, textarea)::placeholder {
@@ -104,119 +21,199 @@
   opacity: 1 !important;
 }
 
-.command-shell :where(
-  .iaas-metric,
-  .round-card,
-  .device-card,
-  .device-draft,
-  .import-help,
-  .import-recommendation,
-  .import-file-picker,
-  .import-progress,
-  .round-nav-board,
-  .round-save-bar,
-  .sheets-notice,
-  .check-selector,
-  .compliance-box,
-  .button-group-field,
-  .bed-board-picker,
-  .package-draft,
-  .empty-chart,
-  .timeline-row
-) {
+.command-shell select option {
   color: var(--epivida-contrast-ink) !important;
+  background: #fff !important;
 }
 
 .command-shell :where(
-  .iaas-metric,
-  .round-card,
-  .device-card,
-  .device-draft,
   .import-help,
   .import-recommendation,
   .import-file-picker,
   .import-progress,
-  .round-nav-board,
   .round-save-bar,
-  .sheets-notice,
+  .round-nav-board,
+  .round-nav-toggle,
+  .round-nav-tile,
+  .monitor-filter-count,
   .check-selector,
   .compliance-box,
   .button-group-field,
+  .bed-board,
   .bed-board-picker,
   .package-draft,
   .empty-chart,
-  .timeline-row
-) :where(h1, h2, h3, h4, h5, h6, label, legend, dt, strong, span, b, div) {
+  .timeline-row,
+  .round-dot,
+  .reconciliation-card,
+  .discharge-review-panel,
+  .discharge-review-card,
+  .notice.warn,
+  .notice.ok,
+  .compact-device-card,
+  .service-atlas button,
+  .monitor-census-switch button:not(.active),
+  .monitor-census-switch button[aria-selected="false"],
+  .iaas-mobile-section-tabs button:not(.active),
+  .iaas-mobile-section-tabs button[aria-selected="false"],
+  .service-filter button:not(.active),
+  [role="tab"][aria-selected="false"]
+),
+.command-shell :where(
+  .import-help,
+  .import-recommendation,
+  .import-file-picker,
+  .import-progress,
+  .round-save-bar,
+  .round-nav-board,
+  .round-nav-toggle,
+  .round-nav-tile,
+  .monitor-filter-count,
+  .check-selector,
+  .compliance-box,
+  .button-group-field,
+  .bed-board,
+  .bed-board-picker,
+  .package-draft,
+  .empty-chart,
+  .timeline-row,
+  .round-dot,
+  .reconciliation-card,
+  .discharge-review-panel,
+  .discharge-review-card,
+  .notice.warn,
+  .notice.ok,
+  .compact-device-card,
+  .service-atlas button,
+  .monitor-census-switch button:not(.active),
+  .monitor-census-switch button[aria-selected="false"],
+  .iaas-mobile-section-tabs button:not(.active),
+  .iaas-mobile-section-tabs button[aria-selected="false"],
+  .service-filter button:not(.active),
+  [role="tab"][aria-selected="false"]
+) :where(h1, h2, h3, h4, h5, h6, p, li, td, th, label, legend, dt, dd, strong, small, span, b, em, div, button, a) {
   color: var(--epivida-contrast-title) !important;
   -webkit-text-fill-color: var(--epivida-contrast-title) !important;
 }
 
 .command-shell :where(
-  .iaas-metric,
-  .round-card,
-  .device-card,
-  .device-draft,
   .import-help,
   .import-recommendation,
   .import-file-picker,
   .import-progress,
-  .round-nav-board,
   .round-save-bar,
-  .sheets-notice,
+  .round-nav-board,
+  .round-nav-toggle,
+  .round-nav-tile,
+  .monitor-filter-count,
   .check-selector,
   .compliance-box,
   .button-group-field,
+  .bed-board,
   .bed-board-picker,
   .package-draft,
   .empty-chart,
-  .timeline-row
+  .timeline-row,
+  .round-dot,
+  .reconciliation-card,
+  .discharge-review-panel,
+  .discharge-review-card,
+  .notice.warn,
+  .notice.ok,
+  .compact-device-card,
+  .service-atlas button
 ) :where(p, small, li, dd, em) {
   color: var(--epivida-contrast-muted) !important;
   -webkit-text-fill-color: var(--epivida-contrast-muted) !important;
 }
 
-.command-shell :where(
-  .monitor-census-switch button:not(.active),
-  .monitor-census-switch button[aria-selected="false"],
-  .iaas-mobile-section-tabs button:not(.active),
-  .iaas-mobile-section-tabs button[aria-selected="false"],
-  .service-filter button:not(.active)[style*="255"],
-  [role="tab"][aria-selected="false"]
-),
-.command-shell :where(
-  .monitor-census-switch button:not(.active),
-  .monitor-census-switch button[aria-selected="false"],
-  .iaas-mobile-section-tabs button:not(.active),
-  .iaas-mobile-section-tabs button[aria-selected="false"],
-  .service-filter button:not(.active)[style*="255"],
-  [role="tab"][aria-selected="false"]
-) :where(span, strong, small, b, em, div) {
+.command-shell :where(.iaas-button.primary, button.primary, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active),
+.command-shell :where(.iaas-button.primary, button.primary, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active) :where(span, strong, small, b, em, div) {
+  color: var(--epivida-contrast-light) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
+}
+
+.command-shell :where(.round-save-bar, .round-nav-board, .import-help, .import-recommendation, .bed-board, .check-selector, .compliance-box) .iaas-button:not(.primary):not(.danger),
+.command-shell :where(.round-save-bar, .round-nav-board, .import-help, .import-recommendation, .bed-board, .check-selector, .compliance-box) .iaas-button:not(.primary):not(.danger) :where(span, strong, small, b, em, div) {
   color: var(--epivida-contrast-title) !important;
   -webkit-text-fill-color: var(--epivida-contrast-title) !important;
 }
 
-.command-shell :where(
-  .monitor-census-block,
-  .census-table-panel,
-  .iaas-panel
-) :where([class*="progress"], [class*="counter"], [class*="count"], [class*="pager"], [class*="pagination"], [class*="result-count"]),
-.command-shell :where(
-  .monitor-census-block,
-  .census-table-panel,
-  .iaas-panel
-) :where([class*="progress"], [class*="counter"], [class*="count"], [class*="pager"], [class*="pagination"], [class*="result-count"]) :where(span, strong, small, b, em, div) {
+.command-shell .iaas-button.danger,
+.command-shell .iaas-button.danger :where(span, strong, small, b, em) {
+  color: #d91445 !important;
+  -webkit-text-fill-color: #d91445 !important;
+}
+
+.command-shell .iaas-table :where(
+  .badge,
+  .chip,
+  .sync.ok,
+  .sync.local,
+  .sync.pending,
+  .sync.error,
+  .service-pill,
+  .epi-pill,
+  .status-pill,
+  .sector-pill,
+  .status-estable,
+  .status-delicado,
+  .status-grave,
+  .status-grave-intubado,
+  .status-muy-grave,
+  .status-muy-grave-intubado,
+  .status-critico,
+  .epi-iaas,
+  .epi-riesgo-iaas,
+  .epi-no-iaas,
+  .epi-vig,
+  .epi-covid,
+  .epi-esavis,
+  .epi-materna,
+  [class*="pill"],
+  [class*="chip"],
+  [class*="tag"]
+):not(.risk):not(.bed-badge):not(.culture-alert-chip):not(.status-critico-intubado),
+.command-shell .iaas-table :where(
+  .badge,
+  .chip,
+  .sync.ok,
+  .sync.local,
+  .sync.pending,
+  .sync.error,
+  .service-pill,
+  .epi-pill,
+  .status-pill,
+  .sector-pill,
+  .status-estable,
+  .status-delicado,
+  .status-grave,
+  .status-grave-intubado,
+  .status-muy-grave,
+  .status-muy-grave-intubado,
+  .status-critico,
+  .epi-iaas,
+  .epi-riesgo-iaas,
+  .epi-no-iaas,
+  .epi-vig,
+  .epi-covid,
+  .epi-esavis,
+  .epi-materna,
+  [class*="pill"],
+  [class*="chip"],
+  [class*="tag"]
+):not(.risk):not(.bed-badge):not(.culture-alert-chip):not(.status-critico-intubado) :where(span, strong, small, b, em, div) {
   color: var(--epivida-contrast-title) !important;
   -webkit-text-fill-color: var(--epivida-contrast-title) !important;
 }
 
-.command-shell .iaas-table :where(.badge, .chip, .service-pill, .epi-pill, .status-pill, .sector-pill, [class*="pill"], [class*="chip"], [class*="tag"], [class*="badge"], [class*="status"], [class*="estado"]):not(.risk):not(.bed-badge):not(.culture-alert-chip),
-.command-shell .iaas-table :where(.badge, .chip, .service-pill, .epi-pill, .status-pill, .sector-pill, [class*="pill"], [class*="chip"], [class*="tag"], [class*="badge"], [class*="status"], [class*="estado"]):not(.risk):not(.bed-badge):not(.culture-alert-chip) :where(span, strong, small, b, em, div) {
-  color: var(--epivida-contrast-title) !important;
-  -webkit-text-fill-color: var(--epivida-contrast-title) !important;
+.command-shell .iaas-table :where(.status-critico-intubado, .risk, .bed-badge, .culture-alert-chip),
+.command-shell .iaas-table :where(.status-critico-intubado, .risk, .bed-badge, .culture-alert-chip) :where(span, strong, small, b, em, div) {
+  color: var(--epivida-contrast-light) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-light) !important;
 }
 
-.command-shell :where(.badge, .chip, .sync, .risk, .bed-badge, .culture-alert-chip),
-.command-shell :where(.badge, .chip, .sync, .risk, .bed-badge, .culture-alert-chip) :where(span, strong, small, b, em) {
+.command-shell :where(.badge, .chip, .sync, .risk, .bed-badge, .culture-alert-chip) {
   -webkit-text-fill-color: currentColor;
 }
 
