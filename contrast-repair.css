@@ -1,0 +1,128 @@
+/* Contrast repair 2026-05-11: keep readable text on light panels inside dark command views. */
+:root {
+  --epivida-contrast-ink: #081633;
+  --epivida-contrast-title: #0b1848;
+  --epivida-contrast-muted: #526078;
+  --epivida-contrast-label: #24366f;
+}
+
+.command-shell :where(
+  .iaas-panel,
+  .iaas-metric,
+  .round-card,
+  .device-card,
+  .device-draft,
+  .patient-follow-card,
+  .iaas-follow-card,
+  .import-help,
+  .import-recommendation,
+  .import-file-picker,
+  .import-progress,
+  .import-preview,
+  .round-nav-board,
+  .round-save-bar,
+  .sheets-notice,
+  .check-selector,
+  .compliance-box,
+  .button-group-field,
+  .bed-board-picker,
+  .package-draft,
+  .empty-chart,
+  .timeline-row
+) {
+  color: var(--epivida-contrast-ink) !important;
+}
+
+.command-shell :where(
+  .iaas-panel,
+  .round-card,
+  .device-card,
+  .device-draft,
+  .patient-follow-card,
+  .iaas-follow-card,
+  .import-help,
+  .import-recommendation,
+  .import-preview,
+  .round-nav-board,
+  .round-save-bar,
+  .sheets-notice,
+  .check-selector,
+  .compliance-box,
+  .button-group-field,
+  .bed-board-picker,
+  .package-draft,
+  .empty-chart,
+  .timeline-row
+) :where(h1, h2, h3, h4, h5, h6, label, legend, dt) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title);
+}
+
+.command-shell :where(
+  .iaas-panel,
+  .round-card,
+  .device-card,
+  .device-draft,
+  .patient-follow-card,
+  .iaas-follow-card,
+  .import-help,
+  .import-preview,
+  .round-nav-board,
+  .round-save-bar,
+  .sheets-notice,
+  .check-selector,
+  .compliance-box,
+  .button-group-field,
+  .bed-board-picker,
+  .package-draft,
+  .empty-chart,
+  .timeline-row
+) :where(p, small, li, dd) {
+  color: var(--epivida-contrast-muted) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-muted);
+}
+
+.command-shell .import-help :where(strong, b, span) {
+  color: var(--epivida-contrast-title) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-title);
+}
+
+.command-shell .field > span,
+.command-shell .button-group-field > span,
+.command-shell .check-selector > span,
+.command-shell .compliance-box span,
+.command-shell .bed-board-picker span {
+  color: var(--epivida-contrast-label) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-label);
+}
+
+.command-shell :where(input, select, textarea) {
+  color: var(--epivida-contrast-ink) !important;
+  -webkit-text-fill-color: var(--epivida-contrast-ink);
+  background: #fff !important;
+}
+
+.command-shell :where(input, textarea)::placeholder {
+  color: #72809e !important;
+  -webkit-text-fill-color: #72809e;
+  opacity: 1;
+}
+
+.command-shell :where(.badge, .chip, .sync, .risk, .bed-badge, .culture-alert-chip),
+.command-shell :where(.badge, .chip, .sync, .risk, .bed-badge, .culture-alert-chip) :where(span, strong, small, b, em) {
+  -webkit-text-fill-color: currentColor;
+}
+
+.command-shell .iaas-button.primary,
+.command-shell .iaas-button.primary :where(span, strong, small, b),
+.command-shell :where(.service-filter button.active, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active),
+.command-shell :where(.service-filter button.active, .monitor-census-switch button.active, .iaas-mobile-section-tabs button.active) :where(span, strong, small, b) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+
+.command-shell .iaas-button.danger,
+.command-shell .iaas-button.danger :where(span, strong, small, b) {
+  color: #d91445 !important;
+  -webkit-text-fill-color: #d91445;
+}
