@@ -7,7 +7,7 @@
 }
 
 .command-shell :where(
-  .iaas-panel,
+  .iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel),
   .iaas-metric,
   .round-card,
   .device-card,
@@ -18,7 +18,6 @@
   .import-recommendation,
   .import-file-picker,
   .import-progress,
-  .import-preview,
   .round-nav-board,
   .round-save-bar,
   .sheets-notice,
@@ -34,7 +33,7 @@
 }
 
 .command-shell :where(
-  .iaas-panel,
+  .iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel),
   .round-card,
   .device-card,
   .device-draft,
@@ -42,7 +41,6 @@
   .iaas-follow-card,
   .import-help,
   .import-recommendation,
-  .import-preview,
   .round-nav-board,
   .round-save-bar,
   .sheets-notice,
@@ -59,14 +57,13 @@
 }
 
 .command-shell :where(
-  .iaas-panel,
+  .iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel),
   .round-card,
   .device-card,
   .device-draft,
   .patient-follow-card,
   .iaas-follow-card,
   .import-help,
-  .import-preview,
   .round-nav-board,
   .round-save-bar,
   .sheets-notice,
@@ -87,7 +84,25 @@
   -webkit-text-fill-color: var(--epivida-contrast-title);
 }
 
-.command-shell .field > span,
+.command-shell :where(
+  .iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel),
+  .round-card,
+  .device-card,
+  .device-draft,
+  .patient-follow-card,
+  .iaas-follow-card,
+  .import-help,
+  .round-nav-board,
+  .round-save-bar,
+  .sheets-notice,
+  .check-selector,
+  .compliance-box,
+  .button-group-field,
+  .bed-board-picker,
+  .package-draft,
+  .empty-chart,
+  .timeline-row
+) .field > span,
 .command-shell .button-group-field > span,
 .command-shell .check-selector > span,
 .command-shell .compliance-box span,
