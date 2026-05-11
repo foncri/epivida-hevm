@@ -564,6 +564,7 @@
     route: parseRoute(),
     importText: "",
     importDate: isoToday(),
+    importMode: "auto",
     importDraft: null,
     importProgress: "",
     importSaving: false,
@@ -3694,6 +3695,22 @@
               onchange: event => { ui.importDate = event.target.value || isoToday(); }
             })
           ]),
+          h("label", { class: "field" }, [
+            h("span", {}, ["Tipo de importación"]),
+            h("select", {
+              id: "import-mode",
+              value: ui.importMode || "auto",
+              onchange: event => {
+                ui.importMode = event.target.value || "auto";
+                ui.importDraft = null;
+                renderIaas();
+              }
+            }, [
+              h("option", { value: "auto" }, ["Automática segura"]),
+              h("option", { value: "full" }, ["Censo completo"]),
+              h("option", { value: "partial" }, ["Solo pacientes pegados"])
+            ])
+          ]),
           h("label", { class: "field full" }, [
             h("span", {}, ["Pegar tabla del censo"]),
             h("textarea", {
@@ -3748,6 +3765,7 @@
       renderMetricGrid([
         ["Total filas", s.totalRows, "Leídas"],
         ["Válidas", s.validRows, "Listas para guardar"],
+        ["Modo", importScopeText(s.importScope), s.importScope === "full" ? "Concilia ausentes" : "Conserva existentes"],
         ["Errores", s.errorRows, "No se guardan"],
         ["Advertencias", s.warningRows, "Revisar"],
         ["Nuevos", s.newPatients, "Crear pacientes"],
@@ -3778,6 +3796,9 @@
     const reported = draft.reportedDischarges || [];
     const automatic = draft.automaticDischarges || [];
     if (!draft.conflicts.length && !missing.length && !reported.length && !automatic.length) {
+      if (draft.plan?.importScope === "partial") {
+        return h("div", { class: "notice ok" }, ["Importación parcial segura: se actualizarán los pacientes pegados y se conservará el censo existente del día."]);
+      }
       return h("div", { class: "notice ok" }, ["Sin conflictos críticos."]);
     }
     return h("div", { class: "notice warn" }, [
@@ -5914,7 +5935,9 @@
   async function parseImportInput() {
     const text = (document.querySelector("#import-text")?.value || ui.importText || "").trim();
     const date = document.querySelector("#import-date")?.value || isoToday();
+    const mode = document.querySelector("#import-mode")?.value || ui.importMode || "auto";
     ui.importDate = date;
+    ui.importMode = mode;
     if (!text) {
       flashIaas("Archivo o tabla vacía.");
       return;
@@ -5923,7 +5946,7 @@
     renderIaas();
     await waitFrame();
     const parsedRows = parseDelimitedText(text, date);
-    ui.importDraft = buildImportDraft(parsedRows, date);
+    ui.importDraft = buildImportDraft(parsedRows, date, { mode });
     ui.importProgress = "";
     renderIaas();
   }
@@ -5932,17 +5955,19 @@
     const file = event.target.files?.[0];
     if (!file) return;
     const date = document.querySelector("#import-date")?.value || ui.importDate || isoToday();
+    const mode = document.querySelector("#import-mode")?.value || ui.importMode || "auto";
     ui.importDate = date;
+    ui.importMode = mode;
     ui.importProgress = "Leyendo archivo...";
     renderIaas();
     try {
       if (/\.xlsx$/i.test(file.name)) {
         const rows = await parseXlsx(file, date);
-        ui.importDraft = buildImportDraft(rows, date);
+        ui.importDraft = buildImportDraft(rows, date, { mode });
       } else if (/\.(csv|txt|tsv)$/i.test(file.name)) {
         const text = await file.text();
         ui.importText = text;
-        ui.importDraft = buildImportDraft(parseDelimitedText(text, date), date);
+        ui.importDraft = buildImportDraft(parseDelimitedText(text, date), date, { mode });
       } else {
         flashIaas("Tipo de archivo no soportado.");
       }
@@ -6246,10 +6271,10 @@
     });
   }
 
-  function buildImportDraft(rawRows, fallbackDate) {
+  function buildImportDraft(rawRows, fallbackDate, options = {}) {
     const rows = rawRows.map((raw, index) => normalizeImportRow(raw, index, fallbackDate));
     const validRows = rows.filter(row => !row.errors.length);
-    const plan = buildImportPlanV2(validRows.map(row => row.normalized), fallbackDate);
+    const plan = buildImportPlanV2(validRows.map(row => row.normalized), fallbackDate, options);
     const summary = {
       totalRows: rows.length,
       validRows: validRows.length,
@@ -6262,7 +6287,8 @@
       probableDischarges: plan.reconciliationMissing.length,
       automaticDischarges: (plan.automaticDischarges || []).length,
       reportedDischarges: plan.rows.filter(row => row.dischargeReported).length,
-      existingDuplicates: (plan.duplicateExisting || []).length
+      existingDuplicates: (plan.duplicateExisting || []).length,
+      importScope: plan.importScope
     };
     return { rows, plan, summary, conflicts: plan.conflicts, reconciliationMissing: plan.reconciliationMissing, automaticDischarges: plan.automaticDischarges || [], reportedDischarges: plan.rows.filter(row => row.dischargeReported) };
   }
@@ -6511,7 +6537,26 @@
     return { date, importBatchId: createImportBatchId(date), rows: uniqueRows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing };
   }
 
-  function buildImportPlanV2(rows, date) {
+  function resolveImportScope(rows, date, requestedMode = "auto") {
+    if (requestedMode === "full") return "full";
+    if (requestedMode === "partial") return "partial";
+    const normalizedDate = normalizeDate(date) || isoToday();
+    const incomingCount = rows.filter(row => cleanCell(row.patient_name || row.patient_id || row.hospital_internal_id)).length;
+    const sameDayCensusCount = Object.keys(store.dailyCensus?.[normalizedDate]?.patients || {}).length;
+    const activeCount = Object.values(store.patients || {}).filter(patient => shouldReconcileMissingPatient(patient, normalizedDate)).length;
+    const serviceCount = new Set(rows.map(row => primaryService(row.servicio)).filter(Boolean)).size;
+    if (!activeCount && !sameDayCensusCount) return "full";
+    if (sameDayCensusCount && incomingCount < Math.max(8, sameDayCensusCount * 0.75)) return "partial";
+    if (activeCount && incomingCount >= Math.ceil(activeCount * 0.75)) return "full";
+    if (serviceCount >= 3 && incomingCount >= Math.max(8, Math.ceil(activeCount * 0.5))) return "full";
+    return "partial";
+  }
+
+  function importScopeText(scope) {
+    return scope === "full" ? "Completo" : "Parcial";
+  }
+
+  function buildImportPlanV2(rows, date, options = {}) {
     const seen = new Map();
     const uniqueRows = [];
     const newPatients = [];
@@ -6523,12 +6568,18 @@
     const carryRows = new Map();
     const normalizedDate = normalizeDate(date) || isoToday();
     const importBatchId = createImportBatchId(normalizedDate);
-    Object.values(store.patients || {}).forEach(patient => {
-      if (shouldAutoDischargeBeforeImport(patient, normalizedDate)) automaticDischarges.push(patient);
-    });
-    const existingPresent = new Set(Object.values(store.patients || {})
-      .filter(patient => shouldReconcileMissingPatient(patient, normalizedDate))
-      .map(patient => patient.patientId));
+    const importScope = resolveImportScope(rows, normalizedDate, options.mode || "auto");
+    const reconcileMissingPatients = importScope === "full";
+    if (reconcileMissingPatients) {
+      Object.values(store.patients || {}).forEach(patient => {
+        if (shouldAutoDischargeBeforeImport(patient, normalizedDate)) automaticDischarges.push(patient);
+      });
+    }
+    const existingPresent = reconcileMissingPatients
+      ? new Set(Object.values(store.patients || {})
+        .filter(patient => shouldReconcileMissingPatient(patient, normalizedDate))
+        .map(patient => patient.patientId))
+      : new Set();
     const incomingIds = new Set();
 
     rows.forEach(sourceRow => {
@@ -6586,7 +6637,20 @@
       .map(patientId => store.patients[patientId])
       .filter(Boolean);
 
-    return { date: normalizedDate, importBatchId, rows: uniqueRows, newPatients, updatedPatients, duplicates, conflicts, reconciliationMissing, automaticDischarges, duplicateExisting };
+    return {
+      date: normalizedDate,
+      importBatchId,
+      rows: uniqueRows,
+      newPatients,
+      updatedPatients,
+      duplicates,
+      conflicts,
+      reconciliationMissing,
+      automaticDischarges,
+      duplicateExisting,
+      importScope,
+      preserveExistingCensus: importScope !== "full"
+    };
   }
 
   async function confirmImport() {
@@ -6835,7 +6899,8 @@
 
   function executeImportPlanLocalV2(plan) {
     const now = nowIso();
-    const censusPatients = {};
+    const previousCensusPatients = store.dailyCensus?.[plan.date]?.patients || {};
+    const censusPatients = plan.preserveExistingCensus ? clone(previousCensusPatients) : {};
     const affectedPatientIds = new Set();
     const incomingPatientIds = new Set((plan.rows || []).flatMap(row => [row.patientId, row.basePatientId].filter(Boolean)));
 
@@ -10326,6 +10391,13 @@
     return calculated === null ? null : calculated;
   }
 
+  function excelSerialDateToIso(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 20000 || n > 80000) return "";
+    const d = new Date(Math.round((n - 25569) * 86400000));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+
   function normalizeDate(value) {
     const text = cleanCell(value);
     if (!text || normalizeText(text) === "AMB" || normalizeText(text) === "NA") return "";
@@ -10336,7 +10408,7 @@
       const iso = `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
       return validIsoDate(iso) ? iso : "";
     }
-    if (/^\d+(?:\.\d+)?$/.test(text)) return "";
+    if (/^\d+(?:\.\d+)?$/.test(text)) return excelSerialDateToIso(text);
     if (/[A-Za-zÁÉÍÓÚÑ]/i.test(text)) return "";
     const d = new Date(text);
     return Number.isFinite(d.getTime()) ? toIsoDate(d) : "";
