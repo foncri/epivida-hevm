@@ -81,6 +81,33 @@
     return canonicalService(label.replace(/^Camas\s+/i, ""));
   }
 
+  function loadStore() {
+    try {
+      return JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function patientIdFromTile(tile) {
+    const href = tile?.getAttribute?.("href") || "";
+    const match = href.match(/\/paciente\/([^/?#]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function rowServiceForPatient(patientId) {
+    if (!patientId) return "";
+    const store = loadStore();
+    const dates = Object.keys(store.dailyCensus || {}).sort().reverse();
+    for (const date of dates) {
+      const row = store.dailyCensus?.[date]?.patients?.[patientId];
+      const service = String(row?.service || row?.currentService || "").split(/\s*\/\s*/).map(canonicalService).find(Boolean);
+      if (service) return service;
+    }
+    const patient = store.patients?.[patientId];
+    return canonicalService(patient?.currentService || "");
+  }
+
   function serviceFromBed(value, currentService = "") {
     const key = bedKey(value);
     if (/^F[1-4]$/.test(key) || /^UX(?:[1-9]|1[01])$/.test(key) || /^P[1-5]$/.test(key) || /^B(?:[1-9]|1[0-4])$/.test(key) || key === "AISLADOP" || key === "CHOQUE") return "URGENCIAS";
@@ -157,8 +184,11 @@
   }
 
   function inferIaasService(board) {
-    const occupiedBeds = [...board.querySelectorAll(".bed-board-grid .bed-tile:not(.vacant):not(.locked)")].map(tileBed).filter(Boolean);
-    const services = new Set(occupiedBeds.map(bed => serviceFromBed(bed)).filter(Boolean));
+    const occupiedTiles = [...board.querySelectorAll(".bed-board-grid .bed-tile:not(.vacant):not(.locked)")];
+    const services = new Set(occupiedTiles.map(tile => {
+      const rowService = rowServiceForPatient(patientIdFromTile(tile));
+      return serviceFromBed(tileBed(tile), rowService) || rowService;
+    }).filter(Boolean));
     return services.size === 1 ? [...services][0] : "";
   }
 
