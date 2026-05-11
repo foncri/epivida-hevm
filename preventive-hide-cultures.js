@@ -1,6 +1,27 @@
 (() => {
   "use strict";
 
+  const PILOT_RESET_VERSION = "2026-05-11-empty-pilot01";
+  const PILOT_RESET_KEY = `epivida-pilot-reset-${PILOT_RESET_VERSION}`;
+
+  function runPilotReset() {
+    try {
+      if (localStorage.getItem(PILOT_RESET_KEY) === "done") return false;
+      localStorage.removeItem("epivida-iaas-os-v1");
+      localStorage.removeItem("epivida-iaas-drafts-v1");
+      localStorage.setItem(PILOT_RESET_KEY, "done");
+      return true;
+    } catch (error) {
+      console.warn("No se pudo limpiar el estado local para piloto", error);
+      return false;
+    }
+  }
+
+  if (runPilotReset()) {
+    window.setTimeout(() => window.location.reload(), 50);
+    return;
+  }
+
   let scheduled = false;
 
   function isPreventivePatientRound() {
