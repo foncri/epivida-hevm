@@ -8,9 +8,17 @@
   const LIGHT_TEXT = "#ffffff";
   const LIGHT_MUTED = "#eaf2ff";
   const TEXT_SELECTOR = [
-    "h1", "h2", "h3", "h4", "h5", "h6",
+    "h1", "h2", "h3", "h4", "h5", "h6", "div",
     "p", "span", "strong", "small", "label", "legend",
     "li", "td", "th", "button", "a", "b", "em", "dt", "dd"
+  ].join(",");
+  const LIGHT_SURFACE_SELECTOR = [
+    ".iaas-panel:not(.import-panel):not(.round-header):not(.follow-hero):not(.report-hero):not(.census-hero-panel)",
+    ".iaas-metric", ".round-card", ".device-card", ".device-draft",
+    ".patient-follow-card", ".iaas-follow-card", ".import-help", ".import-recommendation",
+    ".import-file-picker", ".import-progress", ".round-nav-board", ".round-save-bar",
+    ".sheets-notice", ".check-selector", ".compliance-box", ".button-group-field",
+    ".bed-board-picker", ".package-draft", ".empty-chart", ".timeline-row"
   ].join(",");
 
   const colorCache = new Map();
@@ -125,9 +133,43 @@
       : (subtle ? LIGHT_MUTED : LIGHT_TEXT);
   }
 
+  function isInsideLightSurface(element) {
+    return Boolean(element.closest(LIGHT_SURFACE_SELECTOR));
+  }
+
+  function forcedColor(element) {
+    if (element.closest(".iaas-sidebar")) return LIGHT_TEXT;
+
+    if (element.closest(".iaas-topbar-actions, .command-actions")) {
+      const action = element.closest(".iaas-button, .sync, .badge, button, a");
+      if (action) return LIGHT_TEXT;
+    }
+
+    const importPanel = element.closest(".import-panel");
+    if (importPanel && !isInsideLightSurface(element)) {
+      if (element.closest(".iaas-button:not(.primary):not(.danger)")) return LIGHT_TEXT;
+      if (element.matches("h1,h2,h3,h4,h5,h6,p,small,strong,span,label,legend,div")) return LIGHT_TEXT;
+      if (element.closest(".field")) return LIGHT_TEXT;
+    }
+
+    return "";
+  }
+
+  function applyColor(element, color) {
+    element.style.setProperty("color", color, "important");
+    element.style.setProperty("-webkit-text-fill-color", color, "important");
+    element.dataset.epividaContrastFixed = "true";
+  }
+
   function fixElement(element) {
     const style = getComputedStyle(element);
     if (!visible(element, style) || !hasReadableText(element)) return;
+
+    const forced = forcedColor(element);
+    if (forced) {
+      applyColor(element, forced);
+      return;
+    }
 
     const fill = parseColor(style.webkitTextFillColor);
     const foreground = fill || parseColor(style.color);
@@ -136,10 +178,7 @@
     const background = effectiveBackground(element);
     if (contrast(foreground, background) >= thresholdFor(style)) return;
 
-    const next = targetColor(element, background);
-    element.style.setProperty("color", next, "important");
-    element.style.setProperty("-webkit-text-fill-color", next, "important");
-    element.dataset.epividaContrastFixed = "true";
+    applyColor(element, targetColor(element, background));
   }
 
   function scan() {
