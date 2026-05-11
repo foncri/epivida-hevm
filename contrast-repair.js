@@ -1,57 +1,33 @@
 (() => {
   "use strict";
 
+  const VERSION = "2026-05-11-contrast07";
   const MIN_NORMAL = 4.5;
-  const MIN_LARGE = 3.1;
+  const MIN_LARGE = 3.05;
   const DARK_TEXT = "#081633";
   const DARK_MUTED = "#526078";
   const LIGHT_TEXT = "#ffffff";
   const LIGHT_MUTED = "#eaf2ff";
   const TEXT_SELECTOR = [
-    "h1", "h2", "h3", "h4", "h5", "h6", "div",
-    "p", "span", "strong", "small", "label", "legend",
-    "li", "td", "th", "button", "a", "b", "em", "dt", "dd"
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "strong", "small",
+    "label", "legend", "li", "td", "th", "button", "a", "b", "em", "dt", "dd", "div"
   ].join(",");
+  const FORM_SELECTOR = "input, select, textarea";
   const LIGHT_SURFACE_SELECTOR = [
-    ".iaas-metric", ".round-card", ".device-card", ".device-draft",
     ".import-help", ".import-recommendation", ".import-file-picker", ".import-progress",
-    ".round-nav-board", ".round-save-bar", ".sheets-notice", ".check-selector",
-    ".compliance-box", ".button-group-field", ".bed-board-picker", ".package-draft",
-    ".empty-chart", ".timeline-row"
-  ].join(",");
-  const DARK_PANEL_SELECTOR = [
-    ".iaas-panel", ".patient-follow-card", ".iaas-follow-card", ".monitor-census-block",
-    ".census-table-panel", ".import-panel", ".iaas-hero", ".round-header", ".follow-hero",
-    ".report-hero", ".census-hero-panel", ".command-dashboard", ".command-panel"
-  ].join(",");
-  const LIGHT_CONTROL_SELECTOR = [
-    ".monitor-census-switch button:not(.active)",
-    ".monitor-census-switch button[aria-selected='false']",
-    ".iaas-mobile-section-tabs button:not(.active)",
-    ".iaas-mobile-section-tabs button[aria-selected='false']",
-    ".monitor-census-block [class*='progress']",
-    ".monitor-census-block [class*='counter']",
-    ".monitor-census-block [class*='count']",
-    ".monitor-census-block [class*='pager']",
-    ".monitor-census-block [class*='pagination']",
-    ".census-table-panel [class*='progress']",
-    ".census-table-panel [class*='counter']",
-    ".census-table-panel [class*='count']",
-    ".census-table-panel [class*='pager']",
-    ".census-table-panel [class*='pagination']",
-    ".iaas-panel [class*='progress']",
-    ".iaas-panel [class*='counter']",
-    ".iaas-panel [class*='count']",
-    ".iaas-table .badge",
-    ".iaas-table .chip",
-    ".iaas-table [class*='pill']",
-    ".iaas-table [class*='tag']",
-    ".iaas-table [class*='status']",
-    ".iaas-table [class*='estado']"
+    ".round-save-bar", ".round-nav-board", ".round-nav-toggle", ".round-nav-tile",
+    ".monitor-filter-count", ".check-selector", ".compliance-box", ".button-group-field",
+    ".bed-board", ".bed-board-picker", ".package-draft", ".empty-chart", ".timeline-row",
+    ".round-dot", ".reconciliation-card", ".discharge-review-panel", ".discharge-review-card",
+    ".notice.warn", ".notice.ok", ".compact-device-card", ".service-atlas button",
+    ".monitor-census-switch button:not(.active)", ".monitor-census-switch button[aria-selected='false']",
+    ".iaas-mobile-section-tabs button:not(.active)", ".iaas-mobile-section-tabs button[aria-selected='false']",
+    ".service-filter button:not(.active)", "[role='tab'][aria-selected='false']"
   ].join(",");
 
   const colorCache = new Map();
   let scheduled = false;
+  let lastFixedCount = 0;
 
   function parseColor(value) {
     if (!value || value === "transparent" || value === "currentcolor") return null;
@@ -59,12 +35,10 @@
     if (cached) return cached;
 
     let color = null;
-    const hex = value.match(/^#([0-9a-f]{3,8})$/i);
+    const hex = String(value).match(/^#([0-9a-f]{3,8})$/i);
     if (hex) {
       const raw = hex[1];
-      const full = raw.length <= 4
-        ? raw.split("").map(ch => ch + ch).join("")
-        : raw;
+      const full = raw.length <= 4 ? raw.split("").map(ch => ch + ch).join("") : raw;
       color = {
         r: parseInt(full.slice(0, 2), 16),
         g: parseInt(full.slice(2, 4), 16),
@@ -72,9 +46,13 @@
         a: full.length >= 8 ? parseInt(full.slice(6, 8), 16) / 255 : 1
       };
     } else {
-      const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
+      const rgb = String(value).match(/^rgba?\(([^)]+)\)$/i);
       if (rgb) {
-        const parts = rgb[1].split(/\s*,\s*|\s+/).filter(Boolean).map(part => part.replace("/", ""));
+        const parts = rgb[1]
+          .trim()
+          .split(/\s*,\s*|\s+/)
+          .filter(Boolean)
+          .map(part => part.replace("/", ""));
         color = {
           r: Number(parts[0]),
           g: Number(parts[1]),
@@ -85,26 +63,44 @@
     }
 
     if (!color || !Number.isFinite(color.r) || !Number.isFinite(color.g) || !Number.isFinite(color.b)) return null;
-    color.a = Number.isFinite(color.a) ? color.a : 1;
+    color.r = Math.max(0, Math.min(255, color.r));
+    color.g = Math.max(0, Math.min(255, color.g));
+    color.b = Math.max(0, Math.min(255, color.b));
+    color.a = Number.isFinite(color.a) ? Math.max(0, Math.min(1, color.a)) : 1;
     colorCache.set(value, color);
     return color;
   }
 
   function colorsFromImage(value) {
     if (!value || value === "none") return [];
-    const matches = value.match(/rgba?\([^)]+\)|#[0-9a-f]{3,8}/gi) || [];
-    return matches.map(parseColor).filter(color => color && color.a > 0.15);
+    const matches = String(value).match(/rgba?\([^)]+\)|#[0-9a-f]{3,8}/gi) || [];
+    return matches.map(parseColor).filter(color => color && color.a > 0.02);
   }
 
   function averageColor(colors) {
     if (!colors.length) return null;
-    const total = colors.reduce((sum, color) => sum + color.a, 0) || colors.length;
-    return colors.reduce((acc, color) => {
-      acc.r += color.r * color.a / total;
-      acc.g += color.g * color.a / total;
-      acc.b += color.b * color.a / total;
+    const total = colors.reduce((sum, color) => sum + Math.max(color.a, 0.12), 0) || colors.length;
+    const avg = colors.reduce((acc, color) => {
+      const weight = Math.max(color.a, 0.12) / total;
+      acc.r += color.r * weight;
+      acc.g += color.g * weight;
+      acc.b += color.b * weight;
+      acc.a += color.a / colors.length;
       return acc;
-    }, { r: 0, g: 0, b: 0, a: 1 });
+    }, { r: 0, g: 0, b: 0, a: 0 });
+    avg.a = Math.max(0.35, Math.min(1, avg.a));
+    return avg;
+  }
+
+  function blend(top, bottom) {
+    const alpha = Math.max(0, Math.min(1, top.a ?? 1));
+    const inv = 1 - alpha;
+    return {
+      r: top.r * alpha + bottom.r * inv,
+      g: top.g * alpha + bottom.g * inv,
+      b: top.b * alpha + bottom.b * inv,
+      a: 1
+    };
   }
 
   function channel(value) {
@@ -123,29 +119,38 @@
   }
 
   function effectiveBackground(element) {
+    const layers = [];
     let node = element;
+
     while (node && node.nodeType === 1) {
       const style = getComputedStyle(node);
       const imageColor = averageColor(colorsFromImage(style.backgroundImage));
-      if (imageColor) return imageColor;
+      const bgColor = parseColor(style.backgroundColor);
 
-      const bg = parseColor(style.backgroundColor);
-      if (bg && bg.a > 0.65) return bg;
+      if (imageColor) layers.push(imageColor);
+      if (bgColor && bgColor.a > 0.02) layers.push(bgColor);
 
       node = node.parentElement;
     }
-    return { r: 255, g: 255, b: 255, a: 1 };
+
+    let result = { r: 255, g: 255, b: 255, a: 1 };
+    for (let i = layers.length - 1; i >= 0; i -= 1) {
+      result = blend(layers[i], result);
+    }
+    return result;
   }
 
-  function visible(element, style) {
+  function isVisible(element, style) {
     if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
     const rect = element.getBoundingClientRect();
     return rect.width > 1 && rect.height > 1;
   }
 
   function hasReadableText(element) {
-    if (["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "PATH", "IMG", "INPUT", "SELECT", "TEXTAREA"].includes(element.tagName)) return false;
-    return Array.from(element.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+    if (["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "PATH", "IMG", "CANVAS", "INPUT", "SELECT", "TEXTAREA"].includes(element.tagName)) return false;
+    const ownText = Array.from(element.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim());
+    if (ownText) return true;
+    return ["BUTTON", "A", "TD", "TH"].includes(element.tagName) && Boolean((element.innerText || element.textContent || "").trim());
   }
 
   function thresholdFor(style) {
@@ -154,91 +159,86 @@
     return size >= 18 || (size >= 14 && weight >= 700) ? MIN_LARGE : MIN_NORMAL;
   }
 
-  function targetColor(element, background) {
-    const onLight = luminance(background) > 0.54;
+  function readableColor(element, background) {
+    if (element.closest(LIGHT_SURFACE_SELECTOR) || element.closest(FORM_SELECTOR)) return DARK_TEXT;
+    const onLight = luminance(background) > 0.53;
     const subtle = ["P", "SMALL", "LI", "DD", "EM"].includes(element.tagName);
-    return onLight
-      ? (subtle ? DARK_MUTED : DARK_TEXT)
-      : (subtle ? LIGHT_MUTED : LIGHT_TEXT);
+    return onLight ? (subtle ? DARK_MUTED : DARK_TEXT) : (subtle ? LIGHT_MUTED : LIGHT_TEXT);
   }
 
-  function isInsideLightSurface(element) {
-    return Boolean(element.closest(LIGHT_SURFACE_SELECTOR));
-  }
-
-  function forcedColor(element) {
-    if (element.closest(".iaas-sidebar")) return LIGHT_TEXT;
-
-    if (element.closest(LIGHT_CONTROL_SELECTOR)) return DARK_TEXT;
-
-    if (element.closest("input, select, textarea")) return DARK_TEXT;
-
-    if (element.closest(".iaas-topbar-actions, .command-actions")) {
-      const action = element.closest(".iaas-button, .sync, .badge, button, a");
-      if (action) return LIGHT_TEXT;
-    }
-
-    if (element.closest(DARK_PANEL_SELECTOR) && !isInsideLightSurface(element)) {
-      if (element.closest("button:not(.primary):not(.danger), a:not(.primary):not(.danger), .iaas-button:not(.primary):not(.danger)")) return LIGHT_TEXT;
-      if (element.matches("h1,h2,h3,h4,h5,h6,p,small,strong,span,label,legend,div,td,th")) return LIGHT_TEXT;
-      if (element.closest(".field")) return LIGHT_TEXT;
-    }
-
-    return "";
+  function colorToObject(color) {
+    return parseColor(color) || parseColor("#000000");
   }
 
   function applyColor(element, color) {
+    const current = element.style.getPropertyValue("color").trim();
+    const currentFill = element.style.getPropertyValue("-webkit-text-fill-color").trim();
+    if (current === color && currentFill === color) return false;
     element.style.setProperty("color", color, "important");
     element.style.setProperty("-webkit-text-fill-color", color, "important");
-    element.dataset.epividaContrastFixed = "true";
+    element.dataset.epividaContrastFixed = VERSION;
+    return true;
   }
 
-  function fixElement(element) {
+  function auditElement(element) {
     const style = getComputedStyle(element);
-    if (!visible(element, style) || !hasReadableText(element)) return;
-
-    const forced = forcedColor(element);
-    if (forced) {
-      applyColor(element, forced);
-      return;
-    }
-
-    const fill = parseColor(style.webkitTextFillColor);
-    const foreground = fill || parseColor(style.color);
-    if (!foreground || foreground.a < 0.65) return;
+    if (!isVisible(element, style) || !hasReadableText(element)) return false;
 
     const background = effectiveBackground(element);
-    if (contrast(foreground, background) >= thresholdFor(style)) return;
+    const forced = element.closest(LIGHT_SURFACE_SELECTOR) || element.closest(FORM_SELECTOR);
+    const fill = parseColor(style.webkitTextFillColor);
+    const foreground = fill || parseColor(style.color);
+    const target = readableColor(element, background);
 
-    applyColor(element, targetColor(element, background));
+    if (forced) return applyColor(element, target);
+    if (!foreground || foreground.a < 0.55) return applyColor(element, target);
+
+    if (contrast(foreground, background) >= thresholdFor(style)) return false;
+
+    const darkContrast = contrast(colorToObject(DARK_TEXT), background);
+    const lightContrast = contrast(colorToObject(LIGHT_TEXT), background);
+    const best = darkContrast >= lightContrast ? target : LIGHT_TEXT;
+    return applyColor(element, best);
   }
 
   function scan() {
     scheduled = false;
-    const root = document.querySelector(".command-shell") || document.querySelector("#app") || document.body;
+    const root = document.querySelector(".command-shell") || document.querySelector(".iaas-shell") || document.querySelector("#app") || document.body;
     if (!root) return;
-    root.querySelectorAll(TEXT_SELECTOR).forEach(fixElement);
+
+    let fixed = 0;
+    root.querySelectorAll(TEXT_SELECTOR).forEach(element => {
+      if (auditElement(element)) fixed += 1;
+    });
+
+    lastFixedCount = fixed;
+    document.documentElement.dataset.epividaContrastRepair = VERSION;
+    document.documentElement.dataset.epividaContrastFixedCount = String(lastFixedCount);
   }
 
   function scheduleScan() {
     if (scheduled) return;
     scheduled = true;
-    requestAnimationFrame(() => setTimeout(scan, 40));
+    requestAnimationFrame(() => setTimeout(scan, 50));
   }
 
+  window.EPIVIDA_CONTRAST_REPAIR = { version: VERSION, scan, scheduleScan };
   window.addEventListener("hashchange", () => setTimeout(scheduleScan, 120));
   window.addEventListener("resize", scheduleScan);
+  window.addEventListener("scroll", scheduleScan, true);
   document.addEventListener("input", scheduleScan, true);
   document.addEventListener("change", scheduleScan, true);
+  document.addEventListener("click", () => setTimeout(scheduleScan, 80), true);
 
   new MutationObserver(scheduleScan).observe(document.documentElement, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "style", "hidden", "aria-expanded", "aria-selected"]
+    attributeFilter: ["class", "style", "hidden", "aria-expanded", "aria-selected", "data-state"]
   });
 
   scheduleScan();
-  setTimeout(scheduleScan, 700);
-  setTimeout(scheduleScan, 1800);
+  setTimeout(scheduleScan, 400);
+  setTimeout(scheduleScan, 1000);
+  setTimeout(scheduleScan, 2200);
 })();
