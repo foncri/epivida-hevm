@@ -33,6 +33,14 @@
     }
   };
   const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+  const iso = value => {
+    const raw = clean(value);
+    if (!raw || ["NA", "N/A", "AMB"].includes(norm(raw))) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const match = raw.match(/^(\d{1,2})[\/. -](\d{1,2})[\/. -](\d{2,4})$/);
+    if (!match) return "";
+    return `${match[3].length === 2 ? `20${match[3]}` : match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  };
 
   function canonicalService(value) {
     const key = norm(value);
@@ -92,7 +100,7 @@
 
   function ensureManualBedUi() {
     const filter = document.querySelector(".round-service-filter");
-    if (!filter || filter.querySelector("[data-epivida-add-bed-toggle]")) return;
+    if (!filter || filter.querySelector(".round-add-bed-toggle, [data-epivida-add-bed-toggle]")) return;
 
     const toggle = document.createElement("button");
     toggle.type = "button";
