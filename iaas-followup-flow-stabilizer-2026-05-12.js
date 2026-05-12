@@ -7,7 +7,6 @@
 
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
-  const OWNERSHIP_SRC = "iaas-followup-ownership-2026-05-12.js";
   const IAAS_STATUSES = ["NINGUNO", "NO IAAS", "RIESGO IAAS", "IAAS"];
   const SECTION_BY_LABEL = {
     ANTIBIOTICOS: "antibioticos",
@@ -211,12 +210,10 @@
   const nativeAddEventListener = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function epividaStableAddEventListener(type, listener, options) {
     const capture = typeof options === "boolean" ? options : Boolean(options?.capture);
-    const currentScript = String(document.currentScript?.src || "");
     const source = typeof listener === "function" ? Function.prototype.toString.call(listener) : "";
     const isLegacyIaasSaveHook = this === document
       && type === "click"
       && capture
-      && currentScript.includes(OWNERSHIP_SRC)
       && source.includes("saveIaasDirectly")
       && source.includes("round-save-bar");
 
