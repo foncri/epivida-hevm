@@ -237,6 +237,17 @@
     document.querySelectorAll(".iaas-history-panel").forEach(panel => panel.remove());
   }
 
+  let cleanupQueued = false;
+
+  function queueAuthScreenCleanup() {
+    if (cleanupQueued) return;
+    cleanupQueued = true;
+    window.setTimeout(() => {
+      cleanupQueued = false;
+      removeHistoryFromAuthScreen();
+    }, 30);
+  }
+
   document.addEventListener("click", event => {
     const tab = event.target.closest?.(".iaas-mobile-section-tabs button");
     if (!tab || !routeIaasPatient()) return;
@@ -251,8 +262,12 @@
   document.addEventListener("change", rememberViewport, true);
   document.addEventListener("click", rememberViewport, true);
 
-  const scheduleCleanup = () => [0, 120, 450, 900].forEach(delay => window.setTimeout(removeHistoryFromAuthScreen, delay));
+  const scheduleCleanup = () => [0, 120, 450, 900, 1400, 2200].forEach(delay => window.setTimeout(removeHistoryFromAuthScreen, delay));
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", scheduleCleanup, { once: true });
   else scheduleCleanup();
   window.addEventListener("hashchange", scheduleCleanup);
+  const observer = new MutationObserver(queueAuthScreenCleanup);
+  const startObserver = () => observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  if (document.body) startObserver();
+  else document.addEventListener("DOMContentLoaded", startObserver, { once: true });
 })();
