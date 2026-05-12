@@ -41,6 +41,10 @@
     return { date: match[1], patientId: decodeURIComponent(match[2]) };
   }
 
+  function isIaasFollowUpPatient() {
+    return /^#\/seguimiento-iaas\/[^/]+\/paciente\/[^/]+/.test(String(location.hash || ""));
+  }
+
   function loadJson(key, fallback) {
     try {
       return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
@@ -125,10 +129,13 @@
     }
 
     return nativeAddEventListener.call(this, type, function nativeSheetsSaveGuard(event) {
-      if (isSaveButton(event) && routePatient()) {
-        ensureDraftInstallationDates();
-        window.setTimeout(scheduleRepair, 180);
-        return;
+      if (isSaveButton(event)) {
+        if (routePatient()) {
+          ensureDraftInstallationDates();
+          window.setTimeout(scheduleRepair, 180);
+          return;
+        }
+        if (isIaasFollowUpPatient()) return;
       }
       return listener.call(this, event);
     }, options);
