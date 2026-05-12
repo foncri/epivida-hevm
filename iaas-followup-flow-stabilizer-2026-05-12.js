@@ -122,6 +122,59 @@
     persistStoreIfExternal(store);
   }
 
+  function currentClassification(date, patientId) {
+    return classificationFromPanel() || classificationFromStore(ensureStore(), date, patientId);
+  }
+
+  function ensureClassificationPanel() {
+    const current = routeIaasPatient();
+    if (!current) return;
+    const target = document.querySelector(".patient-round .iaas-assessment-panel")
+      || document.querySelector(".patient-round .round-save-bar");
+    if (!target) return;
+
+    let panel = document.querySelector(".iaas-ownership-panel");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.className = "iaas-panel iaas-ownership-panel";
+      panel.innerHTML = `
+        <div class="iaas-panel-head compact">
+          <div>
+            <h2>Ingreso a Seguimiento IAAS</h2>
+            <p>Clasificacion obligatoria para tomar al paciente dentro del seguimiento epidemiologico.</p>
+          </div>
+          <span class="badge epi-iaas">IAAS</span>
+        </div>
+        <div class="iaas-ownership-grid">
+          <label>
+            <span>Clasificacion inicial</span>
+            <select data-iaas-ownership-status required>
+              <option value="">Seleccionar estado IAAS</option>
+              ${IAAS_STATUSES.map(status => `<option value="${status}">${status}</option>`).join("")}
+            </select>
+          </label>
+          <div class="iaas-ownership-note">Debe seleccionarse antes de guardar el seguimiento IAAS.</div>
+        </div>
+      `;
+      target.before(panel);
+    } else if (panel.nextElementSibling !== target) {
+      target.before(panel);
+    }
+
+    const select = panel.querySelector("[data-iaas-ownership-status]");
+    if (!select) return;
+    const selected = currentClassification(current.date, current.patientId);
+    if (!IAAS_STATUSES.includes(norm(select.value)) && selected) select.value = selected;
+    if (panel.dataset.flowStable === "true") return;
+    panel.dataset.flowStable = "true";
+    select.addEventListener("change", () => {
+      const live = routeIaasPatient();
+      if (!live) return;
+      const status = norm(select.value);
+      if (IAAS_STATUSES.includes(status)) applyClassification(live.date, live.patientId, status);
+    });
+  }
+
   function flash(message, tone = "error") {
     document.querySelectorAll(".iaas-toast").forEach(toast => toast.remove());
     const toast = document.createElement("div");
@@ -140,6 +193,7 @@
   function stabilizeBeforeNativeSave(event) {
     const current = routeIaasPatient();
     if (!current || !isSaveButton(event)) return false;
+    ensureClassificationPanel();
     const store = ensureStore();
     const status = classificationFromPanel() || classificationFromStore(store, current.date, current.patientId);
     if (!IAAS_STATUSES.includes(status)) {
@@ -238,6 +292,7 @@
   }
 
   let cleanupQueued = false;
+  let classificationQueued = false;
 
   function queueAuthScreenCleanup() {
     if (cleanupQueued) return;
@@ -246,6 +301,15 @@
       cleanupQueued = false;
       removeHistoryFromAuthScreen();
     }, 30);
+  }
+
+  function queueClassificationPanel() {
+    if (classificationQueued) return;
+    classificationQueued = true;
+    window.setTimeout(() => {
+      classificationQueued = false;
+      ensureClassificationPanel();
+    }, 0);
   }
 
   document.addEventListener("click", event => {
@@ -259,14 +323,37 @@
 
   document.addEventListener("pointerdown", rememberViewport, true);
   document.addEventListener("input", rememberViewport, true);
-  document.addEventListener("change", rememberViewport, true);
+  document.addEventListener("change", event => {
+    const select = event.target?.closest?.("[data-iaas-ownership-status]");
+    const current = routeIaasPatient();
+    if (select && current) {
+      const status = norm(select.value);
+      if (IAAS_STATUSES.includes(status)) applyClassification(current.date, current.patientId, status);
+    }
+    rememberViewport(event);
+    queueClassificationPanel();
+  }, true);
   document.addEventListener("click", rememberViewport, true);
 
   const scheduleCleanup = () => [0, 120, 450, 900, 1400, 2200].forEach(delay => window.setTimeout(removeHistoryFromAuthScreen, delay));
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", scheduleCleanup, { once: true });
-  else scheduleCleanup();
-  window.addEventListener("hashchange", scheduleCleanup);
-  const observer = new MutationObserver(queueAuthScreenCleanup);
+  const schedulePanel = () => [0, 30, 120, 450, 900, 1400].forEach(delay => window.setTimeout(ensureClassificationPanel, delay));
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      scheduleCleanup();
+      schedulePanel();
+    }, { once: true });
+  } else {
+    scheduleCleanup();
+    schedulePanel();
+  }
+  window.addEventListener("hashchange", () => {
+    scheduleCleanup();
+    schedulePanel();
+  });
+  const observer = new MutationObserver(() => {
+    queueAuthScreenCleanup();
+    queueClassificationPanel();
+  });
   const startObserver = () => observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
   if (document.body) startObserver();
   else document.addEventListener("DOMContentLoaded", startObserver, { once: true });
