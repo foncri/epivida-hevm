@@ -5,7 +5,7 @@
   window.__epividaIaasMonitorSyncHotfix20260518 = true;
 
   const STORE_KEY = "epivida-iaas-os-v1";
-  const REFRESH_KEY = "epivida-monitor-iaas-refresh-needed";
+  const LEGACY_REFRESH_KEY = "epivida-monitor-iaas-refresh-needed";
   const IAAS_STATUSES = new Set(["NINGUNO", "NO IAAS", "RIESGO IAAS", "IAAS"]);
 
   const clean = value => String(value ?? "").replace(/\s+/g, " ").trim();
@@ -134,23 +134,29 @@
 
     upsertClassificationWrite(store, date, patientId, patient, row);
     saveStore(store);
-    try {
-      sessionStorage.setItem(REFRESH_KEY, nowIso());
-    } catch {
-      // Best effort only.
-    }
     return true;
   }
 
-  function consumeMonitorRefresh() {
-    if (String(location.hash || "") !== "#/monitoreo-epidemiologico") return;
+  function clearLegacyRefreshFlag() {
     try {
-      if (!sessionStorage.getItem(REFRESH_KEY)) return;
-      sessionStorage.removeItem(REFRESH_KEY);
+      sessionStorage.removeItem(LEGACY_REFRESH_KEY);
     } catch {
-      return;
+      // Best effort only.
     }
-    window.setTimeout(() => location.reload(), 80);
+  }
+
+  let monitorRefreshQueued = false;
+
+  function requestMonitorSoftRefresh() {
+    clearLegacyRefreshFlag();
+    if (String(location.hash || "") !== "#/monitoreo-epidemiologico") return;
+    if (monitorRefreshQueued) return;
+    monitorRefreshQueued = true;
+    window.setTimeout(() => {
+      monitorRefreshQueued = false;
+      cleanupResolvedSheetsMessages();
+      window.dispatchEvent(new Event("hashchange"));
+    }, 80);
   }
 
   function cleanupResolvedSheetsMessages() {
@@ -175,17 +181,18 @@
   }, true);
 
   window.addEventListener("hashchange", () => {
-    consumeMonitorRefresh();
+    clearLegacyRefreshFlag();
     cleanupResolvedSheetsMessages();
   });
+  window.addEventListener("epivida:iaas-classification-synced", requestMonitorSoftRefresh);
 
   const observer = new MutationObserver(() => {
-    consumeMonitorRefresh();
+    clearLegacyRefreshFlag();
     cleanupResolvedSheetsMessages();
   });
   const start = () => {
     observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
-    consumeMonitorRefresh();
+    clearLegacyRefreshFlag();
     cleanupResolvedSheetsMessages();
   };
 
