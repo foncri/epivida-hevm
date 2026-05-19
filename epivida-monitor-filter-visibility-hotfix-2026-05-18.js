@@ -6,15 +6,69 @@
 
   const clean = value => String(value ?? "").replace(/\s+/g, " ").trim();
   const norm = value => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const cachedRows = new Map();
 
   function monitorQuery(scope) {
     return norm(document.getElementById(`${scope}-monitor-search`)?.value || "");
   }
 
-  function repairRows(scope) {
+  function filterSignature(scope) {
+    const input = document.getElementById(`${scope}-monitor-search`);
+    const row = input?.closest(".monitor-filter-row");
+    return [...(row?.querySelectorAll("select") || [])].map(select => select.value).join("|");
+  }
+
+  function cacheKey(scope) {
+    return `${scope}:${filterSignature(scope)}`;
+  }
+
+  function rowKey(row) {
+    return row.dataset.monitorSearch || norm(row.textContent || "");
+  }
+
+  function rememberRows(scope) {
     const rows = [...document.querySelectorAll(`tr[data-monitor-scope="${scope}"]`)];
     if (!rows.length) return;
+    const key = cacheKey(scope);
+    const cache = cachedRows.get(key) || new Map();
+    rows.forEach(row => {
+      cache.set(rowKey(row), {
+        html: row.outerHTML,
+        search: row.dataset.monitorSearch || norm(row.textContent || "")
+      });
+    });
+    cachedRows.set(key, cache);
+  }
+
+  function restoreMatchingRows(scope, query) {
+    const cache = cachedRows.get(cacheKey(scope));
+    if (!cache?.size) return;
+    const currentRows = [...document.querySelectorAll(`tr[data-monitor-scope="${scope}"]`)];
+    const tbody = currentRows[0]?.closest("tbody");
+    if (!tbody) return;
+    const existing = new Set(currentRows.map(rowKey));
+    const fragment = document.createDocumentFragment();
+    cache.forEach((entry, key) => {
+      if (existing.has(key)) return;
+      const match = !query || norm(entry.search).includes(query);
+      if (!match) return;
+      const template = document.createElement("template");
+      template.innerHTML = entry.html.trim();
+      const row = template.content.firstElementChild;
+      if (!row) return;
+      row.hidden = false;
+      row.classList.remove("search-hidden");
+      fragment.append(row);
+    });
+    if (fragment.childNodes.length) tbody.append(fragment);
+  }
+
+  function repairRows(scope) {
+    rememberRows(scope);
     const query = monitorQuery(scope);
+    restoreMatchingRows(scope, query);
+    const rows = [...document.querySelectorAll(`tr[data-monitor-scope="${scope}"]`)];
+    if (!rows.length) return;
     let visible = 0;
     rows.forEach(row => {
       const haystack = norm(row.dataset.monitorSearch || row.textContent || "");
