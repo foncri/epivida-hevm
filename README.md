@@ -54,7 +54,7 @@ Los dispositivos invasivos se guardan como episodios. Un retiro cierra el episod
 
 ## Seguridad
 
-Publica `firestore.rules` en Firebase. El correo bootstrap incluido es `todofoncri@gmail.com`; despues crea documentos `users/{uid}` para roles:
+Publica `firestore.rules` en Firebase. Los correos bootstrap incluidos son `todofoncri@gmail.com` y `hevm.epidemiologia@gmail.com`; despues crea documentos `users/{uid}` para roles:
 
 - `admin`
 - `epidemiologia`
