@@ -12,7 +12,7 @@ service cloud.firestore {
     function bootstrapAdmin() {
       return signedIn()
         && request.auth.token.email != null
-        && request.auth.token.email in ["todofoncri@gmail.com"];
+        && request.auth.token.email in ["todofoncri@gmail.com", "hevm.epidemiologia@gmail.com"];
     }
 
     function activeUser() {
