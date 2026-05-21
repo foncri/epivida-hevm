@@ -86,7 +86,7 @@
       epividaScripts.push("./iaas-history-range-filter-2026-05-12.js?v=2026-05-12-history01");
       epividaScripts.push("./preventive-bed-prerender-2026-05-12.js?v=2026-05-12-fixedbeds02");
       epividaScripts.push("./iaas-emergency-label-guard-2026-05-12.js?v=2026-05-12-urgencias01");
-      epividaScripts.push("./iaas-system-followup-loader-2026-05-20.js?v=2026-05-20-followup01");
+      epividaScripts.push("./iaas-system-cedulas-loader-2026-05-21.js?v=2026-05-21-monthly01");
       epividaScripts.push("./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01");
       epividaScripts.push("./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06");
       epividaScripts.push("./preventive-native-save-guard-2026-05-12.js?v=2026-05-12-iaassave01");
@@ -107,7 +107,16 @@
           await new Promise(resolve => {
             const script = document.createElement("script");
             script.src = src;
-            script.onload = resolve;
+            script.onload = async () => {
+              try {
+                if (src.includes("iaas-system-cedulas-loader") && window.__epividaCedulasReady) {
+                  await window.__epividaCedulasReady;
+                }
+              } catch (error) {
+                console.error("No se pudo esperar el cargador de cedulas preventivas.", error);
+              }
+              resolve();
+            };
             script.onerror = resolve;
             document.body.append(script);
           });
@@ -116,4 +125,3 @@
     </script>
   </body>
 </html>
-
