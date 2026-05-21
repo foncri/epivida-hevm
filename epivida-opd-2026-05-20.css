@@ -18,6 +18,13 @@
   gap: 12px;
 }
 
+.iaas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .opd-panel-head h3,
 .opd-panel-head p {
   margin: 0;
@@ -114,5 +121,12 @@
   .opd-panel-head {
     display: grid;
   }
-}
 
+  .iaas-actions {
+    justify-content: stretch;
+  }
+
+  .iaas-actions .iaas-button {
+    width: 100%;
+  }
+}
