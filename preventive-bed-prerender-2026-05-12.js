@@ -29,7 +29,7 @@
       ...prefixed("F", 1, 4, false),
       ...prefixed("UX", 1, 11),
       ...prefixed("P", 1, 5, false),
-      "AISLADO P",
+      "AIS P",
       "AISLADO 1",
       "AISLADO 2",
       "CHOQUE",
@@ -99,6 +99,7 @@
       keys.add(key === "4" || key === "7" ? `UCIAAIS${key}` : `UCIA${key}`);
     }
     if (service === "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS" && key === "UCIP1") keys.add("UTIP1");
+    if (service === "URGENCIAS" && key === "AISP") keys.add("AISLADOP");
     return [...keys].filter(Boolean);
   }
 
