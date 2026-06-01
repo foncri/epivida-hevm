@@ -6,6 +6,30 @@
 
   const nativeEval = window.eval;
 
+  function injectStyle() {
+    if (document.getElementById("epivida-pe-summary-visibility-style")) return;
+    const style = document.createElement("style");
+    style.id = "epivida-pe-summary-visibility-style";
+    style.textContent = `
+      .device-list.compact-device-grid .pe-summary-card,
+      .iaas-invasive-list.summary-grid .pe-summary-card {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        color: #0f172a;
+      }
+      .device-list.compact-device-grid .pe-summary-card strong,
+      .iaas-invasive-list.summary-grid .pe-summary-card strong {
+        color: #0f172a;
+      }
+      .device-list.compact-device-grid .pe-summary-card small,
+      .iaas-invasive-list.summary-grid .pe-summary-card small {
+        color: #475569;
+      }
+    `;
+    document.head.append(style);
+  }
+
   function replace(source, pattern, replacement, label) {
     const next = source.replace(pattern, replacement);
     if (next === source) console.warn("No se pudo aplicar resumen P.E.:", label);
@@ -50,18 +74,23 @@
     return [...byId.values()].sort((a, b) => String(b.reviewDate || b.roundDate || "").localeCompare(String(a.reviewDate || a.roundDate || "")));
   }
 
-  function renderPeSummaryZone(patientId, date = activeDate(), draft = null) {
-    if (!patientId) return "";
+  function renderPeSummaryCards(patientId, date = activeDate(), draft = null) {
+    if (!patientId) return [];
     const items = preventivePeSummaryItems(patientId, date, draft);
-    if (!items.length) return "";
-    return h("div", { class: "pe-summary-zone", "data-pe-summary": "true" }, [
-      h("div", { class: "summary-grid" }, items.map(item => h("article", { class: "pe-summary-card" }, [
+    return items.map(item => h("article", { class: "device-card compact-device-card pe-summary-card", "data-pe-summary": "true" }, [
         h("strong", { class: "pe-title" }, ["P.E."]),
         h("span", {}, ["Fecha: " + (formatDisplayDate(item.reviewDate || item.roundDate) || item.reviewDate || item.roundDate || "Sin fecha")]),
         h("span", {}, ["Cumplimiento: " + (item.compliance || preventiveCompliance(item.preventiveChecks || {}) || "Pendiente")]),
         item.source === "draft" ? h("small", {}, ["En captura"]) : "",
         item.observations ? h("small", {}, [item.observations]) : ""
-      ])))
+      ]));
+  }
+
+  function renderPeSummaryZone(patientId, date = activeDate(), draft = null) {
+    const cards = renderPeSummaryCards(patientId, date, draft);
+    if (!cards.length) return "";
+    return h("div", { class: "pe-summary-zone", "data-pe-summary-zone": "true" }, [
+      h("div", { class: "summary-grid" }, cards)
     ]);
   }
 
@@ -74,11 +103,11 @@
     if (source.includes("epividaPeSummaryVisibilityApplied")) return source;
 
     let next = source;
-    if (!next.includes("renderPeSummaryZone(patientId, date, draft)")) {
+    if (!next.includes("renderPeSummaryCards(patientId, date, draft)")) {
       next = replace(
         next,
-        /(deviceCards\.length \? h\("div", \{ class: "device-list compact-device-grid" \}, deviceCards\.map\(ep => renderActiveDevice\(ep, draft, date\)\)\) : h\("p", \{ class: "muted" \}, \["No hay invasivos activos capturados\."\]\),\n)(\s+!hasAnyInvasive \?)/,
-        "$1        renderPeSummaryZone(patientId, date, draft),\n$2",
+        /deviceCards\.length \? h\("div", \{ class: "device-list compact-device-grid" \}, deviceCards\.map\(ep => renderActiveDevice\(ep, draft, date\)\)\) : h\("p", \{ class: "muted" \}, \["No hay invasivos activos capturados\."\]\)/,
+        "deviceCards.length || renderPeSummaryCards(patientId, date, draft).length ? h(\"div\", { class: \"device-list compact-device-grid\" }, [...deviceCards.map(ep => renderActiveDevice(ep, draft, date)), ...renderPeSummaryCards(patientId, date, draft)]) : h(\"p\", { class: \"muted\" }, [\"No hay invasivos activos capturados.\"])",
         "resumen preventivo"
       );
     }
@@ -97,4 +126,6 @@
   window.eval = function epividaPeSummaryVisibilityEval(source) {
     return nativeEval.call(this, patchSource(source));
   };
+
+  injectStyle();
 })();
