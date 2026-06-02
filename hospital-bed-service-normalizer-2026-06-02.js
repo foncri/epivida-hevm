@@ -373,6 +373,57 @@
 `;
   }
 
+  function bedBoardSource() {
+    return `  function bedBoardItems(rows, date, mode) {
+    // epividaAisPKnownBedsForBoard: AIS P y camas especiales quedan integradas en el catalogo general.
+    const sorted = [...rows].sort(sortByServiceBed);
+    const serviceNames = unique(sorted.map(row => normalizeService(row.service)).filter(Boolean));
+    if (serviceNames.length !== 1) {
+      return sorted.map(row => ({ bed: row.bed || "S/C", row }));
+    }
+    const knownBeds = knownBedsForService(serviceNames[0], sorted);
+    const numericRows = sorted
+      .map(row => ({ row, number: bedNumberToken(row.bed) }))
+      .filter(item => Number.isFinite(item.number));
+    if (numericRows.length < Math.max(3, Math.floor(sorted.length * 0.6))) {
+      return mergeKnownBedItems(sorted.map(row => ({ bed: row.bed || "S/C", row })), knownBeds);
+    }
+    const min = Math.min(...numericRows.map(item => item.number));
+    const max = Math.max(...numericRows.map(item => item.number));
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max - min > 80) {
+      return mergeKnownBedItems(sorted.map(row => ({ bed: row.bed || "S/C", row })), knownBeds);
+    }
+    const byNumber = new Map();
+    numericRows.forEach(item => {
+      if (!byNumber.has(item.number)) byNumber.set(item.number, item.row);
+    });
+    const inferred = [];
+    for (let number = min; number <= max; number += 1) {
+      const row = byNumber.get(number);
+      inferred.push({ bed: row?.bed || String(number), row: row || null });
+    }
+    return mergeKnownBedItems(inferred, knownBeds);
+  }
+
+  function knownBedsForService(service, rows = []) {
+    const knownBeds = KNOWN_SERVICE_BEDS[normalizeService(service)] || [];
+    const existing = rows.map(row => row.bed).filter(Boolean);
+    return unique([...knownBeds, ...existing]).filter(Boolean).sort(comparePrintBeds);
+  }
+
+  function mergeKnownBedItems(items, knownBeds = []) {
+    if (!knownBeds.length) return items;
+    const byBed = new Map(items.map(item => [normalizeText(item.bed), item]));
+    knownBeds.forEach(bed => {
+      const key = normalizeText(bed);
+      if (!byBed.has(key)) byBed.set(key, { bed, row: null });
+    });
+    return [...byBed.values()].sort((a, b) => comparePrintBeds(a.bed, b.bed));
+  }
+
+  function bedNumberToken`;
+  }
+
   function patchSource(source) {
     if (typeof source !== "string") return source;
     if (!source.includes("function normalizeImportRow(raw, index, fallbackDate)")
@@ -383,7 +434,17 @@
     if (source.includes("epividaHospitalBedServiceNormalizerApplied")) return source;
 
     let next = source;
-    next = replaceOnce(next, /  const KNOWN_SERVICE_BEDS = \{[\s\S]*?\n  \};/, knownBedsSource(), "catalogo de camas conocidas");
+    if (/  const KNOWN_SERVICE_BEDS = \{[\s\S]*?\n  \};/.test(next)) {
+      next = replaceOnce(next, /  const KNOWN_SERVICE_BEDS = \{[\s\S]*?\n  \};/, knownBedsSource(), "catalogo de camas conocidas");
+    } else {
+      next = replaceOnce(next, "  function bedBoardItems(rows, date, mode) {\n", knownBedsSource() + "\n\n  function bedBoardItems(rows, date, mode) {\n", "insertar catalogo de camas conocidas");
+    }
+    next = replaceOnce(
+      next,
+      /  function bedBoardItems\(rows, date, mode\) \{[\s\S]*?\n  function bedNumberToken/,
+      bedBoardSource(),
+      "tablero con catalogo de camas"
+    );
     next = replaceOnce(next, "  function buildImportDraft(rawRows, fallbackDate, options = {}) {\n", helperSource() + "  function buildImportDraft(rawRows, fallbackDate, options = {}) {\n", "helpers centrales");
     next = replaceOnce(
       next,
