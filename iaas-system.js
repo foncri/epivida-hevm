@@ -547,8 +547,8 @@
     sexo: ["sexo", "genero", "género"],
     fecha_ingreso: ["fecha_ingreso", "ingreso", "f_ingreso", "fecha ingreso", "fecha de ingreso", "fecha_ingreso_hospitalario"],
     deih: ["deih", "d.e.i.h", "dias_estancia", "días_estancia", "dias de estancia", "días de estancia", "estancia"],
-    estado: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clínico"],
-    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico actual", "diagnóstico actual", "diagnostico de ingreso", "diagnóstico de ingreso", "diagnostico ingreso", "diagnóstico ingreso", "diagnostico", "diagnóstico", "dx", "dx_hospitalario", "dx hospitalario", "diagnosticos_hospitalarios", "diagnósticos hospitalarios", "diagnostico_hospitalario", "diagnóstico hospitalario", "padecimiento"],
+    estado: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clínico", "edo", "edo_clinico", "edo clinico", "edo. clinico"],
+    diagnostico_actual: ["diagnostico_actual", "diagnóstico_actual", "diagnostico actual", "diagnóstico actual", "diagnostico de ingreso", "diagnóstico de ingreso", "diagnostico ingreso", "diagnóstico ingreso", "diagnostico", "diagnóstico", "diagnosticos", "diagnósticos", "dx", "dx_hospitalario", "dx hospitalario", "dx_hospitalarios", "dx hospitalarios", "diagnosticos_hospitalarios", "diagnósticos hospitalarios", "diagnostico_hospitalario", "diagnóstico hospitalario", "padecimiento"],
     pendientes: ["pendientes", "pendiente", "observaciones_pendientes"],
     hospital_internal_id: ["hospital_internal_id", "id_hospitalario", "registro", "n_expediente"],
     riesgo_iaas: ["riesgo_iaas", "riesgo", "clasificacion_iaas", "clasificación_iaas"],
@@ -3721,8 +3721,8 @@
           ]),
           h("div", { class: "import-actions" }, [
             h("label", { class: "import-file-picker" }, [
-              h("span", {}, ["Cargar archivo CSV/TSV/XLSX"]),
-              h("input", { type: "file", id: "census-file", accept: ".csv,.txt,.tsv,.xlsx", onchange: handleImportFile })
+              h("span", {}, ["Cargar archivo CSV/TSV/XLS/XLSX"]),
+              h("input", { type: "file", id: "census-file", accept: ".csv,.txt,.tsv,.xls,.xlsx", onchange: handleImportFile })
             ]),
             h("button", { class: "iaas-button", onclick: loadSampleImport }, ["Cargar ejemplo"]),
             h("button", { class: "iaas-button primary", onclick: parseImportInput }, ["Pegar y validar censo"]),
@@ -3795,7 +3795,8 @@
     const missing = draft.reconciliationMissing || [];
     const reported = draft.reportedDischarges || [];
     const automatic = draft.automaticDischarges || [];
-    if (!draft.conflicts.length && !missing.length && !reported.length && !automatic.length) {
+    const errorRows = (draft.rows || []).filter(row => row.errors?.length);
+    if (!draft.conflicts.length && !missing.length && !reported.length && !automatic.length && !errorRows.length) {
       if (draft.plan?.importScope === "partial") {
         return h("div", { class: "notice ok" }, ["Importación parcial segura: se actualizarán los pacientes pegados y se conservará el censo existente del día."]);
       }
@@ -3803,7 +3804,10 @@
     }
     return h("div", { class: "notice warn" }, [
       h("strong", {}, ["Revisión necesaria"]),
-      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Altas probables por ausencia: ${missing.length}. Altas encontradas en pendientes: ${reported.length}. Altas automáticas del día anterior: ${automatic.length}.`])
+      h("p", {}, [`Conflictos servicio/cama: ${draft.conflicts.length}. Altas probables por ausencia: ${missing.length}. Altas encontradas en pendientes: ${reported.length}. Altas automáticas del día anterior: ${automatic.length}. Filas con error: ${errorRows.length}.`]),
+      errorRows.length ? h("ul", { class: "import-error-list" }, errorRows.slice(0, 6).map(row => (
+        h("li", {}, [`Fila ${Number(row.index || 0) + 1}: ${row.errors.join("; ")}`])
+      ))) : null
     ]);
   }
 
@@ -5961,8 +5965,8 @@
     ui.importProgress = "Leyendo archivo...";
     renderIaas();
     try {
-      if (/\.xlsx$/i.test(file.name)) {
-        const rows = await parseXlsx(file, date);
+      if (/\.(xls|xlsx)$/i.test(file.name)) {
+        const rows = await parseWorkbookFile(file, date);
         ui.importDraft = buildImportDraft(rows, date, { mode });
       } else if (/\.(csv|txt|tsv)$/i.test(file.name)) {
         const text = await file.text();
@@ -5979,13 +5983,20 @@
     }
   }
 
-  async function parseXlsx(file, fallbackDate = "") {
+  async function parseWorkbookFile(file, fallbackDate = "") {
     await loadSheetJs();
     const buffer = await file.arrayBuffer();
     const workbook = window.XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
-    return rowsFromMatrix(matrix, fallbackDate);
+    const rows = [];
+    workbook.SheetNames.forEach(sheetName => {
+      const sheet = workbook.Sheets[sheetName];
+      const matrix = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
+      rowsFromMatrix(matrix, fallbackDate).forEach(row => {
+        row.__source_sheet = sheetName;
+        rows.push(row);
+      });
+    });
+    return rows;
   }
 
   function rowsFromMatrix(matrix, fallbackDate = "") {
@@ -6000,7 +6011,31 @@
       const row = {};
       headers.forEach((header, index) => row[header] = cells[index] ?? "");
       return row;
+    }).filter(isImportDataCandidate);
+  }
+
+  function isImportDataCandidate(row) {
+    if (!row || typeof row !== "object") return false;
+    const entries = Object.entries(row)
+      .filter(([key]) => !String(key).startsWith("__"))
+      .map(([key, value]) => [cleanCell(key), cleanCell(value)])
+      .filter(([, value]) => value);
+    if (!entries.length) return false;
+    const values = entries.map(([, value]) => value);
+    const text = normalizeText(values.join(" "));
+    if (/\b(CONFIRMADOS\s+INFLUENZA|JEFE\s+DE\s+DPTO|VIGILANCIA\s+EPIDEMIOLOGICA|CCP|DIRECCION|SUBDIRECCION|PAQUETES\s+PREVENTIVOS|MORBI[-\s]?MORTALIDAD|ESAVIS)\b/.test(text)) return false;
+    if (looksLikeHospitalCensusHeader(values) || isHospitalCensusGuideRow(values)) return false;
+    if (values.length <= 3 && knownServiceFromText(values.join(" "))) return false;
+    const canonicalKeys = entries.map(([key]) => canonicalColumn(key)).filter(Boolean);
+    const mapped = {};
+    entries.forEach(([key, value]) => {
+      const canonical = canonicalColumn(key);
+      if (canonical) mapped[canonical] = value;
     });
+    const hasStableId = Boolean(mapped.patient_id || mapped.hospital_internal_id || mapped.rfc);
+    const hasName = looksLikePatientNameCell(mapped.patient_name) || values.some(looksLikePatientNameCell);
+    if (canonicalKeys.length && !hasStableId && !hasName) return false;
+    return hasStableId || hasName || values.some(looksLikeBedCell);
   }
 
   function rowsFromHeaderlessMatrix(matrix, fallbackDate = "") {
@@ -6027,7 +6062,7 @@
         out.push(row);
       }
     });
-    return out;
+    return out.filter(isImportDataCandidate);
   }
 
   function headerlessRowToObject(cells, currentService = "", currentDate = "") {
@@ -6266,13 +6301,14 @@
       const script = document.createElement("script");
       script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
       script.onload = resolve;
-      script.onerror = () => reject(new Error("No se pudo cargar el lector XLSX. Use CSV o pegar desde Excel."));
+      script.onerror = () => reject(new Error("No se pudo cargar el lector Excel. Use CSV/TSV o pegue desde Excel."));
       document.head.append(script);
     });
   }
 
   function buildImportDraft(rawRows, fallbackDate, options = {}) {
-    const rows = rawRows.map((raw, index) => normalizeImportRow(raw, index, fallbackDate));
+    const candidateRows = rawRows.filter(isImportDataCandidate);
+    const rows = candidateRows.map((raw, index) => normalizeImportRow(raw, index, fallbackDate));
     const validRows = rows.filter(row => !row.errors.length);
     const plan = buildImportPlanV2(validRows.map(row => row.normalized), fallbackDate, options);
     const summary = {
@@ -9732,7 +9768,7 @@
       const row = {};
       headers.forEach((header, index) => row[header] = cells[index] ?? "");
       return row;
-    });
+    }).filter(isImportDataCandidate);
   }
 
   function delimiterScore(line) {
@@ -9752,16 +9788,16 @@
     if (exact) return exact;
     const aliases = [
       ["MEDICINA INTERNA", /\b(MI|MEDICINA\s+INTERNA|MED\s+INT)\b/],
-      ["CIRUGÍA Y TRAUMATOLOGÍA", /\b(CX\s*TX|CX\s+TRAUMA|CIRUGIA\s+Y\s+TRAUMATOLOGIA|CIRUGIA|TRAUMATOLOGIA)\b/],
+      ["CIRUGÍA Y TRAUMATOLOGÍA", /\b(QX|CX\s*TX|CX\s+TRAUMA|CIRUGIA\s+Y\s+TRAUMATOLOGIA|CIRUGIA|TRAUMATOLOGIA)\b/],
       ["PEDIATRÍA", /\b(PED|PEDS|PEDIATRIA)\b/],
       ["CUNEROS", /\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/],
       ["UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", /\b(UCIN|NEONATAL|NEONATALES)\b/],
-      ["HEMODIÁLISIS", /\b(HEMO|HD|HEMODIALISIS)\b/],
+      ["HEMODIÁLISIS", /\b(HEM|HEMO|HD|HEMODIALISIS)\b/],
       ["ONCOLOGÍA", /\b(ONCO|ONCOLOGIA)\b/],
-      ["GINECOLOGÍA Y OBSTETRICIA", /\b(GYO|GO|GINECO|GINECOLOGIA|OBSTETRICIA)\b/],
+      ["GINECOLOGÍA Y OBSTETRICIA", /\b(ALOJ|ALOJAMIENTO|GYO|GO|GINECO|GINECOLOGIA|OBSTETRICIA)\b/],
       ["UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS", /\b(UCIP|UTIP|UCI\s+PED)\b/],
       ["UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", /\b(UCIA|UCI\s+ADULTO|UCI\s+ADULTOS|TERAPIA\s+INTENSIVA)\b/],
-      ["URGENCIAS", /\b(URG|URGENCIAS|OBSERVACION|OBSERVACIÓN)\b/],
+      ["URGENCIAS", /\b(UX|URX|URG|URGENCIAS|OBSERVACION|OBSERVACIÓN)\b/],
       ["AMBULATORIO", /\b(AMB|AMBULATORIO|CONSULTA\s+EXTERNA)\b/]
     ];
     const alias = aliases.find(([, pattern]) => pattern.test(key));
@@ -10216,11 +10252,17 @@
     const key = normalizeText(value).replace(/\s+/g, " ");
     const mapped = {
       "CIRUGIA Y TRAUMATOLOGIA": "CIRUGÍA Y TRAUMATOLOGÍA",
+      "QX": "CIRUGÍA Y TRAUMATOLOGÍA",
+      "HEM": "HEMODIÁLISIS",
       "HEMODIALISIS": "HEMODIÁLISIS",
       "ONCOLOGIA": "ONCOLOGÍA",
       "UCIA": "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS",
       "UCIN": "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES",
       "UCIP": "UNIDAD DE CUIDADOS INTENSIVOS PEDIÁTRICOS",
+      "UX": "URGENCIAS",
+      "URX": "URGENCIAS",
+      "ALOJ": "GINECOLOGÍA Y OBSTETRICIA",
+      "ALOJAMIENTO": "GINECOLOGÍA Y OBSTETRICIA",
       "GINECOLOGIA Y OBSTETRICIA": "GINECOLOGÍA Y OBSTETRICIA"
     };
     if (!key.includes("/") && key.includes("HEMODI")) return "HEMODIÁLISIS";
@@ -10293,6 +10335,7 @@
     if (/\b(PED|PEDS)\b/.test(key)) return "PEDIATRÍA";
     if (/\b(CUNERO|CUNEROS|ESCOLAR|ESCOLARES)\b/.test(key)) return "CUNEROS";
     if (/\b(GYO|GO)\b/.test(key)) return "GINECOLOGÍA Y OBSTETRICIA";
+    if (/\b(QX|HEM|UX|URX|ALOJ|ALOJAMIENTO)\b/.test(key)) return knownServiceFromText(key);
     if (/\b(UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB)\b/.test(key)) return knownServiceFromText(key);
     return "";
   }
@@ -10305,8 +10348,8 @@
       .toUpperCase();
     if (/[\/()]/.test(text) || text.length > 24) return "";
     const cleaned = text
-      .replace(/\s+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "")
-      .replace(/(\d+)[\s-]+(CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEMO|HD|ONCO|URG|AMB|CIR|TRAUMA)$/i, "$1")
+      .replace(/\s+(QX|CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEM|HEMO|HD|ONCO|UX|URX|URG|AMB|ALOJ|ALOJAMIENTO|CIR|TRAUMA)$/i, "")
+      .replace(/(\d+)[\s-]+(QX|CX\s*TX|CX|TX|MI|PED|PEDS|GYO|GO|UCIN|UCIP|UCIA|HEM|HEMO|HD|ONCO|UX|URX|URG|AMB|ALOJ|ALOJAMIENTO|CIR|TRAUMA)$/i, "$1")
       .trim();
     return cleaned;
   }
@@ -10814,6 +10857,8 @@
       ui,
       buildImportDraft,
       parseDelimitedText,
+      parseWorkbookFile,
+      rowsFromMatrix,
       executeImportPlanLocalV2,
       buildPrintReportModel,
       applyHospitalDischarge,

@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  // Legacy repair interception is disabled; the core importer now owns CSV, TSV, XLS and XLSX.
+  window.__EPIVIDA_IMPORT_CENSUS_REPAIR_DISABLED__ = true;
+  return;
+
   const OUTPUT_HEADERS = [
     "Servicio",
     "Cama",

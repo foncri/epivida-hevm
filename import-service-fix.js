@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  // Legacy import interception is disabled; the core importer now owns CSV, TSV, XLS and XLSX.
+  window.__EPIVIDA_IMPORT_SERVICE_FIX_DISABLED__ = true;
+  return;
+
   const nativeAddEventListener = document.addEventListener.bind(document);
   document.addEventListener = function patchedAddEventListener(type, listener, options) {
     const body = typeof listener === "function" ? Function.prototype.toString.call(listener) : "";
