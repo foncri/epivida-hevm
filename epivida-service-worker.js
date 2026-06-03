@@ -1,15 +1,15 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-03-03";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-03-04";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline02",
+  "./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline-ready01",
   "./iaas-system.css?v=2026-06-03-expediente01",
   "./styles/epivida-assets.css",
   "./epivida-date-guard.js?v=2026-05-08-date01",
   "./data/censo-data.js",
-  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-03-offlineaccess01",
-  "./iaas-system.js?v=2026-06-03-offlineaccess01",
+  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-03-offline-ready01",
+  "./iaas-system.js?v=2026-06-03-offline-ready01",
   "./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05",
   "./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01",
   "./iaas-history-range-filter-2026-05-12.js?v=2026-05-12-history01",
@@ -60,6 +60,42 @@ self.addEventListener("activate", event => {
     caches.keys()
       .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
+  );
+});
+
+async function cacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  const results = await Promise.allSettled(APP_SHELL.map(url => cache.add(url)));
+  return {
+    cacheName: CACHE_NAME,
+    requested: APP_SHELL.length,
+    cached: results.filter(result => result.status === "fulfilled").length,
+    failed: results
+      .map((result, index) => result.status === "rejected" ? APP_SHELL[index] : "")
+      .filter(Boolean)
+  };
+}
+
+async function offlineStatus() {
+  const cache = await caches.open(CACHE_NAME);
+  const checks = await Promise.all(APP_SHELL.map(async url => [url, Boolean(await cache.match(url))]));
+  return {
+    cacheName: CACHE_NAME,
+    requested: APP_SHELL.length,
+    cached: checks.filter(([, hit]) => hit).length,
+    missing: checks.filter(([, hit]) => !hit).map(([url]) => url)
+  };
+}
+
+self.addEventListener("message", event => {
+  const message = event.data || {};
+  if (!message || !["EPIVIDA_PREPARE_OFFLINE", "EPIVIDA_OFFLINE_STATUS"].includes(message.type)) return;
+  const port = event.ports && event.ports[0];
+  const action = message.type === "EPIVIDA_PREPARE_OFFLINE" ? cacheAppShell : offlineStatus;
+  event.waitUntil(
+    action()
+      .then(payload => port?.postMessage?.({ ok: true, ...payload }))
+      .catch(error => port?.postMessage?.({ ok: false, error: String(error?.message || error) }))
   );
 });
 

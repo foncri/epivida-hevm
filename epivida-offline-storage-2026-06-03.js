@@ -8,8 +8,11 @@
   const STORE = "kv";
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
+  const OFFLINE_PREPARED_KEY = "epivida-offline-prepared-at";
+  const OFFLINE_STATUS_KEY = "epivida-offline-cache-status";
   const MIRRORED_KEYS = new Set([STORE_KEY, DRAFT_KEY, "epivida-sheets-session-v1"]);
   const HISTORY_LIMIT = 7;
+  const PREPARE_TIMEOUT_MS = 15000;
 
   function openDb() {
     if (!("indexedDB" in window)) return Promise.resolve(null);
@@ -150,7 +153,9 @@
     Storage.prototype.setItem = function patchedSetItem(key, value) {
       nativeSet.call(this, key, value);
       if (this === localStorage && MIRRORED_KEYS.has(String(key))) {
-        idbSet(String(key), { value: String(value), savedAt: new Date().toISOString() });
+        const record = makeRecord(String(key), String(value));
+        idbSet(String(key), record);
+        saveHistoryRecord(String(key), record);
       }
     };
   }
@@ -159,6 +164,66 @@
     const results = [];
     for (const key of MIRRORED_KEYS) results.push([key, await mirrorKey(key)]);
     return Object.fromEntries(results);
+  }
+
+  function serviceWorkerMessage(type, registration) {
+    return new Promise((resolve, reject) => {
+      const target = navigator.serviceWorker?.controller || registration?.active;
+      if (!target) {
+        reject(new Error("Modo sin internet aun no esta activo en este navegador."));
+        return;
+      }
+      const channel = new MessageChannel();
+      const timeout = window.setTimeout(() => {
+        channel.port1.onmessage = null;
+        reject(new Error("El telefono tardo demasiado en preparar el modo sin internet."));
+      }, PREPARE_TIMEOUT_MS);
+      channel.port1.onmessage = event => {
+        window.clearTimeout(timeout);
+        const payload = event.data || {};
+        if (payload.ok) resolve(payload);
+        else reject(new Error(payload.error || "No se pudo preparar el modo sin internet."));
+      };
+      target.postMessage({ type }, [channel.port2]);
+    });
+  }
+
+  async function ensureServiceWorkerReady() {
+    if (!("serviceWorker" in navigator)) throw new Error("Este navegador no permite preparar EpiVida sin internet.");
+    const registration = await navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-offline-ready01");
+    await registration.update().catch(() => null);
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise(resolve => {
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+        navigator.serviceWorker.addEventListener("controllerchange", done, { once: true });
+        window.setTimeout(done, 1200);
+      });
+    }
+    return registration;
+  }
+
+  async function cacheStatus() {
+    const registration = await ensureServiceWorkerReady();
+    const status = await serviceWorkerMessage("EPIVIDA_OFFLINE_STATUS", registration);
+    safeLocalSet(OFFLINE_STATUS_KEY, JSON.stringify({ ...status, checkedAt: new Date().toISOString() }));
+    return status;
+  }
+
+  async function prepareOffline() {
+    const snapshot = await saveSnapshot();
+    const registration = await ensureServiceWorkerReady();
+    const status = await serviceWorkerMessage("EPIVIDA_PREPARE_OFFLINE", registration);
+    const preparedAt = new Date().toISOString();
+    const ready = status.ok !== false && !status.failed?.length;
+    safeLocalSet(OFFLINE_PREPARED_KEY, preparedAt);
+    safeLocalSet(OFFLINE_STATUS_KEY, JSON.stringify({ ...status, ready, preparedAt, snapshot }));
+    return { ...status, ready, preparedAt, snapshot };
   }
 
   installLocalStorageMirror();
@@ -173,11 +238,19 @@
   window.EpiVidaOfflineBackup = {
     saveSnapshot,
     restoreLocalState,
+    prepareOffline,
+    cacheStatus,
     checksum,
     async status() {
       const record = await idbGet(STORE_KEY);
       const history = await idbGet(`${STORE_KEY}:history`);
       const validHistory = Array.isArray(history) ? history.filter(recordValid) : [];
+      let cache = {};
+      try {
+        cache = JSON.parse(safeLocalGet(OFFLINE_STATUS_KEY) || "{}");
+      } catch {
+        cache = {};
+      }
       return {
         indexedDb: Boolean("indexedDB" in window),
         hasLocalStore: safeLocalGet(STORE_KEY) !== null,
@@ -187,7 +260,10 @@
         indexedStoreChecksum: record?.checksum || "",
         indexedStoreValid: recordValid(record),
         backupVersions: validHistory.length,
-        lastBackupSavedAt: validHistory[0]?.savedAt || record?.savedAt || ""
+        lastBackupSavedAt: validHistory[0]?.savedAt || record?.savedAt || "",
+        offlinePreparedAt: safeLocalGet(OFFLINE_PREPARED_KEY) || "",
+        offlineCacheReady: Boolean(cache.ready || (cache.cached && cache.requested && cache.cached >= cache.requested)),
+        offlineCacheStatus: cache
       };
     }
   };
