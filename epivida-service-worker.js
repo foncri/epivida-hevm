@@ -1,9 +1,9 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-03-01";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-03-02";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./epivida-offline-storage-2026-06-03.js",
+  "./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline02",
   "./iaas-system.css?v=2026-06-03-expediente01",
   "./styles/epivida-assets.css",
   "./epivida-date-guard.js?v=2026-05-08-date01",

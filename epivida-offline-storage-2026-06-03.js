@@ -9,6 +9,7 @@
   const STORE_KEY = "epivida-iaas-os-v1";
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
   const MIRRORED_KEYS = new Set([STORE_KEY, DRAFT_KEY, "epivida-sheets-session-v1"]);
+  const HISTORY_LIMIT = 7;
 
   function openDb() {
     if (!("indexedDB" in window)) return Promise.resolve(null);
@@ -45,6 +46,54 @@
     });
   }
 
+  function checksum(text) {
+    let hash = 2166136261;
+    const value = String(text || "");
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  function jsonLooksValid(key, value) {
+    if (!value) return false;
+    if (key === STORE_KEY || key === DRAFT_KEY) {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object";
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function makeRecord(key, value) {
+    return {
+      key,
+      value,
+      checksum: checksum(value),
+      bytes: new Blob([value]).size,
+      savedAt: new Date().toISOString(),
+      schema: 2
+    };
+  }
+
+  function recordValid(record) {
+    return Boolean(record?.value)
+      && record.checksum === checksum(record.value)
+      && jsonLooksValid(record.key, record.value);
+  }
+
+  async function saveHistoryRecord(key, record) {
+    const historyKey = `${key}:history`;
+    const previous = await idbGet(historyKey);
+    const history = Array.isArray(previous) ? previous.filter(recordValid) : [];
+    const next = [record, ...history.filter(item => item.checksum !== record.checksum)].slice(0, HISTORY_LIMIT);
+    return idbSet(historyKey, next);
+  }
+
   function safeLocalGet(key) {
     try {
       return localStorage.getItem(key);
@@ -65,14 +114,26 @@
   async function mirrorKey(key) {
     const value = safeLocalGet(key);
     if (value === null) return false;
-    return idbSet(key, { value, savedAt: new Date().toISOString() });
+    if (!jsonLooksValid(key, value)) return false;
+    const record = makeRecord(key, value);
+    const latestSaved = await idbSet(key, record);
+    const historySaved = await saveHistoryRecord(key, record);
+    return Boolean(latestSaved && historySaved);
   }
 
   async function restoreKey(key) {
     if (safeLocalGet(key) !== null) return false;
     const record = await idbGet(key);
-    if (!record?.value) return false;
-    return safeLocalSet(key, record.value);
+    const history = await idbGet(`${key}:history`);
+    const candidates = [
+      record,
+      ...(Array.isArray(history) ? history : [])
+    ].filter(recordValid);
+    const best = candidates.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)))[0];
+    if (!best) return false;
+    const restored = safeLocalSet(key, best.value);
+    if (restored) await idbSet(key, best);
+    return restored;
   }
 
   async function restoreLocalState() {
@@ -112,13 +173,21 @@
   window.EpiVidaOfflineBackup = {
     saveSnapshot,
     restoreLocalState,
+    checksum,
     async status() {
       const record = await idbGet(STORE_KEY);
+      const history = await idbGet(`${STORE_KEY}:history`);
+      const validHistory = Array.isArray(history) ? history.filter(recordValid) : [];
       return {
         indexedDb: Boolean("indexedDB" in window),
         hasLocalStore: safeLocalGet(STORE_KEY) !== null,
-        hasIndexedStore: Boolean(record?.value),
-        indexedStoreSavedAt: record?.savedAt || ""
+        hasIndexedStore: recordValid(record),
+        indexedStoreSavedAt: record?.savedAt || "",
+        indexedStoreBytes: record?.bytes || 0,
+        indexedStoreChecksum: record?.checksum || "",
+        indexedStoreValid: recordValid(record),
+        backupVersions: validHistory.length,
+        lastBackupSavedAt: validHistory[0]?.savedAt || record?.savedAt || ""
       };
     }
   };
