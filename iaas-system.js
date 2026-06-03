@@ -593,6 +593,7 @@
     selectedService: "Todos",
     censusService: "Todos",
     censusQuery: "",
+    censusRowsLimit: 0,
     monitorEpiService: "Todos",
     monitorEpiSector: "Todos",
     monitorEpiAgeRange: "Todos",
@@ -3533,6 +3534,10 @@
     const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
     const serviceRows = rows.filter(censusServiceMatch);
     const visibleRows = serviceRows.filter(censusSearchMatch);
+    const compact = isCompactViewport();
+    const limit = censusDisplayLimit();
+    const displayRows = visibleRows.slice(0, limit);
+    const truncated = visibleRows.length > displayRows.length;
     const stats = computeStats(date);
     const epiTotals = censusEpiCounts(rows);
     return h("div", { class: "iaas-page hospital-census-page" }, [
@@ -3562,13 +3567,13 @@
         ["No IAAS", epiTotals.noIaas, "sin IAAS"],
         ["Invasivos", stats.activeDevices, "activos"]
       ], "compact"),
-      rows.length ? renderCensusCommandPanel(rows, visibleRows, stats) : "",
-      rows.length ? renderCensusServiceAtlas(rows) : "",
+      rows.length && !compact ? renderCensusCommandPanel(rows, visibleRows, stats) : "",
+      rows.length ? (compact ? renderCensusMobileServicePicker(rows) : renderCensusServiceAtlas(rows)) : "",
       rows.length ? h("section", { class: "iaas-panel census-table-panel" }, [
         h("div", { class: "iaas-panel-head" }, [
           h("div", {}, [
             h("h2", {}, ["Listado operativo"]),
-            h("p", {}, ["Seguimiento integral ordenado por servicio y cama, con busqueda directa para entrega de turno."])
+            h("p", {}, [compact ? "Carga ligera para celular. Usa buscar o carga mas registros si lo necesitas." : "Seguimiento integral ordenado por servicio y cama, con busqueda directa para entrega de turno."])
           ]),
           h("div", { class: "census-tools" }, [
             h("label", { class: "census-search" }, [
@@ -3580,22 +3585,24 @@
                 placeholder: "Paciente, cama, servicio, diagnostico...",
                 oninput: event => {
                   ui.censusQuery = event.target.value;
-                  scheduleCensusSearchDom();
+                  ui.censusRowsLimit = censusDefaultLimit();
+                  scheduleRenderIaas(140);
                 }
               })
             ]),
-            h("span", { class: "badge neutral", "data-census-count": "true", "data-census-total": String(serviceRows.length) }, [`${visibleRows.length} de ${serviceRows.length}`])
+            h("span", { class: "badge neutral", "data-census-count": "true", "data-census-total": String(serviceRows.length) }, [`${displayRows.length} de ${visibleRows.length}`])
           ])
         ]),
         serviceRows.length ? h("div", { class: "table-wrap census-scroll" }, [
           h("table", { class: "iaas-table hospital-census-table" }, [
             h("thead", {}, [h("tr", {}, ["Servicio / cama", "Paciente", "Edad / sexo", "Ingreso / estancia", "Estado", "Dx hospitalarios", "Dx epidemiologico", "Observaciones"].map(label => h("th", {}, [label])))]),
-            h("tbody", {}, serviceRows.map(renderHospitalCensusRow))
+            h("tbody", {}, displayRows.map(renderHospitalCensusRow))
           ])
         ]) : h("div", { class: "empty-inline" }, [
           h("strong", {}, ["Sin coincidencias"]),
           h("span", {}, ["Ajusta la busqueda o cambia de servicio."])
-        ])
+        ]),
+        truncated ? renderCensusLoadMore(displayRows.length, visibleRows.length) : ""
       ]) : h("section", { class: "iaas-panel empty-census-panel" }, [
         h("h2", {}, ["Aun no hay censo cargado"]),
         h("p", {}, ["Importa el censo de la manana o carga el respaldo privado local para restaurar el trabajo anterior sin publicar datos clinicos en GitHub."]),
@@ -3608,6 +3615,57 @@
 
   function hospitalCensusRows(date) {
     return getCensusRows(date).map(row => ({ row, patient: store.patients[row.patientId] || {} }));
+  }
+
+  function isCompactViewport() {
+    return typeof window !== "undefined" && window.innerWidth <= 760;
+  }
+
+  function censusDefaultLimit() {
+    return isCompactViewport() ? 24 : 60;
+  }
+
+  function censusDisplayLimit() {
+    const current = Number(ui.censusRowsLimit || 0);
+    return current > 0 ? current : censusDefaultLimit();
+  }
+
+  function renderCensusMobileServicePicker(rows) {
+    const totals = new Map();
+    rows.forEach(({ row, patient }) => {
+      const service = normalizeService(row.service || patient.currentService || "");
+      if (service) totals.set(service, (totals.get(service) || 0) + 1);
+    });
+    return h("section", { class: "iaas-panel census-mobile-controls" }, [
+      h("label", { class: "field" }, [
+        h("span", {}, ["Servicio"]),
+        h("select", {
+          value: ui.censusService,
+          onchange: event => {
+            ui.censusService = event.target.value;
+            ui.censusRowsLimit = censusDefaultLimit();
+            renderIaas();
+          }
+        }, [
+          option("Todos", `Todos (${rows.length})`, ui.censusService === "Todos"),
+          ...SERVICES.map(service => option(service, `${service} (${totals.get(service) || 0})`, ui.censusService === service))
+        ])
+      ])
+    ]);
+  }
+
+  function renderCensusLoadMore(current, total) {
+    return h("div", { class: "census-load-more" }, [
+      h("span", {}, [`Mostrando ${current} de ${total} registro(s)`]),
+      h("button", {
+        class: "iaas-button ghost",
+        type: "button",
+        onclick: () => {
+          ui.censusRowsLimit = Math.min(total, censusDisplayLimit() + (isCompactViewport() ? 24 : 60));
+          renderIaas();
+        }
+      }, ["Cargar mas"])
+    ]);
   }
 
   function probableDischargeHistoryRows(date) {
@@ -3737,7 +3795,7 @@
     });
     const activeRows = ui.censusService === "Todos" ? rows : rows.filter(censusServiceMatch);
     return h("section", { class: "service-atlas" }, [
-      h("button", { class: ui.censusService === "Todos" ? "active service-all" : "service-all", onclick: () => { ui.censusService = "Todos"; renderIaas(); } }, [
+      h("button", { class: ui.censusService === "Todos" ? "active service-all" : "service-all", onclick: () => { ui.censusService = "Todos"; ui.censusRowsLimit = censusDefaultLimit(); renderIaas(); } }, [
         h("img", { src: `${PRO_ASSET}/icons/extras/futuristic_medical_dashboard_with_hospital_bed.webp`, alt: "", loading: "lazy" }),
         h("strong", {}, ["Vista general"]),
         h("span", {}, [`${rows.length} pacientes`])
@@ -3746,7 +3804,7 @@
         const total = totals.get(service) || 0;
         return h("button", {
           class: `${ui.censusService === service ? "active" : ""} ${total ? "" : "empty"}`,
-          onclick: () => { ui.censusService = service; renderIaas(); }
+          onclick: () => { ui.censusService = service; ui.censusRowsLimit = censusDefaultLimit(); renderIaas(); }
         }, [
           h("img", { src: serviceArtAsset(service), alt: "", loading: "lazy" }),
           h("strong", {}, [service]),

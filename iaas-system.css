@@ -1483,6 +1483,21 @@
   color: #6b7897;
 }
 
+.census-mobile-controls {
+  display: none;
+}
+
+.census-load-more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .85rem 0 0;
+  color: #475569;
+  font-weight: 850;
+}
+
 .empty-census-panel {
   text-align: center;
 }
@@ -2633,6 +2648,16 @@ body {
 
   .hospital-census-table {
     background: transparent;
+  }
+
+  .census-mobile-controls {
+    display: block;
+  }
+
+  .hospital-census-page .census-hero-panel,
+  .hospital-census-page .census-table-panel,
+  .hospital-census-page .census-mobile-controls {
+    background: rgba(248, 251, 255, .98);
   }
 
   .hospital-census-table thead {
