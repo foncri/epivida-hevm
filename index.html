@@ -92,12 +92,12 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-offline-ready01").catch(error => {
+          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-offline-auto01").catch(error => {
             console.warn("No se pudo registrar modo offline EpiVida.", error);
           });
         });
       }
-      const epividaScripts = ["./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline-ready01", "./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
+      const epividaScripts = ["./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline-auto01", "./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
       }
