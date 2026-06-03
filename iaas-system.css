@@ -2275,6 +2275,59 @@ body {
   font-size: 18px;
 }
 
+.census-discharge-history {
+  border-color: rgba(248, 113, 113, .32);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,247,247,.96));
+}
+
+.discharge-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.discharge-history-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(248, 113, 113, .28);
+  border-radius: 8px;
+  background: rgba(255,255,255,.96);
+}
+
+.discharge-history-card strong {
+  display: block;
+  color: #071943;
+  font-weight: 950;
+}
+
+.discharge-history-card span,
+.discharge-history-card small,
+.discharge-history-card p {
+  color: #52617d;
+}
+
+.discharge-history-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.discharge-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hospital-census-page > section,
+.hospital-census-page > div,
+.round-page > section,
+.round-page > div {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 520px;
+}
+
 @media (max-width: 1180px) {
   .iaas-metrics,
   .iaas-metrics.compact {

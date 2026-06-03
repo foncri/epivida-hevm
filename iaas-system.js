@@ -670,10 +670,11 @@
   function startDashboardSlideLoop() {
     if (ui.dashboardSlideTimer) return;
     ui.dashboardSlideTimer = window.setInterval(() => {
+      if (document.hidden) return;
       if (ui.route.page !== "dashboard") return;
       if (Date.now() < ui.dashboardSlidePausedUntil) return;
       advanceDashboardSlide();
-    }, 7000);
+    }, 14000);
   }
 
   function dashboardModuleCount() {
@@ -3515,7 +3516,7 @@
                 placeholder: "Paciente, cama, servicio, diagnostico...",
                 oninput: event => {
                   ui.censusQuery = event.target.value;
-                  applyCensusSearchDom();
+                  scheduleCensusSearchDom();
                 }
               })
             ]),
@@ -3536,12 +3537,56 @@
         h("p", {}, ["Importa el censo de la manana o carga el respaldo privado local para restaurar el trabajo anterior sin publicar datos clinicos en GitHub."]),
         hasPrivateCensusSeed() ? h("button", { class: "iaas-button", onclick: restorePrivateCensus }, ["Restaurar censo local"]) : "",
         h("a", { class: "iaas-button primary", href: "#/importar-censo" }, ["Importar censo"])
-      ])
+      ]),
+      renderHospitalDischargeHistory(date)
     ]);
   }
 
   function hospitalCensusRows(date) {
     return getCensusRows(date).map(row => ({ row, patient: store.patients[row.patientId] || {} }));
+  }
+
+  function probableDischargeHistoryRows(date) {
+    return Object.values(store.patients || {})
+      .filter(patient => patient && ["alta_probable", "alta_reportada", "requiere_conciliación", "requiere_conciliaciÃ³n"].includes(patient.hospitalizationStatus))
+      .filter(patient => !date || !patient.latestCensusDate || patient.latestCensusDate <= date)
+      .sort((a, b) => sortByServiceBed(
+        { service: a.currentService || "", bed: a.currentBed || "" },
+        { service: b.currentService || "", bed: b.currentBed || "" }
+      ));
+  }
+
+  function renderHospitalDischargeHistory(date) {
+    const rows = probableDischargeHistoryRows(date);
+    if (!rows.length) return "";
+    return h("section", { class: "iaas-panel census-discharge-history" }, [
+      h("div", { class: "iaas-panel-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Historial de pacientes fuera del censo activo"]),
+          h("p", {}, ["Pacientes que ya no aparecen en la importación actual. No ocupan cama activa; requieren investigar alta, fecha, causa y turno."])
+        ]),
+        h("span", { class: "badge critical" }, [`${rows.length} por verificar`])
+      ]),
+      h("div", { class: "discharge-history-grid" }, rows.map(patient => renderHospitalDischargeHistoryCard(patient, date)))
+    ]);
+  }
+
+  function renderHospitalDischargeHistoryCard(patient, date) {
+    const discharge = dischargePrintTextFor({ patient, row: {} });
+    const status = patient.hospitalizationStatus === "alta_reportada" ? "Alta reportada" : "Alta probable";
+    return h("article", { class: "discharge-history-card" }, [
+      h("div", {}, [
+        h("strong", {}, [patientLabel(patient)]),
+        h("span", {}, [`${patient.currentService || "Sin servicio"} · Cama ${patient.currentBed || "S/C"}`]),
+        h("small", {}, [`Último censo: ${patient.latestCensusDate || date || "sin fecha"}`])
+      ]),
+      h("p", {}, [discharge || "Investigar alta hospitalaria: fecha, causa y turno de alta."]),
+      h("div", { class: "discharge-history-actions" }, [
+        h("span", { class: "badge warning" }, [status]),
+        h("a", { class: "iaas-button ghost", href: `#/ronda/${date || activeDate()}` }, ["Verificar alta"]),
+        h("a", { class: "iaas-button", href: `#/pacientes/${patient.patientId}/seguimiento` }, ["Historial"])
+      ])
+    ]);
   }
 
   function renderCensusCommandPanel(rows, visibleRows, stats) {
@@ -3694,6 +3739,14 @@
     });
     const badge = document.querySelector("[data-census-count]");
     if (badge) badge.textContent = `${visible} de ${badge.dataset.censusTotal || rows.length}`;
+  }
+
+  function scheduleCensusSearchDom() {
+    if (ui.censusSearchFrame) cancelAnimationFrame(ui.censusSearchFrame);
+    ui.censusSearchFrame = requestAnimationFrame(() => {
+      ui.censusSearchFrame = 0;
+      applyCensusSearchDom();
+    });
   }
 
   function activeServiceCount(rows) {
@@ -6915,7 +6968,6 @@
       patient.updatedAt = now;
       patient.updatedBy = currentUserId();
       addAudit("PATIENT_RECONCILIATION_REQUIRED", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
-      censusPatients[patient.patientId] ||= reconciliationCensusRow(patient, plan);
     });
 
     store.dailyCensus[plan.date] = {
@@ -10274,6 +10326,10 @@
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
+    if (tag === "img") {
+      node.decoding = "async";
+      node.loading = attrs.loading || "lazy";
+    }
     Object.entries(attrs || {}).forEach(([key, value]) => {
       if (value === null || value === undefined || value === false) return;
       if (key === "class") node.className = value;
@@ -10949,6 +11005,7 @@
       getCensusRows,
       commandPreventiveNotifications,
       probableDischargeNotificationRows,
+      probableDischargeHistoryRows,
       movementNotificationRows,
       buildPrintReportModel,
       applyHospitalDischarge,
