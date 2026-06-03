@@ -2320,6 +2320,70 @@ body {
   flex-wrap: wrap;
 }
 
+.expediente-hero.archived {
+  border-color: rgba(248, 113, 113, .34);
+  background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(255,247,247,.96));
+}
+
+.expediente-status-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.expediente-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.expediente-data-item {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid rgba(214, 225, 240, .9);
+  border-radius: 8px;
+  background: rgba(255,255,255,.96);
+  min-width: 0;
+}
+
+.expediente-data-item span {
+  color: #65738f;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.expediente-data-item strong {
+  color: #071943;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.expediente-raw-panel details {
+  display: grid;
+  gap: 10px;
+}
+
+.expediente-raw-panel summary {
+  cursor: pointer;
+  color: #0b1848;
+  font-weight: 950;
+}
+
+.expediente-raw-panel pre {
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  color: #dbeafe;
+  background: #0b1220;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 @media (max-width: 1180px) {
   .iaas-metrics,
   .iaas-metrics.compact {

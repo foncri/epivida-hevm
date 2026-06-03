@@ -605,6 +605,8 @@
     calendarDraftTitle: "",
     calendarDraftCategory: "preventiva",
     focusTarget: "",
+    expedienteIaasLoaded: {},
+    expedienteRawLoaded: {},
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
     firebase: {
@@ -1313,6 +1315,7 @@
     if (page === "ronda") return renderRoundPage(parts[1] || activeDate());
     if (page === "seguimiento-iaas" && parts[2] === "paciente" && parts[3]) return renderPatientRound(parts[1] || activeDate(), parts[3], "iaas");
     if (page === "seguimiento-iaas") return renderIaasFollowUpHub();
+    if (page === "pacientes" && parts[2] === "expediente") return renderPatientExpediente(parts[1]);
     if (page === "pacientes" && parts[2] === "seguimiento") return renderPatientFollowUp(parts[1]);
     if (page === "reporte-diario") return renderReportsPage();
     return renderDashboard();
@@ -3324,7 +3327,7 @@
         title: patientLabel(item.patient, item.row),
         meta: `${item.row.service || "Sin servicio"} · Cama ${item.row.bed || "S/C"}`,
         detail: truncateText([item.patient.currentDiagnosis, item.patient.activePendingIssues?.join(" / "), item.row.notes].filter(Boolean).join(" / "), 110),
-        href: `#/pacientes/${item.row.patientId}/seguimiento`,
+        href: `#/pacientes/${item.row.patientId}/expediente`,
         tone: "event"
       }));
     const surgicalSignals = joinedRows.filter(item => /quir[uú]rg|cirug|herida|isq|post ?op|lape|colec|fractura|tumor/i.test([
@@ -3458,7 +3461,7 @@
             class: "iaas-button primary",
             href: `#/seguimiento-iaas/${date}/paciente/${item.row.patientId}`
           }, ["Revisar"]),
-          h("a", { class: "iaas-button ghost", href: `#/pacientes/${item.row.patientId}/seguimiento` }, ["Historial"])
+          h("a", { class: "iaas-button ghost", href: `#/pacientes/${item.row.patientId}/expediente` }, ["Expediente"])
         ])
       ]);
     }));
@@ -3584,7 +3587,7 @@
       h("div", { class: "discharge-history-actions" }, [
         h("span", { class: "badge warning" }, [status]),
         h("a", { class: "iaas-button ghost", href: `#/ronda/${date || activeDate()}` }, ["Verificar alta"]),
-        h("a", { class: "iaas-button", href: `#/pacientes/${patient.patientId}/seguimiento` }, ["Historial"])
+        h("a", { class: "iaas-button", href: `#/pacientes/${patient.patientId}/expediente` }, ["Expediente"])
       ])
     ]);
   }
@@ -4377,7 +4380,7 @@
       )),
       h("div", { class: "round-card-actions" }, [
         h("a", { class: "iaas-button primary", href: `#/ronda/${date}/paciente/${row.patientId}` }, ["Revisar"]),
-        h("a", { class: "iaas-button ghost", href: `#/pacientes/${row.patientId}/seguimiento` }, ["Seguimiento"])
+        h("a", { class: "iaas-button ghost", href: `#/pacientes/${row.patientId}/expediente` }, ["Expediente"])
       ])
     ]);
   }
@@ -5804,9 +5807,12 @@
     const patient = store.patients[patientId];
     if (!patient) return renderNotFound("Paciente no encontrado.");
     const episodes = episodesForPatient(patientId).sort((a, b) => String(a.installationDate).localeCompare(String(b.installationDate)));
-    const entries = Object.values(store.dailyRounds).flatMap(round => Object.values(round.entries || {})).filter(entry => entry.patientId === patientId);
-    return h("div", { class: "iaas-page follow-page" }, [
-      h("section", { class: "iaas-panel follow-hero" }, [
+    const entries = patientRoundHistoryEntries(patientId);
+    const censusRows = patientCensusHistoryRows(patientId);
+    const isDischarged = isArchivedPatientStatus(patient.hospitalizationStatus);
+    const dischargeText = dischargePrintTextFor({ patient, row: censusRows.at(-1)?.row || {} });
+    return h("div", { class: "iaas-page follow-page expediente-page" }, [
+      h("section", { class: `iaas-panel follow-hero expediente-hero ${isDischarged ? "archived" : ""}` }, [
         h("div", {}, [
           h("h1", {}, [`Seguimiento · ${patientLabel(patient)}`]),
           h("p", {}, [`${patient.currentService} · Cama ${patient.currentBed} · Ingreso ${patient.admissionDate || "NA"}`])
@@ -5849,6 +5855,244 @@
           ])
         ]) : h("p", { class: "muted" }, ["No hay episodios capturados."])
       ])
+    ]);
+  }
+
+  function renderPatientExpediente(patientId) {
+    const patient = store.patients[patientId];
+    if (!patient) return renderNotFound("Paciente no encontrado.");
+    const episodes = episodesForPatient(patientId).sort((a, b) => String(a.installationDate).localeCompare(String(b.installationDate)));
+    const entries = patientRoundHistoryEntries(patientId);
+    const censusRows = patientCensusHistoryRows(patientId);
+    const latest = censusRows.at(-1)?.row || {};
+    const archived = isArchivedPatientStatus(patient.hospitalizationStatus);
+    const dischargeText = dischargePrintTextFor({ patient, row: latest });
+    return h("div", { class: "iaas-page expediente-page" }, [
+      h("section", { class: `iaas-panel follow-hero expediente-hero ${archived ? "archived" : ""}` }, [
+        h("div", {}, [
+          h("h1", {}, [`Expediente · ${patientLabel(patient, latest)}`]),
+          h("p", {}, [`${patient.currentService || latest.service || "Sin servicio"} · Cama ${patient.currentBed || latest.bed || "S/C"} · Ingreso ${patient.admissionDate || latest.admissionDate || "NA"}`]),
+          h("div", { class: "expediente-status-row" }, [
+            h("span", { class: `badge ${archived ? "warning" : "ok"}` }, [patientStatusLabel(patient)]),
+            dischargeText ? h("span", { class: "badge neutral" }, [truncateText(dischargeText, 110)]) : ""
+          ])
+        ]),
+        h("div", { class: "report-actions" }, [
+          h("a", { class: "iaas-button ghost", href: "#/censo-hospitalario" }, ["Volver al censo"]),
+          h("button", { class: "iaas-button", onclick: () => printPatientExpediente(patientId) }, ["Imprimir expediente"])
+        ])
+      ]),
+      renderMetricGrid([
+        ["Estancia", daysBetween(patient.admissionDate || latest.admissionDate, patient.dischargeDate || latest.dischargeDate || isoToday()) ?? "NA", "dias"],
+        ["Censos", censusRows.length, "historico"],
+        ["Rondas", entries.length, "registradas"],
+        ["Episodios", episodes.length, "invasivos"],
+        ["Invasivos activos", activeEpisodes(patientId, isoToday()).length, "actual"]
+      ], "compact"),
+      renderPatientExpedienteSummary(patient, latest),
+      h("section", { class: "iaas-grid two" }, [
+        h("article", { class: "iaas-panel" }, [
+          h("h2", {}, ["Linea de tiempo de invasivos"]),
+          renderDeviceTimeline(episodes)
+        ]),
+        h("article", { class: "iaas-panel" }, [
+          h("h2", {}, ["Estado por ronda"]),
+          renderRoundTimeline(entries)
+        ])
+      ]),
+      renderPatientCensusHistoryTable(censusRows),
+      renderPatientRoundHistoryTable(entries),
+      renderPatientDeviceHistoryTable(episodes),
+      renderExpedienteIaasSection(patient, patientId, patient.dischargeDate || latest.dischargeDate || isoToday()),
+      renderExpedienteRawData(patient, censusRows, entries, episodes)
+    ]);
+  }
+
+  function printPatientExpediente(patientId) {
+    location.hash = `#/pacientes/${patientId}/expediente`;
+    setTimeout(() => window.print(), 80);
+  }
+
+  function isArchivedPatientStatus(status) {
+    return ["alta_probable", "alta_reportada", "egresado", "traslado_probable", "defunciÃ³n_probable", "defunción_probable"].includes(status);
+  }
+
+  function patientStatusLabel(patient = {}) {
+    const labels = {
+      hospitalizado: "Hospitalizado",
+      alta_probable: "Alta probable",
+      alta_reportada: "Alta reportada",
+      egresado: "Egresado",
+      traslado_probable: "Traslado probable",
+      "defunciÃ³n_probable": "Defuncion probable",
+      "defunción_probable": "Defuncion probable",
+      "requiere_conciliaciÃ³n": "Requiere conciliacion",
+      "requiere_conciliación": "Requiere conciliacion"
+    };
+    return labels[patient.hospitalizationStatus] || patient.hospitalizationStatus || "Sin estado";
+  }
+
+  function dischargeTypeLabel(type) {
+    const value = cleanCell(type);
+    if (!value) return "Pendiente";
+    const found = DISCHARGE_TYPES.find(item => item.value === value || normalizeText(item.label) === normalizeText(value));
+    return found?.label || value;
+  }
+
+  function patientCensusHistoryRows(patientId) {
+    return Object.entries(store.dailyCensus || {})
+      .flatMap(([date, census]) => {
+        const row = census.patients?.[patientId];
+        return row ? [{ date, row }] : [];
+      })
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }
+
+  function patientRoundHistoryEntries(patientId) {
+    return Object.entries(store.dailyRounds || {})
+      .flatMap(([date, round]) => {
+        const entry = round.entries?.[patientId];
+        return entry ? [{ ...entry, roundDate: entry.roundDate || date }] : [];
+      })
+      .sort((a, b) => String(a.roundDate).localeCompare(String(b.roundDate)));
+  }
+
+  function renderPatientExpedienteSummary(patient, latest = {}) {
+    const rows = [
+      ["Nombre", patientLabel(patient, latest)],
+      ["Servicio actual/ultimo", patient.currentService || latest.service || "Sin servicio"],
+      ["Cama actual/ultima", patient.currentBed || latest.bed || "S/C"],
+      ["Fecha de ingreso", patient.admissionDate || latest.admissionDate || "NA"],
+      ["Fecha de alta", patient.dischargeDate || latest.dischargeDate || "Pendiente"],
+      ["Causa de alta", dischargeTypeLabel(patient.dischargeType || latest.dischargeType)],
+      ["Turno de alta", patient.dischargeShift || latest.dischargeShift || "Pendiente"],
+      ["Edad / sexo", `${patient.age ?? latest.age ?? "S/E"} / ${patient.sex || latest.sex || "S/S"}`],
+      ["Sector", patient.sector || latest.sector || "Sin sector"],
+      ["RFC / ID", patient.rfc || patient.hospitalInternalId || latest.rfc || patient.patientId],
+      ["Estado clinico", patient.currentState || latest.state || "Sin estado"],
+      ["Dx hospitalario", patient.currentDiagnosis || latest.diagnosis || "Sin diagnostico"],
+      ["Dx epidemiologico", patient.epidemiologicalDiagnosis || latest.epidemiologicalDiagnosis || "Sin clasificar"],
+      ["Observaciones", patient.observations || latest.observations || latest.notes || "Sin observaciones"]
+    ];
+    return h("section", { class: "iaas-panel expediente-summary-panel" }, [
+      h("h2", {}, ["Datos completos del paciente"]),
+      h("div", { class: "expediente-data-grid" }, rows.map(([label, value]) =>
+        h("div", { class: "expediente-data-item" }, [
+          h("span", {}, [label]),
+          h("strong", {}, [String(value || "NA")])
+        ])
+      ))
+    ]);
+  }
+
+  function renderPatientCensusHistoryTable(rows) {
+    return h("section", { class: "iaas-panel expediente-history-panel" }, [
+      h("h2", {}, ["Historial de censos"]),
+      rows.length ? h("div", { class: "table-wrap" }, [
+        h("table", { class: "iaas-table compact" }, [
+          h("thead", {}, [h("tr", {}, ["Fecha", "Servicio", "Cama", "Presente", "Estado", "Diagnostico", "Notas"].map(label => h("th", {}, [label])))]),
+          h("tbody", {}, rows.map(({ date, row }) => h("tr", {}, [
+            h("td", {}, [date]),
+            h("td", {}, [row.service || "Sin servicio"]),
+            h("td", {}, [row.bed || "S/C"]),
+            h("td", {}, [row.present === false ? "No" : "Si"]),
+            h("td", {}, [row.probableDischarge ? "Alta probable" : row.reviewStatus || row.dischargeStatus || "Activo"]),
+            h("td", {}, [truncateText(row.diagnosis || row.epidemiologicalDiagnosis || "", 120)]),
+            h("td", {}, [truncateText(row.notes || row.observations || "", 160)])
+          ])))
+        ])
+      ]) : h("p", { class: "muted" }, ["Sin censos guardados para este paciente."])
+    ]);
+  }
+
+  function renderPatientRoundHistoryTable(entries) {
+    return h("section", { class: "iaas-panel expediente-history-panel" }, [
+      h("h2", {}, ["Historial de rondas y alertas"]),
+      entries.length ? h("div", { class: "table-wrap" }, [
+        h("table", { class: "iaas-table compact" }, [
+          h("thead", {}, [h("tr", {}, ["Fecha", "Servicio", "Cama", "Estado", "Alertas", "Notas"].map(label => h("th", {}, [label])))]),
+          h("tbody", {}, entries.map(entry => h("tr", {}, [
+            h("td", {}, [entry.roundDate || "NA"]),
+            h("td", {}, [entry.service || "Sin servicio"]),
+            h("td", {}, [entry.bed || "S/C"]),
+            h("td", {}, [statusLabel(entry.status)]),
+            h("td", {}, [truncateText((entry.alertsGenerated || []).join(" · "), 170)]),
+            h("td", {}, [truncateText(entry.notes || "", 170)])
+          ])))
+        ])
+      ]) : h("p", { class: "muted" }, ["Sin rondas guardadas para este paciente."])
+    ]);
+  }
+
+  function renderPatientDeviceHistoryTable(episodes) {
+    return h("section", { class: "iaas-panel expediente-history-panel" }, [
+      h("h2", {}, ["Episodios de dispositivos"]),
+      episodes.length ? h("div", { class: "table-wrap" }, [
+        h("table", { class: "iaas-table compact" }, [
+          h("thead", {}, [h("tr", {}, ["Tipo", "Instalacion", "Retiro", "Estado", "Reinstalacion", "Cuidado"].map(label => h("th", {}, [label])))]),
+          h("tbody", {}, episodes.map(ep => h("tr", {}, [
+            h("td", {}, [ep.deviceType]),
+            h("td", {}, [ep.installationDate || "Datos incompletos"]),
+            h("td", {}, [ep.removalDate || "Activo"]),
+            h("td", {}, [ep.status || "Activo"]),
+            h("td", {}, [ep.isReinstallation ? "Si" : "No"]),
+            h("td", {}, [careLabel(ep.careStatus)])
+          ])))
+        ])
+      ]) : h("p", { class: "muted" }, ["No hay episodios capturados."])
+    ]);
+  }
+
+  function renderExpedienteIaasSection(patient, patientId, date) {
+    const loaded = Boolean(ui.expedienteIaasLoaded?.[patientId]);
+    return h("section", { class: "iaas-panel expediente-detail-panel" }, [
+      h("div", { class: "iaas-panel-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Seguimiento IAAS diario"]),
+          h("p", { class: "muted" }, ["Tabla extensa cargada bajo demanda para mantener rapido el expediente y el censo."])
+        ]),
+        loaded ? h("button", {
+          class: "iaas-button ghost",
+          onclick: () => {
+            ui.expedienteIaasLoaded[patientId] = false;
+            renderIaas();
+          }
+        }, ["Ocultar tabla"]) : h("button", {
+          class: "iaas-button",
+          onclick: () => {
+            ui.expedienteIaasLoaded[patientId] = true;
+            renderIaas();
+          }
+        }, ["Cargar tabla"])
+      ]),
+      loaded ? renderDailyIaasTable(patient, patientId, date) : h("p", { class: "muted" }, ["El expediente ya conserva los datos. Carga la tabla solo cuando necesites revisar el seguimiento diario completo."])
+    ]);
+  }
+
+  function renderExpedienteRawData(patient, censusRows, entries, episodes) {
+    const patientId = patient.patientId;
+    const loaded = Boolean(ui.expedienteRawLoaded?.[patientId]);
+    return h("section", { class: "iaas-panel expediente-raw-panel" }, [
+      h("div", { class: "iaas-panel-head" }, [
+        h("div", {}, [
+          h("h2", {}, ["Datos tecnicos completos conservados"]),
+          h("p", { class: "muted" }, ["Vista de auditoria bajo demanda. No se construye al abrir el censo ni al abrir el expediente inicial."])
+        ]),
+        loaded ? h("button", {
+          class: "iaas-button ghost",
+          onclick: () => {
+            ui.expedienteRawLoaded[patientId] = false;
+            renderIaas();
+          }
+        }, ["Ocultar datos"]) : h("button", {
+          class: "iaas-button",
+          onclick: () => {
+            ui.expedienteRawLoaded[patientId] = true;
+            renderIaas();
+          }
+        }, ["Cargar datos tecnicos"])
+      ]),
+      loaded ? h("pre", {}, [JSON.stringify({ paciente: patient, censos: censusRows, rondas: entries, dispositivos: episodes }, null, 2)]) : h("p", { class: "muted" }, ["Los datos completos estan conservados. Cargalos solo si necesitas auditoria tecnica o exportacion manual."])
     ]);
   }
 
@@ -10124,7 +10368,7 @@
   }
 
   function printPatientFollowUp(patientId) {
-    location.hash = `#/pacientes/${patientId}/seguimiento`;
+    location.hash = `#/pacientes/${patientId}/expediente`;
     setTimeout(() => window.print(), 80);
   }
 
@@ -11066,6 +11310,7 @@
       addDeviceDraft,
       updateDeviceDraft,
       renderPatientRound,
+      renderPatientExpediente,
       validateReviewDraft,
       defaultPreventiveDevice,
       packageCreatesDevice,
