@@ -1,4 +1,4 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-03-02";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-03-03";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,8 +8,8 @@ const APP_SHELL = [
   "./styles/epivida-assets.css",
   "./epivida-date-guard.js?v=2026-05-08-date01",
   "./data/censo-data.js",
-  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-03-expediente01",
-  "./iaas-system.js?v=2026-06-03-expediente01",
+  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-03-offlineaccess01",
+  "./iaas-system.js?v=2026-06-03-offlineaccess01",
   "./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05",
   "./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01",
   "./iaas-history-range-filter-2026-05-12.js?v=2026-05-12-history01",

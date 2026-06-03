@@ -628,6 +628,7 @@
     focusTarget: "",
     expedienteIaasLoaded: {},
     expedienteRawLoaded: {},
+    offlineAccess: false,
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
     firebase: {
@@ -683,7 +684,9 @@
   boot();
 
   async function boot() {
+    await window.__epividaOfflineReady?.catch?.(() => null);
     await initFirebaseIfConfigured();
+    activateOfflineAccessIfNeeded();
     if (!location.hash) location.hash = "#/dashboard";
     renderIaas();
     startDashboardSlideLoop();
@@ -1100,6 +1103,7 @@
   function renderIaas() {
     const app = document.querySelector("#app");
     if (!app) return;
+    activateOfflineAccessIfNeeded();
     if (ui.renderTimer) {
       window.clearTimeout(ui.renderTimer);
       ui.renderTimer = null;
@@ -1135,12 +1139,46 @@
     }, delay);
   }
 
+  function canUseOfflineAccess() {
+    return Boolean(ui.offlineAccess && !navigator.onLine && localClinicalStoreAvailable());
+  }
+
+  function localClinicalStoreAvailable() {
+    return Object.keys(store.patients || {}).length > 0
+      || Object.keys(store.dailyCensus || {}).length > 0
+      || Object.keys(store.dailyRounds || {}).length > 0;
+  }
+
+  function activateOfflineAccessIfNeeded() {
+    const realUserActive = ui.firebase.user && ui.firebase.user.uid !== "offline-local-user";
+    if (navigator.onLine || !ui.requireAuth || !ui.firebase.enabled || realUserActive || ui.firebase.denied) {
+      ui.offlineAccess = false;
+      if (navigator.onLine && ui.firebase.user?.uid === "offline-local-user") ui.firebase.user = null;
+      return false;
+    }
+    if (!localClinicalStoreAvailable()) return false;
+    ui.offlineAccess = true;
+    ui.firebase.ready = false;
+    ui.firebase.user = {
+      uid: "offline-local-user",
+      email: "offline@epivida.local",
+      displayName: "Modo offline local"
+    };
+    ui.firebase.realtimeStatus = "Modo offline local: datos guardados en este dispositivo";
+    ui.firebase.offlinePersistence = "Acceso offline desde respaldo local del dispositivo";
+    ui.sheets.status = "disconnected";
+    ui.sheets.connected = false;
+    ui.sheets.accessToken = "";
+    return true;
+  }
+
   function renderShell() {
     const route = ui.route.page;
-    const authOnly = ui.firebase.denied || (ui.requireAuth && ui.firebase.enabled && !ui.firebase.user);
+    const offlineAllowed = canUseOfflineAccess();
+    const authOnly = ui.firebase.denied || (ui.requireAuth && ui.firebase.enabled && !ui.firebase.user && !offlineAllowed);
     const content = ui.firebase.denied
       ? renderAccessDenied()
-      : ui.requireAuth && ui.firebase.enabled && !ui.firebase.user
+      : ui.requireAuth && ui.firebase.enabled && !ui.firebase.user && !offlineAllowed
         ? renderLogin()
         : renderRoute();
     if (authOnly) {
@@ -1197,7 +1235,7 @@
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
         h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
-        ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
+        ui.offlineAccess ? "" : ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
       ])
     ]);
   }
@@ -1232,13 +1270,16 @@
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
         h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
-        ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
+        ui.offlineAccess ? "" : ui.firebase.user ? h("button", { class: "iaas-button ghost", onclick: signOutFirebase }, [commandIcon("logout"), "Cerrar sesión"]) : ""
       ])
     ]);
   }
 
   function renderSyncState() {
     const pending = pendingQueue().length;
+    if (ui.offlineAccess) {
+      return h("span", { class: "sync offline", title: "Acceso offline desde respaldo local del dispositivo" }, [`Modo offline local · ${pending} pendiente(s)`]);
+    }
     if (ui.sheets.enabled) {
       const status = ui.sheets.status;
       const className = !navigator.onLine
@@ -9429,6 +9470,12 @@
     const config = window.EPIVIDA_FIREBASE_CONFIG;
     if (!config) return;
     ui.firebase.enabled = true;
+    if (!navigator.onLine) {
+      ui.firebase.error = "Sin conexión. Se intentará usar el respaldo local de este dispositivo.";
+      ui.firebase.ready = false;
+      ui.firebase.realtimeStatus = "Firebase no disponible sin internet";
+      return;
+    }
     try {
       const [appMod, authMod, fsMod] = await Promise.all([
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
@@ -11385,6 +11432,8 @@
       probableDischargeNotificationRows,
       probableDischargeHistoryRows,
       movementNotificationRows,
+      canUseOfflineAccess,
+      activateOfflineAccessIfNeeded,
       expedienteRowsForSheets,
       buildPrintReportModel,
       applyHospitalDischarge,
