@@ -7230,6 +7230,14 @@
       conflicts: plan.conflicts || []
     };
     plan.removedCensusPatientIds = Object.keys(previousCensusPatients || {}).filter(patientId => !censusPatients[patientId]);
+    plan.removedCensusArchiveRows = Object.fromEntries((plan.removedCensusPatientIds || []).map(patientId => [
+      patientId,
+      archivedMissingCensusRow(previousCensusPatients[patientId], store.patients[patientId], plan)
+    ]));
+    plan.removedRoundArchiveEntries = Object.fromEntries((plan.removedCensusPatientIds || []).map(patientId => [
+      patientId,
+      clone(store.dailyRounds?.[plan.date]?.entries?.[patientId] || {})
+    ]));
     store.activeDate = plan.date;
     ui.sheets.activeDate = plan.date;
     ensureDailyRound(plan.date);
@@ -7347,6 +7355,28 @@
     };
   }
 
+  function archivedMissingCensusRow(previousRow, patient, plan) {
+    const base = previousRow || probableDischargeCensusRow(patient || {}, plan);
+    return {
+      ...base,
+      patientId: base.patientId || patient?.patientId,
+      service: base.service || patient?.currentService || "SIN SERVICIO",
+      bed: base.bed || patient?.currentBed || "S/C",
+      patientName: base.patientName || patient?.patientName || null,
+      present: false,
+      probableDischarge: true,
+      dischargeReviewRequired: true,
+      reconciliationRequired: true,
+      importedFromFile: false,
+      importBatchId: plan.importBatchId,
+      reviewStatus: "alerta",
+      importAlerts: mergeUnique(base.importAlerts || [], [PROBABLE_DISCHARGE_MESSAGE]),
+      observations: mergeClinicalText(base.observations || "", PROBABLE_DISCHARGE_MESSAGE),
+      notes: mergeClinicalText(base.notes || "", PROBABLE_DISCHARGE_MESSAGE),
+      syncStatus: syncStatusForNewWrite()
+    };
+  }
+
   function normalizedClinicalImportValue(value) {
     const text = cleanCell(value);
     const key = normalizeText(text);
@@ -7383,8 +7413,26 @@
       ops.push({ path: `dailyCensus/${plan.date}/patients/${row.patientId}`, action: "set", data: row });
     });
     (plan.removedCensusPatientIds || []).forEach(patientId => {
-      ops.push({ path: `dailyCensus/${plan.date}/patients/${patientId}`, action: "delete" });
-      ops.push({ path: `dailyRounds/${plan.date}/entries/${patientId}`, action: "delete" });
+      const archivedRow = plan.removedCensusArchiveRows?.[patientId] || archivedMissingCensusRow(null, store.patients[patientId], plan);
+      const existingEntry = plan.removedRoundArchiveEntries?.[patientId] || store.dailyRounds[plan.date]?.entries?.[patientId] || {};
+      ops.push({ path: `dailyCensus/${plan.date}/patients/${patientId}`, action: "set", data: archivedRow, merge: true });
+      ops.push({
+        path: `dailyRounds/${plan.date}/entries/${patientId}`,
+        action: "set",
+        merge: true,
+        data: {
+          ...existingEntry,
+          entryId: patientId,
+          patientId,
+          service: archivedRow.service,
+          bed: archivedRow.bed,
+          roundDate: plan.date,
+          status: existingEntry.status || "alerta",
+          alertsGenerated: mergeUnique(existingEntry.alertsGenerated || [], [PROBABLE_DISCHARGE_MESSAGE]),
+          notes: mergeClinicalText(existingEntry.notes || "", PROBABLE_DISCHARGE_MESSAGE),
+          syncStatus: syncStatusForNewWrite()
+        }
+      });
     });
     (plan.rows || []).forEach(row => affected.add(row.patientId));
     (plan.reconciliationMissing || []).forEach(patient => affected.add(patient.patientId));

@@ -2320,14 +2320,6 @@ body {
   flex-wrap: wrap;
 }
 
-.hospital-census-page > section,
-.hospital-census-page > div,
-.round-page > section,
-.round-page > div {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 520px;
-}
-
 @media (max-width: 1180px) {
   .iaas-metrics,
   .iaas-metrics.compact {
