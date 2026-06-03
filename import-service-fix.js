@@ -30,6 +30,8 @@
   const clean = value => String(value ?? "").replace(/\s+/g, " ").trim();
   const norm = value => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   const unique = values => [...new Set(values.map(clean).filter(Boolean))];
+  const LOCATION_RX = /^(TUXTLA|TUXTLA\s+GUTIERREZ|TUXLTA\s+GUTIERREZ|SAN\s+CRISTOBAL|JIQUIPILAS|VILLA\s+CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA\s+DE\s+CORZO|CHIAPAS|TONALA|VILLAFLORES|VILLACORZO|CINTALAPA)$/;
+  const DEVICE_RX = /\b(SONDA|FOLEY|PICC|CATETER|CATETERES|DRENOVAC|PENROSE|SNG|CVC|VVC|DRENAJE|INSTALACION|INSTALACI[OÓ]N)\b/i;
 
   function serviceFromText(value) {
     const key = norm(value).replace(/\s+/g, " ");
@@ -37,6 +39,19 @@
     const explicit = key.match(/\bSERVICIO\s*:?\s*(.+)$/);
     const target = explicit ? explicit[1] : key;
     return SERVICES.find(([service]) => service === target)?.[0] || SERVICES.find(([, rx]) => rx.test(target))?.[0] || "";
+  }
+
+  function patientName(value) {
+    const text = clean(value);
+    if (!text) return "";
+    const marker = text.search(DEVICE_RX);
+    return clean(marker > 0 ? text.slice(0, marker) : text)
+      .replace(/\s+[.,:;-]+$/g, "")
+      .trim();
+  }
+
+  function location(value) {
+    return LOCATION_RX.test(norm(value).replace(/\s+/g, " "));
   }
 
   function serviceFromBed(value, currentService = "") {
@@ -154,7 +169,7 @@
     if (["MAG", "MAGISTERIO"].includes(key)) return "MAGISTERIO";
     if (["BUR", "BUROCRACIA"].includes(key)) return "BUROCRACIA";
     if (["PIM", "PENSIONADO ISSTECH MAGISTERIO", "PENSIONADO MAGISTERIO"].includes(key)) return "PENSIONADO ISSTECH MAGISTERIO";
-    if (["PIB", "PENSIONADO ISSTECH BUROCRACIA", "PENSIONADO BUROCRACIA"].includes(key)) return "PENSIONADO ISSTECH BUROCRACIA";
+    if (["PIB", "PGB", "PENSIONADO ISSTECH BUROCRACIA", "PENSIONADO BUROCRACIA"].includes(key)) return "PENSIONADO ISSTECH BUROCRACIA";
     if (key.includes("ISSTECH")) return key.includes("PENSIONADO") ? key : "ISSTECH";
     if (["PRIV", "PRIVADO", "PARTICULAR"].includes(key)) return "PRIVADO";
     return "";
@@ -178,34 +193,49 @@
 
   function admin(value) {
     const key = norm(value);
-    return !key || /^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}/.test(key)
-      || /^(AMERITA|NO AMERITA|DR|DRA|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD|GASTRO|NEFRO)$/.test(key)
+    return !key || location(value) || /^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}(?:\s*H(?:RS?|RAS)?)?/.test(key)
+      || /^(AMERITA|NO AMERITA|VPO|VPA|A ROL|DR|DRA|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD|GASTRO|NEFRO)$/.test(key)
       || /\bDR\.?\s|DRA\.?\s|GUARDIA|MEDICO|ESPECIALIDAD\b/.test(key);
   }
 
   function observation(value) {
     const key = norm(value);
     if (/^(SP|S\/P|S P|NA|N\/A|PENDIENTE)$/.test(key)) return "SP";
-    return /\b(CITA|PROGRAMAR|VALORACION|LABORATORIO|PENDIENTE|VIGILAR|PROCEDIMIENTO|CONSULTA|PREALTA|ALTA|EGRESO|DEFUNCION|AYUNO|UROCULTIVO|HEMOCULTIVO|USG|RX|TAC|LABS)\b/.test(key)
+    return /\b(CITA|PROGRAMAR|VALORACION|LABORATORIO|PENDIENTE|VIGILAR|PROCEDIMIENTO|CONSULTA|PREALTA|ALTA|EGRESO|DEFUNCION|AYUNO|UROCULTIVO|HEMOCULTIVO|USG|RX|TAC|LABS|IC\s+A)\b/.test(key)
       ? clean(value).toUpperCase()
       : "";
   }
 
   function diagnosis(value) {
     const key = norm(value);
-    if (key.length < 3 || admin(value) || serviceFromText(value) || looksBed(value) || rfc(value) || sex(value) || sector(value) || state(value) || normalizeDate(value) || observation(value)) return false;
+    const standaloneService = serviceFromText(value) && clean(value).length <= 30 && !/[\/,;]/.test(value);
+    if (key.length < 3 || admin(value) || standaloneService || looksBed(value) || rfc(value) || sex(value) || sector(value) || state(value) || normalizeDate(value) || observation(value)) return false;
     return /[A-Z]{3,}/.test(key);
   }
 
   function looksName(value) {
-    const text = clean(value);
+    const text = patientName(value);
     const key = norm(text);
-    if (text.length < 5 || serviceFromText(text) || looksBed(text) || rfc(text) || normalizeDate(text)) return false;
+    if (text.length < 5 || location(text) || serviceFromText(text) || looksBed(text) || rfc(text) || normalizeDate(text)) return false;
     if (/\b(NOMBRE|PACIENTE|SERVICIO|FECHA|SECTOR|GUARDIA|MEDICO|PENDIENTES|ESPECIALIDAD|TOTAL|DIAGNOSTICO|OBSERVACIONES)\b/.test(key)) return false;
     return /[A-Z]{2,}\s+[A-Z]{2,}/.test(key);
   }
 
+  function findPatientIndex(values) {
+    const firstStructured = values.findIndex(value => normalizeDate(value) || rfc(value) || sex(value));
+    return values.findIndex((value, index) => looksName(value) && (firstStructured < 0 || index <= firstStructured));
+  }
+
+  function hasBedBeforePatient(values, patientIndex) {
+    for (let i = 0; i < Math.min(patientIndex, 4); i += 1) {
+      if (looksBed(values[i])) return true;
+    }
+    return false;
+  }
+
   function guide(values) {
+    const patientIndex = findPatientIndex(values);
+    if (patientIndex >= 0 && hasBedBeforePatient(values, patientIndex)) return false;
     const text = norm(values.filter(Boolean).join(" "));
     return !text || /\b(NOMBRE\s+DEL\s+PACIENTE|FECHA\s+INGRESO|GUARDIA|ESPECIALIDAD|MEDICO|PENDIENTES|E\s*C\s*D|RESUMENES|TOTAL|ALTAS)\b/.test(text);
   }
@@ -220,8 +250,33 @@
     return nonEmpty.length <= 4 ? serviceFromText(text) : "";
   }
 
+  function mergeContinuationRows(matrix) {
+    const rows = [];
+    matrix.forEach(values => {
+      const previous = rows[rows.length - 1];
+      const previousPatient = previous ? findPatientIndex(previous) : -1;
+      const currentHasStructuredData = values.slice(1).some(value => normalizeDate(value) || rfc(value) || sex(value));
+      const isContinuation = previous
+        && previousPatient >= 0
+        && hasBedBeforePatient(previous, previousPatient)
+        && !normalizeDate(previous[previousPatient + 1] || "")
+        && !clean(values[0])
+        && currentHasStructuredData;
+      if (!isContinuation) {
+        rows.push([...values]);
+        return;
+      }
+      values.forEach((value, index) => {
+        if (!index || !clean(value)) return;
+        const targetIndex = index + previousPatient;
+        previous[targetIndex] = previous[targetIndex] ? `${previous[targetIndex]} ${clean(value)}` : clean(value);
+      });
+    });
+    return rows;
+  }
+
   function parseRow(values, currentService, censusDate, sourceName) {
-    const patientIndex = values.findIndex(looksName);
+    const patientIndex = findPatientIndex(values);
     if (patientIndex < 0) return null;
     let bedIndex = -1;
     for (let i = 0; i < Math.min(patientIndex, 4); i += 1) {
@@ -246,7 +301,7 @@
     return {
       Servicio: resolveRowService(rawBed, currentService, sourceName),
       Cama: bedLabel(rawBed) || "PENDIENTE",
-      Paciente: clean(values[patientIndex]).toUpperCase(),
+      Paciente: patientName(values[patientIndex]).toUpperCase(),
       "Fecha de nacimiento": birth?.iso || "",
       Edad: age(ageItem?.value) || "",
       Sector: sector(sectorItem?.value) || "PENDIENTE",
@@ -262,6 +317,7 @@
 
   function parseMatrix(matrix, fallbackDate = "", sourceName = "") {
     matrix = (matrix || []).map(row => (row || []).map(clean)).filter(row => row.some(Boolean));
+    matrix = mergeContinuationRows(matrix);
     if (!matrix.length) return [];
     let currentService = serviceFromText(sourceName) || serviceFromText(matrix.slice(0, 12).map(row => row.join(" ")).join(" "));
     const censusDate = normalizeDate(fallbackDate) || new Date().toISOString().slice(0, 10);
