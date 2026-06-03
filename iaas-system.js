@@ -24,6 +24,7 @@
       baseDatos: "BASE_DATOS",
       rondas: "RONDAS_IAAS",
       dispositivos: "DISPOSITIVOS",
+      expedientes: "EXPEDIENTES",
       auditoria: "AUDITORIA",
       catalogos: "CATALOGOS"
     },
@@ -34,6 +35,7 @@
     baseDatos: "BASE_DATOS",
     rondas: "RONDAS_IAAS",
     dispositivos: "DISPOSITIVOS",
+    expedientes: "EXPEDIENTES",
     auditoria: "AUDITORIA",
     catalogos: "CATALOGOS",
     ...((window.EPIVIDA_SHEETS_CONFIG || {}).tabs || {})
@@ -117,6 +119,25 @@
     "round_date",
     "metadata_json",
     "server_confirmed_at"
+  ];
+  const EXPEDIENTE_SHEET_HEADERS = [
+    "patient_id",
+    "paciente",
+    "estado",
+    "servicio_ultimo",
+    "cama_ultima",
+    "fecha_ingreso",
+    "fecha_alta",
+    "causa_alta",
+    "turno_alta",
+    "ultimo_censo",
+    "censos_guardados",
+    "rondas_guardadas",
+    "episodios_dispositivos",
+    "tiene_paquete_preventivo",
+    "tiene_iaas",
+    "tiene_invasivos",
+    "abrir_expediente"
   ];
   const NAV_ICONS = {
     dashboard: "icon-dashboard",
@@ -8201,10 +8222,12 @@
     const writeId = `sheets-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const confirmedAt = nowIso();
     const pendingAuditLogs = store.auditLogs.filter(log => !log.serverConfirmedAt);
+    await ensureSheetsTabs([SHEETS_CONFIG.tabs.expedientes]);
     const clearRanges = [
       sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${SHEETS_CONFIG.maxRows}`),
+      sheetRange(SHEETS_CONFIG.tabs.expedientes, `A1:Q${SHEETS_CONFIG.maxRows}`),
       sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100")
     ];
     await sheetsRequest("/values:batchClear", {
@@ -8219,7 +8242,8 @@
           { range: sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B9"), values: appConfigRows(writeId, confirmedAt) },
           { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${baseRowsForSheets().length}`), values: baseRowsForSheets() },
           { range: sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${roundRowsForSheets().length}`), values: roundRowsForSheets() },
-          { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRowsForSheets().length}`), values: deviceRowsForSheets() }
+          { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRowsForSheets().length}`), values: deviceRowsForSheets() },
+          { range: sheetRange(SHEETS_CONFIG.tabs.expedientes, `A1:Q${expedienteRowsForSheets().length}`), values: expedienteRowsForSheets() }
         ]
       })
     });
@@ -8241,6 +8265,21 @@
     const range = encodeURIComponent(sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100"));
     const response = await sheetsRequest(`/values/${range}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`);
     return keyValueRows(response.values || []);
+  }
+
+  async function ensureSheetsTabs(names = []) {
+    const wanted = unique(names.map(cleanCell).filter(Boolean));
+    if (!wanted.length) return;
+    const metadata = await sheetsRequest("?fields=sheets(properties(title))", { method: "GET" });
+    const existing = new Set((metadata.sheets || []).map(sheet => normalizeText(sheet.properties?.title)));
+    const requests = wanted
+      .filter(name => !existing.has(normalizeText(name)))
+      .map(title => ({ addSheet: { properties: { title } } }));
+    if (!requests.length) return;
+    await sheetsRequest(":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({ requests })
+    });
   }
 
   async function sheetsRequest(path, options = {}) {
@@ -9168,6 +9207,51 @@
       jsonCell(ep)
     ]);
     return [DEVICE_SHEET_HEADERS, ...rows];
+  }
+
+  function expedienteRowsForSheets() {
+    const rows = Object.values(store.patients || {})
+      .sort((a, b) => String(a.patientName || "").localeCompare(String(b.patientName || ""), "es"))
+      .map(patient => {
+        const patientId = patient.patientId;
+        const censusRows = patientCensusHistoryRows(patientId);
+        const roundEntries = patientRoundHistoryEntries(patientId);
+        const episodes = episodesForPatient(patientId);
+        const latest = censusRows.at(-1)?.row || {};
+        const hasPackage = roundEntries.some(entry =>
+          (entry.reviewedDevices || []).length
+          || (entry.pendingIssuesAdded || []).length
+          || iaasAssessmentHasContent(entry.iaasAssessment)
+        );
+        const hasIaas = Boolean(cleanCell(patient.epidemiologicalDiagnosis) || roundEntries.some(entry => iaasAssessmentHasContent(entry.iaasAssessment)));
+        const hasInvasives = episodes.length > 0;
+        return [
+          patientId,
+          patientLabel(patient, latest),
+          patientStatusLabel(patient),
+          patient.currentService || latest.service || "",
+          patient.currentBed || latest.bed || "",
+          patient.admissionDate || latest.admissionDate || "",
+          patient.dischargeDate || latest.dischargeDate || "",
+          dischargeTypeLabel(patient.dischargeType || latest.dischargeType),
+          patient.dischargeShift || latest.dischargeShift || "",
+          patient.latestCensusDate || censusRows.at(-1)?.date || "",
+          censusRows.length,
+          roundEntries.length,
+          episodes.length,
+          boolCell(hasPackage),
+          boolCell(hasIaas),
+          boolCell(hasInvasives),
+          expedienteHyperlinkFormula(patientId)
+        ];
+      });
+    return [EXPEDIENTE_SHEET_HEADERS, ...rows];
+  }
+
+  function expedienteHyperlinkFormula(patientId) {
+    const base = new URL(".", location.href).href.replace(/#.*$/, "");
+    const url = `${base}index.html#/pacientes/${encodeURIComponent(patientId)}/expediente`;
+    return `=HYPERLINK("${url}","Abrir expediente")`;
   }
 
   function appConfigRows(writeId, updatedAt) {
@@ -10652,6 +10736,7 @@
   function saveStore(next = store) {
     next.lastSavedAt = nowIso();
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    window.EpiVidaOfflineBackup?.saveSnapshot?.();
   }
 
   function loadJson(key, fallback) {
@@ -10664,6 +10749,7 @@
 
   function saveJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
+    if (key === DRAFT_KEY) window.EpiVidaOfflineBackup?.saveSnapshot?.();
   }
 
   function scheduleDraftSave(delay = 350) {
@@ -11299,6 +11385,7 @@
       probableDischargeNotificationRows,
       probableDischargeHistoryRows,
       movementNotificationRows,
+      expedienteRowsForSheets,
       buildPrintReportModel,
       applyHospitalDischarge,
       serviceMatchesFilter,

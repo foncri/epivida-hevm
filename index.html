@@ -9,6 +9,12 @@
     />
     <title>EpiVida IAAS | Centro de Vigilancia</title>
     <link rel="icon" href="./assets/epivida/logos/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#172a6a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="EpiVida" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preload" href="./assets/epivida/logos/epivida-logo-gradient.svg" as="image" />
     <link rel="stylesheet" href="./styles/epivida-assets.css" />
     <link rel="stylesheet" href="./iaas-system.css?v=2026-06-03-expediente01" />
@@ -62,6 +68,7 @@
           baseDatos: "BASE_DATOS",
           rondas: "RONDAS_IAAS",
           dispositivos: "DISPOSITIVOS",
+          expedientes: "EXPEDIENTES",
           auditoria: "AUDITORIA",
           catalogos: "CATALOGOS"
         }
@@ -83,7 +90,14 @@
       })();
     </script>
     <script>
-      const epividaScripts = ["./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-offline01").catch(error => {
+            console.warn("No se pudo registrar modo offline EpiVida.", error);
+          });
+        });
+      }
+      const epividaScripts = ["./epivida-offline-storage-2026-06-03.js?v=2026-06-03-offline01", "./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
       if (location.hostname === "localhost") {
         epividaScripts.push("./data/censo-data.private.js");
       }
@@ -122,6 +136,9 @@
             script.src = src;
             script.onload = async () => {
               try {
+                if (src.includes("epivida-offline-storage") && window.__epividaOfflineReady) {
+                  await window.__epividaOfflineReady;
+                }
                 if (src.includes("iaas-system-cedulas-loader") && window.__epividaCedulasReady) {
                   await window.__epividaCedulasReady;
                 }

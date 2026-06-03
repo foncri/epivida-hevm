@@ -1,0 +1,19 @@
+{
+  "name": "EpiVida HEVM",
+  "short_name": "EpiVida",
+  "description": "Centro de vigilancia epidemiologica HEVM con censo hospitalario, expedientes y sincronizacion diferida.",
+  "start_url": "./index.html#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07122f",
+  "theme_color": "#172a6a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./assets/epivida/logos/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
