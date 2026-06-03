@@ -62,6 +62,8 @@
   const cleanCell = value => String(value ?? "").replace(/\s+/g, " ").trim();
   const normalizeText = value => cleanCell(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   const unique = items => [...new Set(items.map(cleanCell).filter(Boolean))];
+  const LOCATION_RX = /^(TUXTLA|TUXTLA\s+GUTIERREZ|TUXLTA\s+GUTIERREZ|SAN\s+CRISTOBAL|JIQUIPILAS|VILLA\s+CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA\s+DE\s+CORZO|CHIAPAS|TONALA|VILLAFLORES|VILLACORZO|CINTALAPA)$/;
+  const DEVICE_RX = /\b(SONDA|FOLEY|PICC|CATETER|CATETERES|DRENOVAC|PENROSE|SNG|CVC|VVC|DRENAJE|INSTALACION|INSTALACI[OÓ]N)\b/i;
 
   function splitLine(line, delimiter) {
     const out = [];
@@ -137,6 +139,19 @@
     return alias ? alias[0] : "";
   }
 
+  function cleanPatientName(value) {
+    const text = cleanCell(value);
+    if (!text) return "";
+    const marker = text.search(DEVICE_RX);
+    return cleanCell(marker > 0 ? text.slice(0, marker) : text)
+      .replace(/\s+[.,:;-]+$/g, "")
+      .trim();
+  }
+
+  function looksLikeLocation(value) {
+    return LOCATION_RX.test(normalizeText(value).replace(/\s+/g, " "));
+  }
+
   function localIsoToday() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -199,10 +214,10 @@
   }
 
   function looksLikeName(value) {
-    const text = cleanCell(value);
+    const text = cleanPatientName(value);
     const key = normalizeText(text);
     if (!text || text.length < 5) return false;
-    if (knownServiceFromText(text) || looksLikeBedCell(text) || looksLikeRfc(text) || normalizeDate(text)) return false;
+    if (looksLikeLocation(text) || knownServiceFromText(text) || looksLikeBedCell(text) || looksLikeRfc(text) || normalizeDate(text)) return false;
     if (/\b(NOMBRE|PACIENTE|SERVICIO|FECHA|SECTOR|GUARDIA|MEDICO|PENDIENTES|ESPECIALIDAD|RESUMENES|INGRESOS|GRAVES|TOTAL)\b/.test(key)) return false;
     if (/[\/:;]/.test(text) && text.length > 36) return false;
     return /[A-Z]{2,}\s+[A-Z]{2,}/i.test(key);
@@ -218,7 +233,7 @@
     if (["MAG", "MAGISTERIO"].includes(key)) return "MAGISTERIO";
     if (["BUR", "BUROCRACIA"].includes(key)) return "BUROCRACIA";
     if (["PIM", "PENSIONADO ISSTECH MAGISTERIO", "PENSIONADO MAGISTERIO"].includes(key)) return "PENSIONADO ISSTECH MAGISTERIO";
-    if (["PIB", "PENSIONADO ISSTECH BUROCRACIA", "PENSIONADO BUROCRACIA"].includes(key)) return "PENSIONADO ISSTECH BUROCRACIA";
+    if (["PIB", "PGB", "PENSIONADO ISSTECH BUROCRACIA", "PENSIONADO BUROCRACIA"].includes(key)) return "PENSIONADO ISSTECH BUROCRACIA";
     if (key.includes("ISSTECH")) return key.includes("PENSIONADO") ? key : "ISSTECH";
     if (["PRIV", "PRIVADO", "PARTICULAR", "NA", "N/A"].includes(key)) return "PRIVADO";
     return "";
@@ -256,9 +271,9 @@
   function isAdministrativeCell(value) {
     const key = normalizeText(value);
     if (!key) return true;
-    if (/^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}(?:\s*HRS?)?$/.test(key)) return true;
-    if (/^(AMERITA|NO AMERITA|DR|DRA|DR\.|DRA\.|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD|GASTRO|NEFRO)$/.test(key)) return true;
-    if (/^(TUXTLA|TUXTLA GUTIERREZ|SAN CRISTOBAL|JIQUIPILAS|VILLA CORZO|BERRIOZABAL|COMITAN|JITOTOL|CHIAPA DE CORZO|CHIAPAS|TONALA|VILLAFLORES|VILLACORZO)$/.test(key)) return true;
+    if (/^\d{1,3}$/.test(key) || /^\d{1,2}:\d{2}(?:\s*H(?:RS?|RAS)?)?$/.test(key)) return true;
+    if (/^(AMERITA|NO AMERITA|VPO|VPA|A ROL|DR|DRA|DR\.|DRA\.|TYO|CX|MI|PED|ORL|URO|NEURO|CARDIO|ONCO|GINECO|OTORRINO|TRAUMA|MEDICO|GUARDIA|ESPECIALIDAD|GASTRO|NEFRO)$/.test(key)) return true;
+    if (looksLikeLocation(value)) return true;
     if (/\bDR\.?\s|DRA\.?\s|GUARDIA|MEDICO|ESPECIALIDAD\b/.test(key)) return true;
     return false;
   }
@@ -304,6 +319,8 @@
   function isGuideRow(cells) {
     const values = cells.map(cleanCell).filter(Boolean);
     if (!values.length) return true;
+    const patientIndex = findPatientIndex(cells);
+    if (patientIndex >= 0 && findBedIndex(cells, patientIndex) >= 0) return false;
     const text = normalizeText(values.join(" "));
     if (/\b(NOMBRE\s+DEL\s+PACIENTE|FECHA\s+INGRESO|GUARDIA|ESPECIALIDAD|MEDICO|PENDIENTES|E\s*C\s*D|RESUMENES|INGRESOS|GRAVES|TOTAL|PACIENTES\s+EN\s+OTROS\s+SERVICIOS|ESPACIOS\s+SIN\s+CAMAS|ESPACIOS\s+CON\s+CAMAS|CAMAS\s+PARA|ALTAS)\b/.test(text)) return true;
     if (/https?:\/\//i.test(values.join(" ")) || /\.(DOCX?|XLSX?|PDF|CSV|TXT)\b/i.test(values.join(" "))) return true;
@@ -316,6 +333,31 @@
     if (explicit) return knownServiceFromText(explicit);
     if (nonEmpty.some(looksLikeBedCell)) return "";
     return nonEmpty.length <= 4 ? knownServiceFromText(nonEmpty.join(" ")) : "";
+  }
+
+  function mergeContinuationRows(matrix) {
+    const rows = [];
+    matrix.forEach(values => {
+      const previous = rows[rows.length - 1];
+      const previousPatient = previous ? findPatientIndex(previous) : -1;
+      const currentHasStructuredData = values.slice(1).some(value => normalizeDate(value) || looksLikeRfc(value) || normalizeSex(value));
+      const isContinuation = previous
+        && previousPatient >= 0
+        && findBedIndex(previous, previousPatient) >= 0
+        && !normalizeDate(previous[previousPatient + 1] || "")
+        && !cleanCell(values[0])
+        && currentHasStructuredData;
+      if (!isContinuation) {
+        rows.push([...values]);
+        return;
+      }
+      values.forEach((value, index) => {
+        if (!index || !cleanCell(value)) return;
+        const targetIndex = index + previousPatient;
+        previous[targetIndex] = previous[targetIndex] ? `${previous[targetIndex]} ${cleanCell(value)}` : cleanCell(value);
+      });
+    });
+    return rows;
   }
 
   function inferDefaultService(matrix, sourceName) {
@@ -343,6 +385,11 @@
     return -1;
   }
 
+  function findPatientIndex(values) {
+    const firstStructured = values.findIndex(value => normalizeDate(value) || looksLikeRfc(value) || normalizeSex(value));
+    return values.findIndex((value, index) => looksLikeName(value) && (firstStructured < 0 || index <= firstStructured));
+  }
+
   function getMapped(values, map, key) {
     const index = map[key];
     return index === undefined ? "" : cleanCell(values[index]);
@@ -358,7 +405,7 @@
     return {
       Servicio: serviceForRow(rawBed, currentService, sourceName),
       Cama: bed || "PENDIENTE",
-      Paciente: patient.toUpperCase(),
+      Paciente: cleanPatientName(patient).toUpperCase(),
       "Fecha de nacimiento": normalizeDate(getMapped(values, map, "birthDate")),
       Edad: normalizeAge(getMapped(values, map, "age")),
       Sector: normalizeSector(getMapped(values, map, "sector")) || "PENDIENTE",
@@ -373,7 +420,7 @@
   }
 
   function rowFromSignals(values, currentService, currentDate, sourceName) {
-    const patientIndex = values.findIndex(looksLikeName);
+    const patientIndex = findPatientIndex(values);
     if (patientIndex < 0) return null;
     const bedIndex = findBedIndex(values, patientIndex);
     const rawBed = bedIndex >= 0 ? values[bedIndex] : "";
@@ -407,7 +454,7 @@
     return {
       Servicio: serviceForRow(rawBed, currentService, sourceName),
       Cama: normalizeBed(rawBed) || "PENDIENTE",
-      Paciente: values[patientIndex].toUpperCase(),
+      Paciente: cleanPatientName(values[patientIndex]).toUpperCase(),
       "Fecha de nacimiento": birth?.iso || "",
       Edad: normalizeAge(age?.value) || "",
       Sector: normalizeSector(sector?.value) || "PENDIENTE",
@@ -425,7 +472,7 @@
     const lines = text.replace(/\r/g, "").split("\n").filter(line => line.trim());
     if (!lines.length) return null;
     const delimiter = detectDelimiter(lines);
-    const matrix = lines.map(line => splitLine(line, delimiter));
+    const matrix = mergeContinuationRows(lines.map(line => splitLine(line, delimiter)));
     const joined = normalizeText(`${sourceName} ${text}`);
     const hospitalLike = /\b(NOMBRE\s+DEL\s+PACIENTE|NOMBRE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA|DX\s+ACTUAL|DIAGNOSTICO\s+ACTUAL)\b/.test(joined) || matrixLooksLikeCensus(matrix);
     if (!hospitalLike) return null;
@@ -454,7 +501,7 @@
   function matrixLooksLikeCensus(matrix) {
     let candidates = 0;
     matrix.forEach(values => {
-      const patientIndex = values.findIndex(looksLikeName);
+      const patientIndex = findPatientIndex(values);
       if (patientIndex < 0) return;
       const hasBed = findBedIndex(values, patientIndex) >= 0;
       const dates = values.map(normalizeDate).filter(Boolean).length;

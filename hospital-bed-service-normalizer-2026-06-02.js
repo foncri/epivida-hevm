@@ -376,7 +376,7 @@
   function bedBoardSource() {
     return `  function bedBoardItems(rows, date, mode) {
     // epividaAisPKnownBedsForBoard: AIS P y camas especiales quedan integradas en el catalogo general.
-    const sorted = [...rows].sort(sortByServiceBed);
+    const sorted = dedupeBedBoardRows(rows).sort(sortByServiceBed);
     const serviceNames = unique(sorted.map(row => normalizeService(row.service)).filter(Boolean));
     if (serviceNames.length !== 1) {
       return sorted.map(row => ({ bed: row.bed || "S/C", row }));
@@ -403,6 +403,24 @@
       inferred.push({ bed: row?.bed || String(number), row: row || null });
     }
     return mergeKnownBedItems(inferred, knownBeds);
+  }
+
+  function dedupeBedBoardRows(rows) {
+    const byLocation = new Map();
+    (rows || []).filter(isActiveCensusRow).forEach(row => {
+      const key = normalizeService(row.service || "") + "|" + normalizeText(row.bed || "S/C");
+      const current = byLocation.get(key);
+      if (!current) {
+        byLocation.set(key, row);
+        return;
+      }
+      const currentEntry = store.dailyRounds[row.roundDate || activeDate()]?.entries?.[current.patientId];
+      const nextEntry = store.dailyRounds[row.roundDate || activeDate()]?.entries?.[row.patientId];
+      const currentScore = (current.present === false ? -10 : 0) + (currentEntry?.status === "revisado" ? 1 : 0);
+      const nextScore = (row.present === false ? -10 : 0) + (nextEntry?.status === "revisado" ? 1 : 0);
+      if (nextScore > currentScore) byLocation.set(key, row);
+    });
+    return [...byLocation.values()];
   }
 
   function knownBedsForService(service, rows = []) {

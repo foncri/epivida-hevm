@@ -213,6 +213,7 @@
     "ALTA HOSPITALARIA NO AUTORIZADA",
     "DEFUNCIÓN"
   ];
+  const DISCHARGE_SHIFTS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "JORNADA ESPECIAL", "SIN TURNO"];
   const PROBABLE_DISCHARGE_MESSAGE = "REVISAR ALTA DEL PACIENTE Y SU PROBABLE CAUSA";
   const REPORTED_DISCHARGE_MESSAGE = "VERIFICAR SI ESTÁ CORRECTA EL ALTA HOSPITALARIA DEL PACIENTE ENCONTRADO";
   const PROTECTED_AMBULATORY_SERVICES = ["HEMODIÁLISIS", "ONCOLOGÍA"];
@@ -2281,7 +2282,31 @@
   function commandPreventiveNotifications(stats, date) {
     const briefing = salaBriefingData(stats, date);
     const overdue = overduePreventiveRows(date);
+    const dischargeRows = probableDischargeNotificationRows(date);
+    const movementRows = movementNotificationRows(date);
+    const alerts = [];
+    if (dischargeRows.length) {
+      alerts.push({
+        title: `${dischargeRows.length} alta(s) hospitalaria(s) por investigar`,
+        detail: dischargeRows.slice(0, 3).map(item => `${patientLabel(item.patient, item.row)}: fecha, causa y turno de alta`).join(" Â· "),
+        time: "Urgente",
+        icon: "alert",
+        tone: "critical",
+        href: `#/ronda/${date}`
+      });
+    }
+    if (movementRows.length) {
+      alerts.push({
+        title: `${movementRows.length} cambio(s) de cama/servicio detectado(s)`,
+        detail: movementRows.slice(0, 3).map(item => item.notice).join(" Â· "),
+        time: "Turno",
+        icon: "info",
+        tone: "culture",
+        href: `#/ronda/${date}`
+      });
+    }
     return [
+      ...alerts,
       {
         title: overdue.length ? `${overdue.length} cama(s) sin revisión > 24 h` : "Paquetes preventivos por completar",
         detail: overdue.length ? overdue.slice(0, 3).map(row => `${serviceDisplayLabel(row.service)} cama ${row.bed || "S/C"}`).join(" · ") : `${stats.pendingPatients} paciente(s) pendientes de ronda preventiva`,
@@ -2361,6 +2386,25 @@
         return !last || daysBetween(last, date) >= 1;
       })
       .sort(sortByServiceBed);
+  }
+
+  function probableDischargeNotificationRows(date) {
+    return Object.values(store.patients || {})
+      .filter(patient => patient && patient.hospitalizationStatus !== "egresado")
+      .filter(patient => patient.dischargeReviewRequired || ["alta_probable", "alta_reportada", "requiere_conciliaciÃ³n"].includes(patient.hospitalizationStatus))
+      .filter(patient => !date || !patient.latestCensusDate || patient.latestCensusDate <= date)
+      .map(patient => ({ patient, row: dischargeReviewRowFromPatient(patient, date) }))
+      .sort((a, b) => sortByServiceBed(a.row, b.row));
+  }
+
+  function movementNotificationRows(date) {
+    return getCensusRows(date)
+      .flatMap(row => {
+        const notices = mergeUnique(row.importAlerts || [], store.patients[row.patientId]?.activePendingIssues || [])
+          .filter(item => normalizeText(item).includes("MOVIDO"));
+        return notices.map(notice => ({ row, notice }));
+      })
+      .sort((a, b) => sortByServiceBed(a.row, b.row));
   }
 
   function lastReviewedDateForPatient(patientId, throughDate) {
@@ -3870,14 +3914,20 @@
   }
 
   function renderDischargeReviewPanel(date) {
-    const rows = getCensusRows(date)
+    const byPatient = new Map();
+    Object.values(store.dailyCensus[date]?.patients || {})
       .filter(row => {
         const patient = store.patients[row.patientId] || {};
         return row.dischargeReviewRequired
           || row.probableDischarge
           || row.dischargeReported
-          || ["alta_probable", "alta_reportada"].includes(patient.hospitalizationStatus);
+          || ["alta_probable", "alta_reportada", "requiere_conciliaciÃ³n"].includes(patient.hospitalizationStatus);
       })
+      .forEach(row => byPatient.set(row.patientId, row));
+    probableDischargeNotificationRows(date).forEach(item => {
+      if (!byPatient.has(item.patient.patientId)) byPatient.set(item.patient.patientId, item.row);
+    });
+    const rows = [...byPatient.values()]
       .sort(sortByServiceBed);
     if (!rows.length) return "";
     return h("section", { class: "iaas-panel discharge-review-panel" }, [
@@ -3892,6 +3942,32 @@
     ]);
   }
 
+  function dischargeReviewRowFromPatient(patient, date) {
+    return {
+      patientId: patient.patientId,
+      service: patient.currentService || "SIN SERVICIO",
+      bed: patient.currentBed || "S/C",
+      patientName: patient.patientName || null,
+      rfc: patient.rfc || patient.hospitalInternalId || null,
+      birthDate: patient.birthDate || null,
+      sector: patient.sector || null,
+      age: patient.age ?? null,
+      sex: patient.sex || null,
+      admissionDate: patient.admissionDate || null,
+      deih: patient.deih ?? daysBetween(patient.admissionDate, date),
+      state: patient.currentState || "ALTA PROBABLE",
+      diagnosis: patient.currentDiagnosis || null,
+      observations: PROBABLE_DISCHARGE_MESSAGE,
+      present: false,
+      probableDischarge: patient.hospitalizationStatus === "alta_probable",
+      dischargeReported: patient.hospitalizationStatus === "alta_reportada",
+      dischargeReviewRequired: true,
+      reconciliationRequired: true,
+      importAlerts: mergeUnique(patient.activePendingIssues || [], [PROBABLE_DISCHARGE_MESSAGE]),
+      notes: "Investigar fecha, causa y turno de alta hospitalaria."
+    };
+  }
+
   function renderDischargeReviewCard(row, date) {
     const patient = store.patients[row.patientId] || {};
     const alerts = mergeUnique(row.importAlerts || [], patient.activePendingIssues || [])
@@ -3899,6 +3975,7 @@
     const safeId = safeDomId(row.patientId);
     const selectedType = patient.dischargeType || row.dischargeType || DISCHARGE_TYPES[0];
     const selectedDate = normalizeDate(patient.dischargeDate || row.dischargeDate) || date;
+    const selectedShift = patient.dischargeShift || row.dischargeShift || DISCHARGE_SHIFTS.at(-1);
     return h("article", { class: "discharge-review-card" }, [
       h("div", { class: "discharge-review-main" }, [
         h("strong", {}, [patientLabel(patient, row).toUpperCase()]),
@@ -3913,6 +3990,10 @@
         h("label", {}, [
           h("span", {}, ["Fecha de alta"]),
           h("input", { id: `discharge-date-${safeId}`, type: "date", value: selectedDate })
+        ]),
+        h("label", {}, [
+          h("span", {}, ["Turno de alta"]),
+          h("select", { id: `discharge-shift-${safeId}` }, DISCHARGE_SHIFTS.map(shift => option(shift, shift, normalizeText(shift) === normalizeText(selectedShift))))
         ])
       ]),
       h("div", { class: "discharge-review-actions" }, [
@@ -4059,7 +4140,7 @@
   }
 
   function bedBoardItems(rows, date, mode) {
-    const sorted = [...rows].sort(sortByServiceBed);
+    const sorted = dedupeBedBoardRows(rows).sort(sortByServiceBed);
     const serviceNames = unique(sorted.map(row => normalizeService(row.service)).filter(Boolean));
     if (serviceNames.length !== 1) {
       return sorted.map(row => ({ bed: row.bed || "S/C", row }));
@@ -4085,6 +4166,24 @@
       inferred.push({ bed: row?.bed || String(number), row: row || null });
     }
     return inferred;
+  }
+
+  function dedupeBedBoardRows(rows) {
+    const byLocation = new Map();
+    (rows || []).filter(isActiveCensusRow).forEach(row => {
+      const key = `${normalizeService(row.service || "")}|${normalizeText(row.bed || "S/C")}`;
+      const current = byLocation.get(key);
+      if (!current) {
+        byLocation.set(key, row);
+        return;
+      }
+      const currentEntry = store.dailyRounds[row.roundDate || activeDate()]?.entries?.[current.patientId];
+      const nextEntry = store.dailyRounds[row.roundDate || activeDate()]?.entries?.[row.patientId];
+      const currentScore = (current.present === false ? -10 : 0) + (currentEntry?.status === "revisado" ? 1 : 0);
+      const nextScore = (row.present === false ? -10 : 0) + (nextEntry?.status === "revisado" ? 1 : 0);
+      if (nextScore > currentScore) byLocation.set(key, row);
+    });
+    return [...byLocation.values()];
   }
 
   function bedNumberToken(bed) {
@@ -6967,6 +7066,7 @@
           hospitalizationStatus: row.dischargeReported ? "alta_reportada" : "hospitalizado",
           dischargeType: row.dischargeType || null,
           dischargeDate: row.dischargeDate || null,
+          dischargeShift: row.dischargeShift || null,
           dischargeStatus: row.dischargeReported ? "reportada_por_censo" : null,
           dischargeReviewRequired: Boolean(row.dischargeReviewRequired),
           presentInLatestCensus: true,
@@ -7005,6 +7105,7 @@
         previous.hospitalizationStatus = row.dischargeReported ? "alta_reportada" : "hospitalizado";
         previous.dischargeType = row.dischargeType || (row.dischargeReported ? previous.dischargeType : previous.dischargeType || null);
         previous.dischargeDate = row.dischargeDate || (row.dischargeReported ? previous.dischargeDate : previous.dischargeDate || null);
+        previous.dischargeShift = row.dischargeShift || previous.dischargeShift || null;
         previous.dischargeStatus = row.dischargeReported ? "reportada_por_censo" : previous.dischargeStatus || null;
         previous.dischargeReviewRequired = Boolean(row.dischargeReviewRequired);
         previous.presentInLatestCensus = true;
@@ -7035,7 +7136,17 @@
       censusPatients[row.patientId] = importCensusRowV2(row, store.patients[row.patientId], plan);
     });
 
-    (plan.reconciliationMissing || []).forEach(patient => {
+    const reconciliationMissing = [...(plan.reconciliationMissing || [])];
+    if (plan.fullImport && !plan.preserveExistingCensus) {
+      Object.keys(previousCensusPatients || {}).forEach(patientId => {
+        if (incomingPatientIds.has(patientId) || reconciliationMissing.some(patient => patient?.patientId === patientId)) return;
+        const patient = store.patients[patientId];
+        if (patient && patient.hospitalizationStatus !== "egresado") reconciliationMissing.push(patient);
+      });
+    }
+    plan.reconciliationMissing = reconciliationMissing;
+
+    reconciliationMissing.forEach(patient => {
       const before = clone(patient);
       patient.presentInLatestCensus = false;
       patient.latestCensusDate = plan.date;
@@ -7047,7 +7158,6 @@
       patient.updatedBy = currentUserId();
       affectedPatientIds.add(patient.patientId);
       addAudit("PATIENT_PROBABLE_DISCHARGE", { patientId: patient.patientId, before, after: patient, importBatchId: plan.importBatchId });
-      censusPatients[patient.patientId] ||= probableDischargeCensusRow(patient, plan);
     });
 
     store.dailyCensus[plan.date] = {
@@ -7067,6 +7177,7 @@
       patients: censusPatients,
       conflicts: plan.conflicts || []
     };
+    plan.removedCensusPatientIds = Object.keys(previousCensusPatients || {}).filter(patientId => !censusPatients[patientId]);
     store.activeDate = plan.date;
     ui.sheets.activeDate = plan.date;
     ensureDailyRound(plan.date);
@@ -7106,7 +7217,7 @@
     });
     store.dailyRounds[plan.date].entries = entries;
     store.dailyRounds[plan.date].status = "not_started";
-    store.dailyRounds[plan.date].probableDischarges = (plan.reconciliationMissing || []).length;
+    store.dailyRounds[plan.date].probableDischarges = reconciliationMissing.length;
     store.dailyRounds[plan.date].reportedDischarges = Object.values(censusPatients).filter(row => row.dischargeReported).length;
     recalculateRound(plan.date);
     plan.affectedPatientIds = [...affectedPatientIds];
@@ -7138,6 +7249,7 @@
       dischargeReviewRequired: Boolean(row.dischargeReviewRequired),
       dischargeType: row.dischargeType || patient?.dischargeType || null,
       dischargeDate: row.dischargeDate || patient?.dischargeDate || null,
+      dischargeShift: row.dischargeShift || patient?.dischargeShift || null,
       dischargeStatus: row.dischargeReported ? "reportada_por_censo" : patient?.dischargeStatus || null,
       importAlerts: row.importAlerts || [],
       importBatchId: plan.importBatchId,
@@ -7217,6 +7329,10 @@
     Object.values(store.dailyCensus[plan.date].patients || {}).forEach(row => {
       affected.add(row.patientId);
       ops.push({ path: `dailyCensus/${plan.date}/patients/${row.patientId}`, action: "set", data: row });
+    });
+    (plan.removedCensusPatientIds || []).forEach(patientId => {
+      ops.push({ path: `dailyCensus/${plan.date}/patients/${patientId}`, action: "delete" });
+      ops.push({ path: `dailyRounds/${plan.date}/entries/${patientId}`, action: "delete" });
     });
     (plan.rows || []).forEach(row => affected.add(row.patientId));
     (plan.reconciliationMissing || []).forEach(patient => affected.add(patient.patientId));
@@ -7488,19 +7604,22 @@
     const safeId = safeDomId(patientId);
     const type = document.querySelector(`#discharge-type-${safeId}`)?.value || DISCHARGE_TYPES[0];
     const dischargeDate = document.querySelector(`#discharge-date-${safeId}`)?.value || date;
-    applyHospitalDischarge(date, patientId, type, dischargeDate);
+    const dischargeShift = document.querySelector(`#discharge-shift-${safeId}`)?.value || DISCHARGE_SHIFTS.at(-1);
+    applyHospitalDischarge(date, patientId, type, dischargeDate, dischargeShift);
   }
 
-  function applyHospitalDischarge(date, patientId, type, dischargeDate) {
+  function applyHospitalDischarge(date, patientId, type, dischargeDate, dischargeShift = "") {
     const patient = store.patients[patientId];
     if (!patient) return;
     const before = clone(patient);
     const normalizedDate = normalizeDate(dischargeDate) || date || isoToday();
-    const label = dischargeLabel(type, normalizedDate);
+    const shift = DISCHARGE_SHIFTS.find(item => normalizeText(item) === normalizeText(dischargeShift)) || DISCHARGE_SHIFTS.at(-1);
+    const label = `${dischargeLabel(type, normalizedDate)} · TURNO ${shift}`;
     patient.hospitalizationStatus = "egresado";
     patient.presentInLatestCensus = false;
     patient.dischargeType = DISCHARGE_TYPES.find(item => normalizeText(item) === normalizeText(type)) || DISCHARGE_TYPES[0];
     patient.dischargeDate = normalizedDate;
+    patient.dischargeShift = shift;
     patient.dischargeStatus = "confirmada";
     patient.dischargeReviewRequired = false;
     patient.observations = label;
@@ -7515,6 +7634,7 @@
       row.dischargeReviewRequired = false;
       row.dischargeType = patient.dischargeType;
       row.dischargeDate = normalizedDate;
+      row.dischargeShift = shift;
       row.dischargeStatus = "confirmada";
       row.observations = label;
       row.importAlerts = mergeUnique(row.importAlerts || [], [label]);
@@ -7528,7 +7648,7 @@
       entry.notes = label;
       entry.syncStatus = syncStatusForNewWrite();
     }
-    addAudit("PATIENT_DISCHARGE_CONFIRMED", { patientId, before, after: patient, roundDate: date, metadata: { dischargeType: patient.dischargeType, dischargeDate: normalizedDate } });
+    addAudit("PATIENT_DISCHARGE_CONFIRMED", { patientId, before, after: patient, roundDate: date, metadata: { dischargeType: patient.dischargeType, dischargeDate: normalizedDate, dischargeShift: shift } });
     saveStore();
     enqueueWrite({ type: "patientUpdate", patientId, patient });
     flashIaas("Alta hospitalaria confirmada para el censo.");
@@ -9398,6 +9518,7 @@
       const batch = fsMod.writeBatch(db);
       operation.operations.forEach(op => {
         const ref = fsMod.doc(db, op.path);
+        if (op.action === "delete") batch.delete(ref);
         if (op.action === "set") batch.set(ref, withServerAudit(op.data), { merge: op.merge !== false });
       });
       await batch.commit();
@@ -9993,7 +10114,7 @@
     const cache = ui.renderCache?.censusRows;
     if (cache?.has(date)) return cache.get(date).slice();
     const targetDate = censusDateFor(date);
-    const rows = Object.values(store.dailyCensus[targetDate]?.patients || {});
+    const rows = Object.values(store.dailyCensus[targetDate]?.patients || {}).filter(isActiveCensusRow);
     const normalizedRows = targetDate === date ? rows : rows.map(row => ({
       ...row,
       roundDate: date,
@@ -10001,6 +10122,15 @@
     }));
     if (cache) cache.set(date, normalizedRows);
     return normalizedRows.slice();
+  }
+
+  function isActiveCensusRow(row) {
+    return Boolean(row)
+      && row.present !== false
+      && !row.probableDischarge
+      && !row.reconciliationRequired
+      && !row.dischargeConfirmed
+      && !row.dischargeReviewRequired;
   }
 
   function censusDateFor(date) {
@@ -10815,6 +10945,11 @@
       buildImportDraft,
       parseDelimitedText,
       executeImportPlanLocalV2,
+      buildImportWriteOpsV2,
+      getCensusRows,
+      commandPreventiveNotifications,
+      probableDischargeNotificationRows,
+      movementNotificationRows,
       buildPrintReportModel,
       applyHospitalDischarge,
       serviceMatchesFilter,
