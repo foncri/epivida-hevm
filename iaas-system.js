@@ -617,6 +617,7 @@
     dashboardSlideTimer: null,
     renderTimer: null,
     renderCache: null,
+    offlineSnapshotTimer: null,
     draftSaveTimer: null,
     draftsDirty: false,
     calendarView: "week",
@@ -654,6 +655,7 @@
       lastSyncAt: null,
       activeDate: "",
       lastSyncedAuditCount: 0,
+      exportConfirmedAt: "",
       spreadsheetUrl: SHEETS_CONFIG.spreadsheetUrl || (SHEETS_CONFIG.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/edit` : ""),
       isSyncing: false,
       connectAttemptId: 0,
@@ -666,19 +668,20 @@
   let store = loadStore();
   let firebaseRuntime = null;
   let remoteUnsubscribers = [];
+  let deviceEpisodeIndex = { ref: null, count: -1, map: new Map() };
 
   window.addEventListener("hashchange", () => {
     ui.route = parseRoute();
-    renderIaas();
+    scheduleRenderIaas(0);
   });
   window.addEventListener("online", () => {
     flashIaas("Conexión recuperada. Intentando sincronizar pendientes.");
     flushSyncQueue();
-    renderIaas();
+    scheduleRenderIaas(80);
   });
   window.addEventListener("offline", () => {
     flashIaas("Sin conexión. Los cambios se guardarán localmente.");
-    renderIaas();
+    scheduleRenderIaas(80);
   });
   window.addEventListener("beforeunload", flushDraftSave);
 
@@ -689,7 +692,7 @@
     await initFirebaseIfConfigured();
     activateOfflineAccessIfNeeded();
     if (!location.hash) location.hash = "#/dashboard";
-    renderIaas();
+    scheduleRenderIaas(0);
     startDashboardSlideLoop();
     flushSyncQueue();
   }
@@ -1122,14 +1125,38 @@
   }
 
   function createRenderCache() {
+    const deviceEpisodes = Object.values(store.deviceEpisodes || {});
     return {
-      deviceEpisodes: Object.values(store.deviceEpisodes || {}),
+      deviceEpisodes,
+      deviceEpisodesByPatient: buildDeviceEpisodesByPatient(deviceEpisodes),
       activeEpisodes: new Map(),
       patientEpisodes: new Map(),
       censusRows: new Map(),
       censusDates: new Map(),
       stats: new Map()
     };
+  }
+
+  function buildDeviceEpisodesByPatient(episodes = []) {
+    const grouped = new Map();
+    episodes.forEach(episode => {
+      if (!episode?.patientId) return;
+      const list = grouped.get(episode.patientId) || [];
+      list.push(episode);
+      grouped.set(episode.patientId, list);
+    });
+    return grouped;
+  }
+
+  function deviceEpisodesByPatientForCurrentRender() {
+    const cached = ui.renderCache?.deviceEpisodesByPatient;
+    if (cached) return cached;
+    const source = store.deviceEpisodes || {};
+    const count = Object.keys(source).length;
+    if (deviceEpisodeIndex.ref === source && deviceEpisodeIndex.count === count) return deviceEpisodeIndex.map;
+    const map = buildDeviceEpisodesByPatient(Object.values(source));
+    deviceEpisodeIndex = { ref: source, count, map };
+    return map;
   }
 
   function scheduleRenderIaas(delay = 80) {
@@ -4659,6 +4686,10 @@
     return !["ISQ", "P.E. Y P.B.M.T."].includes(type);
   }
 
+  function preventiveDraftId() {
+    return `draft_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   function defaultPreventiveDevice(packageType) {
     return {
       packageType,
@@ -7177,17 +7208,32 @@
     await waitFrame();
     try {
       executeImportPlanLocalV2(draft.plan);
-      const ops = buildImportWriteOpsV2(draft.plan);
-      for (let i = 0; i < ops.length; i += 450) {
-        ui.importProgress = `Guardando lote ${Math.floor(i / 450) + 1}/${Math.ceil(ops.length / 450)}...`;
+      if (ui.sheets.enabled) {
+        ui.importProgress = ui.sheets.connected && navigator.onLine
+          ? "Sincronizando censo completo con Sheets..."
+          : "Guardando censo local; se sincronizara al volver internet...";
         renderIaas();
         await waitFrame();
         await enqueueWrite({
-          type: "batch",
+          type: "importSnapshot",
           collection: "import",
           date: draft.plan.date,
-          operations: ops.slice(i, i + 450)
+          importBatchId: draft.plan.importBatchId,
+          summary: draft.summary
         });
+      } else {
+        const ops = buildImportWriteOpsV2(draft.plan);
+        for (let i = 0; i < ops.length; i += 450) {
+          ui.importProgress = `Guardando lote ${Math.floor(i / 450) + 1}/${Math.ceil(ops.length / 450)}...`;
+          renderIaas();
+          await waitFrame();
+          await enqueueWrite({
+            type: "batch",
+            collection: "import",
+            date: draft.plan.date,
+            operations: ops.slice(i, i + 450)
+          });
+        }
       }
       addAudit("CENSUS_IMPORT_CONFIRMED", { importBatchId: draft.plan.importBatchId, metadata: draft.summary });
       ui.importProgress = "Importación completada";
@@ -7892,7 +7938,9 @@
         updatedAt: nowIso(),
         createdBy: currentUserId(),
         updatedBy: currentUserId(),
-        source: "nursing_round"
+        source: "nursing_round",
+        syncStatus: syncStatusForNewWrite(),
+        serverConfirmedAt: null
       };
       store.deviceEpisodes[episode.episodeId] = episode;
       createdEpisodeIds.push(episode.episodeId);
@@ -7913,6 +7961,8 @@
       episode.status = "retirado";
       episode.updatedAt = nowIso();
       episode.updatedBy = currentUserId();
+      episode.syncStatus = syncStatusForNewWrite();
+      episode.serverConfirmedAt = null;
       addAudit("DEVICE_EPISODE_REMOVED", { patientId, deviceEpisodeId: episodeId, roundDate: date, before, after: episode });
     });
 
@@ -7977,6 +8027,12 @@
     const finalSyncStatus = syncItem?.status === "server_synced" ? "server_synced" : syncItem?.status === "error" ? "error" : "local_pending";
     entry.syncStatus = finalSyncStatus;
     entry.serverConfirmedAt = finalSyncStatus === "server_synced" ? (syncItem?.serverConfirmedAt || ui.sheets.lastSyncAt || nowIso()) : null;
+    mergeUnique(createdEpisodeIds, Object.keys(draft.removals || {})).forEach(episodeId => {
+      const episode = store.deviceEpisodes[episodeId];
+      if (!episode) return;
+      episode.syncStatus = finalSyncStatus;
+      episode.serverConfirmedAt = entry.serverConfirmedAt;
+    });
     if (store.dailyCensus[date]?.patients?.[patientId]) {
       store.dailyCensus[date].patients[patientId].syncStatus = entry.syncStatus;
       store.dailyCensus[date].patients[patientId].serverConfirmedAt = entry.serverConfirmedAt;
@@ -8254,10 +8310,18 @@
 
   async function hydrateFromSheets() {
     if (!ui.sheets.enabled || !ui.sheets.accessToken) return;
+    if (pendingQueue().length && ui.sheets.connected && navigator.onLine && !ui.sheets.isSyncing) {
+      await flushSyncQueue();
+      if (pendingQueue().length) {
+        ui.sheets.status = "sync_pending";
+        scheduleRenderIaas(80);
+        return;
+      }
+    }
     ui.sheets.status = "sync_pending";
     ui.sheets.error = "";
     ui.sheets.errorDetail = "";
-    renderIaas();
+    scheduleRenderIaas(80);
     try {
       const ranges = [
         sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B100"),
@@ -8274,6 +8338,20 @@
       const response = await sheetsRequest(`/values:batchGet?${params.toString()}`);
       const [configValues = {}, baseValues = {}, roundValues = {}, deviceValues = {}, auditValues = {}] = response.valueRanges || [];
       const config = keyValueRows(configValues.values || []);
+      const hasSheetClinicalRows = [baseValues, roundValues, deviceValues]
+        .some(range => rowsToObjects(range.values || []).length > 0);
+      if (!hasSheetClinicalRows && localClinicalStoreAvailable()) {
+        ui.sheets.lastWriteId = cleanCell(config.last_write_id);
+        ui.sheets.activeDate = activeDate();
+        ui.sheets.lastSyncAt = nowIso();
+        ui.sheets.connected = true;
+        ui.sheets.status = "connected";
+        normalizeStoreBeforeSnapshotWrite(activeDate(), { applyQueue: false });
+        saveStore();
+        flashIaas("Sheets esta vacio; se conservo la copia clinica local del dispositivo.");
+        scheduleRenderIaas(0);
+        return;
+      }
       const derivedDate = sheetDateToIso(config.active_date) || deriveActiveDate(baseValues.values || []) || isoToday();
       const nextStore = buildStoreFromSheets({
         baseValues: baseValues.values || [],
@@ -8290,36 +8368,59 @@
       ui.sheets.lastSyncAt = nowIso();
       ui.sheets.connected = true;
       ui.sheets.status = "connected";
-      saveStore();
       recalculateRound(derivedDate);
+      normalizeStoreBeforeSnapshotWrite(derivedDate, { applyQueue: false });
+      saveStore();
       flashIaas("Base Google Sheets cargada.");
-      renderIaas();
+      scheduleRenderIaas(0);
     } catch (error) {
       ui.sheets.status = "error";
       ui.sheets.error = friendlyError(error);
       ui.sheets.errorDetail = detailedError(error);
       flashIaas(`Error al leer Sheets: ${ui.sheets.error}`);
-      renderIaas();
+      scheduleRenderIaas(0);
     }
   }
 
-  async function writeOperationToSheets() {
+  async function writeOperationToSheets(operation = {}) {
     if (!ui.sheets.enabled || !ui.sheets.connected || !ui.sheets.accessToken) {
       throw new Error("Google Sheets no conectado.");
     }
     ui.sheets.status = "sync_pending";
     ui.sheets.error = "";
+    const hasLocalPending = Boolean(pendingQueue().length || operation?.type);
+    applyWriteOperationToLocalState(operation);
+    normalizeStoreBeforeSnapshotWrite(activeDate(), { applyQueue: true });
     const remoteConfig = await fetchSheetsConfig();
     const remoteWriteId = cleanCell(remoteConfig.last_write_id);
     if (remoteWriteId && ui.sheets.lastWriteId && remoteWriteId !== ui.sheets.lastWriteId) {
-      ui.sheets.status = "sync_conflict";
-      ui.sheets.error = "La hoja tiene cambios posteriores. Recarga Sheets antes de sincronizar.";
-      throw new Error(ui.sheets.error);
+      if (SHEETS_CONFIG.appAuthoritative && hasLocalPending) {
+        ui.sheets.errorDetail = "La copia local tenia cambios pendientes y se uso como fuente principal para Sheets.";
+      } else {
+        ui.sheets.status = "sync_conflict";
+        ui.sheets.error = "La hoja tiene cambios posteriores. Recarga Sheets antes de sincronizar.";
+        throw new Error(ui.sheets.error);
+      }
     }
 
     const writeId = `sheets-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const confirmedAt = nowIso();
     const pendingAuditLogs = store.auditLogs.filter(log => !log.serverConfirmedAt);
+    let appRows;
+    let baseRows;
+    let roundRows;
+    let deviceRows;
+    let expedienteRows;
+    ui.sheets.exportConfirmedAt = confirmedAt;
+    try {
+      appRows = appConfigRows(writeId, confirmedAt);
+      baseRows = baseRowsForSheets();
+      roundRows = roundRowsForSheets();
+      deviceRows = deviceRowsForSheets();
+      expedienteRows = expedienteRowsForSheets();
+    } finally {
+      ui.sheets.exportConfirmedAt = "";
+    }
     await ensureSheetsTabs([SHEETS_CONFIG.tabs.expedientes]);
     const clearRanges = [
       sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${SHEETS_CONFIG.maxRows}`),
@@ -8337,11 +8438,11 @@
       body: JSON.stringify({
         valueInputOption: "USER_ENTERED",
         data: [
-          { range: sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B9"), values: appConfigRows(writeId, confirmedAt) },
-          { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${baseRowsForSheets().length}`), values: baseRowsForSheets() },
-          { range: sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${roundRowsForSheets().length}`), values: roundRowsForSheets() },
-          { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRowsForSheets().length}`), values: deviceRowsForSheets() },
-          { range: sheetRange(SHEETS_CONFIG.tabs.expedientes, `A1:Q${expedienteRowsForSheets().length}`), values: expedienteRowsForSheets() }
+          { range: sheetRange(SHEETS_CONFIG.tabs.appConfig, "A1:B9"), values: appRows },
+          { range: sheetRange(SHEETS_CONFIG.tabs.baseDatos, `A1:U${baseRows.length}`), values: baseRows },
+          { range: sheetRange(SHEETS_CONFIG.tabs.rondas, `A1:U${roundRows.length}`), values: roundRows },
+          { range: sheetRange(SHEETS_CONFIG.tabs.dispositivos, `A1:U${deviceRows.length}`), values: deviceRows },
+          { range: sheetRange(SHEETS_CONFIG.tabs.expedientes, `A1:Q${expedienteRows.length}`), values: expedienteRows }
         ]
       })
     });
@@ -8353,6 +8454,7 @@
       pendingAuditLogs.forEach(log => { log.serverConfirmedAt = confirmedAt; });
     }
     markSnapshotSynced(confirmedAt);
+    normalizeStoreBeforeSnapshotWrite(activeDate(), { applyQueue: false });
     ui.sheets.lastWriteId = writeId;
     ui.sheets.lastSyncAt = confirmedAt;
     ui.sheets.status = "connected";
@@ -9253,6 +9355,23 @@
     return [BASE_SHEET_HEADERS, ...rows];
   }
 
+  function sheetSyncStatus(value) {
+    return ui.sheets.exportConfirmedAt ? "server_synced" : value || "";
+  }
+
+  function sheetServerConfirmedAt(value) {
+    return ui.sheets.exportConfirmedAt || value || "";
+  }
+
+  function sheetPayload(value = {}) {
+    if (!ui.sheets.exportConfirmedAt || !value || typeof value !== "object") return value;
+    return {
+      ...value,
+      syncStatus: "server_synced",
+      serverConfirmedAt: value.serverConfirmedAt || ui.sheets.exportConfirmedAt
+    };
+  }
+
   function roundRowsForSheets() {
     const rows = Object.values(store.dailyRounds).flatMap(round => Object.values(round.entries || {})).map(entry => [
       entry.entryId || entry.patientId,
@@ -9269,13 +9388,13 @@
       listCell(entry.pendingIssuesAdded),
       listCell(entry.alertsGenerated),
       entry.notes || "",
-      entry.syncStatus || "",
+      sheetSyncStatus(entry.syncStatus),
       entry.localSavedAt || "",
-      entry.serverConfirmedAt || "",
+      sheetServerConfirmedAt(entry.serverConfirmedAt),
       entry.createdAt || "",
       entry.updatedAt || "",
       entry.updatedBy || "",
-      jsonCell(entry)
+      jsonCell(sheetPayload(entry))
     ]);
     return [ROUND_SHEET_HEADERS, ...rows];
   }
@@ -9297,12 +9416,12 @@
       ep.notes || "",
       ep.createdDuringRoundDate || "",
       ep.source || "",
-      ep.syncStatus || "",
+      sheetSyncStatus(ep.syncStatus),
       ep.createdAt || "",
       ep.updatedAt || "",
       ep.updatedBy || "",
       ep.removedBy || "",
-      jsonCell(ep)
+      jsonCell(sheetPayload(ep))
     ]);
     return [DEVICE_SHEET_HEADERS, ...rows];
   }
@@ -9439,6 +9558,122 @@
     return cleanCell(value).split("|").map(item => item.trim()).filter(Boolean);
   }
 
+  function applyWriteOperationToLocalState(operation = {}) {
+    if (!operation || typeof operation !== "object") return;
+    if (operation.type === "batch" && Array.isArray(operation.operations)) {
+      operation.operations.forEach(applyPathOperationToLocalState);
+      return;
+    }
+    const date = normalizeDate(operation.date) || operation.date || activeDate();
+    const patientId = cleanCell(operation.patientId || operation.patient?.patientId || operation.entry?.patientId);
+    if (patientId && operation.patient) {
+      store.patients ||= {};
+      store.patients[patientId] = { ...(store.patients[patientId] || {}), ...operation.patient };
+    }
+    if (date && operation.census) {
+      store.dailyCensus ||= {};
+      store.dailyCensus[date] = {
+        ...(store.dailyCensus[date] || {}),
+        ...operation.census,
+        patients: store.dailyCensus[date]?.patients || {}
+      };
+    }
+    if (date && patientId && operation.censusRow) {
+      store.dailyCensus ||= {};
+      store.dailyCensus[date] ||= { date, status: "imported", patients: {} };
+      store.dailyCensus[date].patients ||= {};
+      store.dailyCensus[date].patients[patientId] = {
+        ...(store.dailyCensus[date].patients[patientId] || {}),
+        ...operation.censusRow
+      };
+    }
+    if (date && operation.round) {
+      store.dailyRounds ||= {};
+      store.dailyRounds[date] = {
+        ...(store.dailyRounds[date] || {}),
+        ...operation.round,
+        entries: store.dailyRounds[date]?.entries || {}
+      };
+    }
+    if (date && patientId && operation.entry) {
+      store.dailyRounds ||= {};
+      store.dailyRounds[date] ||= { date, status: "in_progress", entries: {} };
+      store.dailyRounds[date].entries ||= {};
+      store.dailyRounds[date].entries[patientId] = {
+        ...(store.dailyRounds[date].entries[patientId] || {}),
+        ...operation.entry
+      };
+    }
+    (operation.episodes || []).forEach(episode => {
+      if (!episode?.episodeId) return;
+      store.deviceEpisodes ||= {};
+      store.deviceEpisodes[episode.episodeId] = {
+        ...(store.deviceEpisodes[episode.episodeId] || {}),
+        ...episode
+      };
+    });
+  }
+
+  function applyPathOperationToLocalState(operation = {}) {
+    const path = cleanCell(operation.path || "");
+    if (!path || operation.action === "delete") return;
+    const parts = path.split("/").map(cleanCell).filter(Boolean);
+    if (!parts.length) return;
+    let target = store;
+    for (let index = 0; index < parts.length - 1; index += 1) {
+      const part = parts[index];
+      target[part] ||= {};
+      target = target[part];
+    }
+    const key = parts.at(-1);
+    const data = clone(operation.data || {});
+    target[key] = operation.merge && target[key] && typeof target[key] === "object"
+      ? { ...target[key], ...data }
+      : data;
+  }
+
+  function normalizeStoreBeforeSnapshotWrite(date = activeDate(), options = {}) {
+    if (options.applyQueue !== false) {
+      pendingQueue().forEach(item => applyWriteOperationToLocalState(item.operation || {}));
+    }
+    const dates = new Set([
+      normalizeDate(date),
+      ...Object.keys(store.dailyRounds || {}).map(normalizeDate).filter(Boolean)
+    ].filter(Boolean));
+    dates.forEach(normalizeRoundForSync);
+  }
+
+  function normalizeRoundForSync(date) {
+    if (!date) return;
+    ensureDailyRound(date);
+    const round = store.dailyRounds[date];
+    Object.values(round.entries || {}).forEach(entry => {
+      if (!entry?.patientId) return;
+      const patient = store.patients?.[entry.patientId] || {};
+      const row = store.dailyCensus?.[date]?.patients?.[entry.patientId] || {};
+      const patientEpisodes = episodesForPatient(entry.patientId);
+      const active = patientEpisodes.filter(episode => isEpisodeActiveOn(episode, date));
+      const reviewedDevices = mergeUnique(entry.reviewedDevices || [], active.map(episode => episode.episodeId));
+      entry.roundDate = entry.roundDate || date;
+      entry.service = entry.service || row.service || patient.currentService || "";
+      entry.bed = entry.bed || row.bed || patient.currentBed || "";
+      entry.hasInvasives = Boolean(active.length || reviewedDevices.length);
+      entry.reviewedDevices = reviewedDevices;
+      if (entry.hasInvasives) entry.noInvasivesConfirmed = false;
+      if (row.patientId) {
+        row.reviewStatus = entry.status || row.reviewStatus || "pendiente";
+        row.reviewedByNursing = ["revisado", "alerta"].includes(entry.status);
+        row.syncStatus = entry.syncStatus || row.syncStatus || syncStatusForNewWrite();
+        row.serverConfirmedAt = entry.serverConfirmedAt || row.serverConfirmedAt || null;
+      }
+      if (patient.patientId) {
+        patient.latestRoundDate = entry.roundDate;
+        patient.latestRoundStatus = entry.status || patient.latestRoundStatus || "pendiente";
+      }
+    });
+    recalculateRound(date);
+  }
+
   async function enqueueWrite(operation) {
     const item = { id: `write-${Date.now()}-${Math.random().toString(16).slice(2)}`, status: "local_pending", createdAt: nowIso(), operation };
     if (ui.sheets.enabled) {
@@ -9448,6 +9683,14 @@
         saveStore();
         return item;
       }
+      if (ui.sheets.isSyncing) {
+        store.writeQueue.push(item);
+        ui.sheets.status = "sync_pending";
+        saveStore();
+        window.setTimeout(flushSyncQueue, 800);
+        return item;
+      }
+      ui.sheets.isSyncing = true;
       try {
         await writeOperationToSheets(operation);
         item.status = "server_synced";
@@ -9457,9 +9700,14 @@
         item.error = friendlyError(error);
         store.writeQueue.push(item);
         addAudit("SYNC_ERROR", { metadata: { error: item.error, operationType: operation.type, provider: "google_sheets" } });
+      } finally {
+        ui.sheets.isSyncing = false;
+        if ((store.writeQueue || []).some(write => write.status === "local_pending") && ui.sheets.connected && navigator.onLine) {
+          window.setTimeout(flushSyncQueue, 800);
+        }
       }
       saveStore();
-      renderIaas();
+      scheduleRenderIaas(90);
       return item;
     }
     if (!ui.firebase.ready || !navigator.onLine) {
@@ -9484,9 +9732,15 @@
   async function flushSyncQueue() {
     if (ui.sheets.enabled) {
       if (!ui.sheets.connected || !navigator.onLine) return;
+      if (ui.sheets.isSyncing) return;
       const queue = [...store.writeQueue];
       if (!queue.length) return;
+      ui.sheets.isSyncing = true;
+      ui.sheets.status = "sync_pending";
+      ui.sheets.error = "";
       try {
+        queue.forEach(item => applyWriteOperationToLocalState(item.operation || {}));
+        normalizeStoreBeforeSnapshotWrite(activeDate(), { applyQueue: false });
         await writeOperationToSheets({ type: "queuedSnapshot" });
         queue.forEach(item => {
           item.status = "server_synced";
@@ -9500,9 +9754,10 @@
           }
         });
       }
+      ui.sheets.isSyncing = false;
       store.writeQueue = queue.filter(item => item.status !== "server_synced");
       saveStore();
-      renderIaas();
+      scheduleRenderIaas(0);
       return;
     }
     if (!ui.firebase.ready || !navigator.onLine) return;
@@ -9520,7 +9775,7 @@
     }
     store.writeQueue = queue.filter(item => item.status !== "server_synced");
     saveStore();
-    renderIaas();
+    scheduleRenderIaas(0);
   }
 
   async function initFirebaseIfConfigured() {
@@ -9779,18 +10034,20 @@
     ui.sheets.errorDetail = "";
     rememberSheetsSession(options.tokenResponse);
     const hadPendingWrites = pendingQueue().length > 0;
-    await hydrateFromSheets();
     if (hadPendingWrites) {
-      ui.sheets.status = "sync_conflict";
-      ui.sheets.error = "Se detectaron cambios locales previos. Recarga Sheets y repite la accion ya conectado antes de escribir en la base clinica.";
-      ui.sheets.errorDetail = ui.sheets.error;
-      store.writeQueue = store.writeQueue.map(item => ({ ...item, status: "error", error: ui.sheets.error }));
+      normalizeStoreBeforeSnapshotWrite(activeDate(), { applyQueue: true });
       saveStore();
-      flashIaas(ui.sheets.error);
-      renderIaas();
-      return;
+      await flushSyncQueue();
+      if (pendingQueue().length) {
+        ui.sheets.status = "sync_pending";
+        ui.sheets.error = "Cambios guardados en este dispositivo; se sincronizaran cuando Sheets responda correctamente.";
+        ui.sheets.errorDetail = ui.sheets.error;
+        flashIaas(ui.sheets.error);
+        scheduleRenderIaas(0);
+        return;
+      }
     }
-    await flushSyncQueue();
+    await hydrateFromSheets();
   }
 
   async function restoreRememberedSheetsConnection() {
@@ -10682,7 +10939,8 @@
     const cache = ui.renderCache?.activeEpisodes;
     const key = `${patientId}|${date}`;
     if (cache?.has(key)) return cache.get(key);
-    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId && isEpisodeActiveOn(ep, date));
+    const patientEpisodes = deviceEpisodesByPatientForCurrentRender().get(patientId) || [];
+    const episodes = patientEpisodes.filter(ep => isEpisodeActiveOn(ep, date));
     if (cache) cache.set(key, episodes);
     return episodes;
   }
@@ -10690,7 +10948,7 @@
   function episodesForPatient(patientId) {
     const cache = ui.renderCache?.patientEpisodes;
     if (cache?.has(patientId)) return cache.get(patientId);
-    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId);
+    const episodes = deviceEpisodesByPatientForCurrentRender().get(patientId) || [];
     if (cache) cache.set(patientId, episodes);
     return episodes;
   }
@@ -10840,7 +11098,16 @@
   function saveStore(next = store) {
     next.lastSavedAt = nowIso();
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    window.EpiVidaOfflineBackup?.saveSnapshot?.();
+    scheduleOfflineSnapshot();
+  }
+
+  function scheduleOfflineSnapshot(delay = 700) {
+    if (!window.EpiVidaOfflineBackup?.saveSnapshot) return;
+    if (ui.offlineSnapshotTimer) window.clearTimeout(ui.offlineSnapshotTimer);
+    ui.offlineSnapshotTimer = window.setTimeout(() => {
+      ui.offlineSnapshotTimer = null;
+      window.EpiVidaOfflineBackup.saveSnapshot().catch?.(() => null);
+    }, delay);
   }
 
   function loadJson(key, fallback) {
@@ -10853,7 +11120,7 @@
 
   function saveJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
-    if (key === DRAFT_KEY) window.EpiVidaOfflineBackup?.saveSnapshot?.();
+    if (key === DRAFT_KEY) scheduleOfflineSnapshot();
   }
 
   function scheduleDraftSave(delay = 350) {
@@ -11274,6 +11541,11 @@
         row.syncStatus = "server_synced";
       });
     });
+    Object.values(store.deviceEpisodes || {}).forEach(episode => {
+      if (!episode || episode.syncStatus === "server_synced") return;
+      episode.syncStatus = "server_synced";
+      episode.serverConfirmedAt = confirmedAt;
+    });
   }
 
   function syncStatusForNewWrite() {
@@ -11502,6 +11774,17 @@
       setReviewDraft,
       addDeviceDraft,
       updateDeviceDraft,
+      saveRoundEntry,
+      enqueueWrite,
+      flushSyncQueue,
+      hydrateFromSheets,
+      normalizeStoreBeforeSnapshotWrite,
+      roundRowsForSheets,
+      deviceRowsForSheets,
+      computeStats,
+      activeEpisodes,
+      episodesForPatient,
+      saveStore,
       renderPatientRound,
       renderPatientExpediente,
       validateReviewDraft,

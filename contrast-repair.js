@@ -28,6 +28,7 @@
 
   const colorCache = new Map();
   let scheduled = false;
+  let lastScanAt = 0;
   let lastFixedCount = 0;
 
   function parseColor(value) {
@@ -245,8 +246,16 @@
 
   function scheduleScan() {
     if (scheduled) return;
+    const heavyScreen = document.querySelector(".hospital-census-page, .patient-round, .epidemiological-monitor-page");
+    const minGap = heavyScreen ? 900 : 180;
+    const elapsed = Date.now() - lastScanAt;
     scheduled = true;
-    requestAnimationFrame(() => setTimeout(scan, 50));
+    window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        lastScanAt = Date.now();
+        scan();
+      });
+    }, Math.max(50, minGap - elapsed));
   }
 
   window.EPIVIDA_CONTRAST_REPAIR = { version: VERSION, scan, scheduleScan };

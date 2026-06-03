@@ -516,16 +516,21 @@
 
   document.addEventListener("change", handleClassificationChange, true);
   document.addEventListener("click", handlePreventiveClick, true);
+  let scheduledRepair = 0;
+  function schedulePassiveRepair(delay = 220) {
+    if (scheduledRepair) return;
+    scheduledRepair = window.setTimeout(() => {
+      scheduledRepair = 0;
+      repairSheetsConflict();
+      repairStoredClassifications();
+    }, delay);
+  }
   window.addEventListener("hashchange", () => {
-    repairStoredClassifications();
-    window.setTimeout(repairSheetsConflict, 80);
+    schedulePassiveRepair(80);
   });
-  window.addEventListener("online", () => window.setTimeout(repairSheetsConflict, 120));
+  window.addEventListener("online", () => schedulePassiveRepair(120));
 
-  const observer = new MutationObserver(() => {
-    repairSheetsConflict();
-    repairStoredClassifications();
-  });
+  const observer = new MutationObserver(() => schedulePassiveRepair(320));
   const start = () => {
     observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
     repairStoredClassifications();
@@ -533,5 +538,10 @@
   };
   if (document.body) start();
   else document.addEventListener("DOMContentLoaded", start, { once: true });
-  window.setInterval(repairSheetsConflict, 1000);
+  window.setInterval(() => {
+    const store = currentStore();
+    const queue = (store.writeQueue || []).filter(item => item.status !== "server_synced");
+    const status = window.__EPIVIDA_TEST__?.ui?.sheets?.status || "";
+    if (queue.length || status === "sync_conflict") repairSheetsConflict();
+  }, 5000);
 })();
