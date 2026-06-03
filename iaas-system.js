@@ -1140,7 +1140,7 @@
   }
 
   function canUseOfflineAccess() {
-    return Boolean(ui.offlineAccess && !navigator.onLine && localClinicalStoreAvailable());
+    return Boolean(ui.offlineAccess && !navigator.onLine);
   }
 
   function localClinicalStoreAvailable() {
@@ -1156,7 +1156,6 @@
       if (navigator.onLine && ui.firebase.user?.uid === "offline-local-user") ui.firebase.user = null;
       return false;
     }
-    if (!localClinicalStoreAvailable()) return false;
     ui.offlineAccess = true;
     ui.firebase.ready = false;
     ui.firebase.user = {

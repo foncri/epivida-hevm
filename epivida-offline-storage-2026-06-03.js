@@ -190,7 +190,7 @@
 
   async function ensureServiceWorkerReady() {
     if (!("serviceWorker" in navigator)) throw new Error("Este navegador no permite preparar EpiVida sin internet.");
-    const registration = await navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-offline-ready01");
+    const registration = await navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-localapp01");
     await registration.update().catch(() => null);
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
