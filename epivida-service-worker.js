@@ -1,4 +1,4 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-03-08";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-03-09";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -18,7 +18,7 @@ const APP_SHELL = [
   "./iaas-urgencias-aisp-system-preloader-2026-06-01.js?v=2026-06-01-aisp02",
   "./hospital-bed-service-normalizer-2026-06-02.js?v=2026-06-03-censusflow01",
   "./preventive-pe-summary-visibility-2026-06-01.js?v=2026-06-01-pe02",
-  "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-02-roundflow01",
+  "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-03-notes01",
   "./preventive-packages-enhancement-2026-06-01.js?v=2026-06-01-preventive02",
   "./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01",
   "./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01",

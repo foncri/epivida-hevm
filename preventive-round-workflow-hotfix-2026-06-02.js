@@ -72,7 +72,12 @@
 
   function preventiveActionHelpersSource() {
     return `  function sanitizePreventiveRoundText(value) {
-    return cleanCell(value).replace(/^(?:\\/|\\||;)+\\s*/, "").replace(/\\s+(?:\\/|\\||;)+\\s*$/, "");
+    const text = cleanCell(value)
+      .replace(/\\s*(?:\\/|\\||;)+\\s*/g, " / ")
+      .replace(/(?:^|\\s)\\/+(?=\\s|$)/g, " ")
+      .replace(/\\s+/g, " ")
+      .trim();
+    return /^(?:\\/|\\||;|\\s)*$/.test(text) ? "" : text.replace(/^\\s*(?:\\/|\\||;)+\\s*/, "").replace(/\\s*(?:\\/|\\||;)+\\s*$/, "");
   }
 
   function renderSurgeryRoomPanel(date, patientId, draft) {
@@ -105,7 +110,7 @@
     const movement = draft.patientMovement || {};
     const discharge = draft.quickDischarge || {};
     const generalDate = normalizeDate(draft.generalObservationDate) || date || isoToday();
-    const pendingNotes = draft.pendingText || draft.notes || "";
+    const pendingNotes = sanitizePreventiveRoundText(draft.pendingText || draft.notes || "");
     const patchMovement = value => {
       const currentDraft = getReviewDraft(date, patientId);
       updateDraft(date, patientId, { patientMovement: { ...(currentDraft.patientMovement || {}), ...value } });
