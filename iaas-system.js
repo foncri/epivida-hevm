@@ -6,8 +6,6 @@
   const ROUND_NAV_COLLAPSE_KEY = "epivida-round-nav-collapsed-v1";
   const AUTH_FLOW_KEY = "epivida-auth-redirect-flow";
   const SHEETS_SESSION_KEY = "epivida-sheets-session-v1";
-  const OFFLINE_PREPARED_KEY = "epivida-offline-prepared-at";
-  const OFFLINE_STATUS_KEY = "epivida-offline-cache-status";
   const FIREBASE_VERSION = "10.12.4";
   const PRO_ASSET = "./assets/epivida-pro";
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -631,9 +629,6 @@
     expedienteIaasLoaded: {},
     expedienteRawLoaded: {},
     offlineAccess: false,
-    offlinePreparing: false,
-    offlinePreparedAt: readOfflinePreparedAt(),
-    offlineCacheReady: readOfflineCacheReady(),
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
     firebase: {
@@ -1154,51 +1149,6 @@
       || Object.keys(store.dailyRounds || {}).length > 0;
   }
 
-  function readOfflinePreparedAt() {
-    try {
-      return localStorage.getItem(OFFLINE_PREPARED_KEY) || "";
-    } catch {
-      return "";
-    }
-  }
-
-  function readOfflineCacheReady() {
-    try {
-      const status = JSON.parse(localStorage.getItem(OFFLINE_STATUS_KEY) || "{}");
-      return Boolean(status.ready || (status.cached && status.requested && status.cached >= status.requested));
-    } catch {
-      return false;
-    }
-  }
-
-  async function prepareOfflineAccess() {
-    if (ui.offlinePreparing) return;
-    if (!navigator.onLine) {
-      flashIaas("Conectate una vez a internet para preparar el arranque offline.");
-      return;
-    }
-    if (!window.EpiVidaOfflineBackup?.prepareOffline) {
-      flashIaas("Modo sin internet aun no esta disponible. Recarga EpiVida con internet.");
-      return;
-    }
-    ui.offlinePreparing = true;
-    renderIaas();
-    try {
-      const status = await window.EpiVidaOfflineBackup.prepareOffline();
-      ui.offlinePreparedAt = status.preparedAt || readOfflinePreparedAt();
-      ui.offlineCacheReady = Boolean(status.ready || (status.cached && status.requested && status.cached >= status.requested));
-      flashIaas(ui.offlineCacheReady
-        ? "Offline listo en este dispositivo. Abre EpiVida desde el icono antes de entrar sin senal."
-        : "Offline parcialmente preparado. Vuelve a intentarlo con mejor conexion.");
-    } catch (error) {
-      ui.offlineCacheReady = readOfflineCacheReady();
-      flashIaas(`No se pudo preparar offline: ${friendlyError(error)}`);
-    } finally {
-      ui.offlinePreparing = false;
-      renderIaas();
-    }
-  }
-
   function activateOfflineAccessIfNeeded() {
     const realUserActive = ui.firebase.user && ui.firebase.user.uid !== "offline-local-user";
     if (navigator.onLine || !ui.requireAuth || !ui.firebase.enabled || realUserActive || ui.firebase.denied) {
@@ -1282,7 +1232,6 @@
       ]),
       h("div", { class: "iaas-topbar-actions" }, [
         renderSyncState(),
-        renderOfflineControl(),
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
         h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
@@ -1318,7 +1267,6 @@
       ]),
       h("div", { class: "iaas-topbar-actions command-actions" }, [
         renderSyncState(),
-        renderOfflineControl(),
         renderSheetsControl(),
         h("button", { class: "iaas-button ghost", onclick: () => exportDailyJson(activeDate()) }, [commandIcon("cloud"), "Respaldar"]),
         h("button", { class: "iaas-button ghost", onclick: printEpidemiologicalCensusFromSheets }, [commandIcon("print"), "Imprimir"]),
@@ -1354,30 +1302,6 @@
           ? "Sincronizado"
           : "Guardado localmente";
     return h("span", { class: className, title: ui.firebase.offlinePersistence }, [text]);
-  }
-
-  function renderOfflineControl() {
-    const supported = Boolean("serviceWorker" in navigator && "indexedDB" in window);
-    if (!supported) {
-      return h("span", { class: "sync error", title: "Este navegador no permite instalar la copia local de EpiVida" }, ["Offline no disponible"]);
-    }
-    const prepared = ui.offlineCacheReady || Boolean(ui.offlinePreparedAt);
-    const label = ui.offlinePreparing
-      ? "Preparando offline"
-      : prepared
-        ? "Offline listo"
-        : "Preparar sin internet";
-    const className = `iaas-button ${prepared ? "ghost" : "primary"}`;
-    const title = prepared
-      ? `Preparado en este dispositivo${ui.offlinePreparedAt ? `: ${ui.offlinePreparedAt}` : ""}`
-      : "Guarda EpiVida y el censo en este telefono para abrirlo sin internet";
-    return h("button", {
-      class: className,
-      type: "button",
-      disabled: ui.offlinePreparing,
-      onclick: prepareOfflineAccess,
-      title
-    }, [commandIcon("shield"), label]);
   }
 
   function renderSheetsControl() {

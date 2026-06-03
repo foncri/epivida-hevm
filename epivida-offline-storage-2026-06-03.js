@@ -10,11 +10,9 @@
   const DRAFT_KEY = "epivida-iaas-drafts-v1";
   const OFFLINE_PREPARED_KEY = "epivida-offline-prepared-at";
   const OFFLINE_STATUS_KEY = "epivida-offline-cache-status";
-  const OFFLINE_AUTO_PREPARED_KEY = "epivida-offline-auto-prepared-at";
   const MIRRORED_KEYS = new Set([STORE_KEY, DRAFT_KEY, "epivida-sheets-session-v1"]);
   const HISTORY_LIMIT = 7;
   const PREPARE_TIMEOUT_MS = 15000;
-  const AUTO_PREPARE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
   function openDb() {
     if (!("indexedDB" in window)) return Promise.resolve(null);
@@ -228,21 +226,6 @@
     return { ...status, ready, preparedAt, snapshot };
   }
 
-  function shouldAutoPrepareOffline() {
-    if (!navigator.onLine || !("serviceWorker" in navigator) || !("indexedDB" in window)) return false;
-    const last = safeLocalGet(OFFLINE_AUTO_PREPARED_KEY) || safeLocalGet(OFFLINE_PREPARED_KEY);
-    if (!last) return true;
-    const elapsed = Date.now() - Date.parse(last);
-    return !Number.isFinite(elapsed) || elapsed > AUTO_PREPARE_INTERVAL_MS;
-  }
-
-  async function autoPrepareOffline() {
-    if (!shouldAutoPrepareOffline()) return null;
-    const result = await prepareOffline();
-    safeLocalSet(OFFLINE_AUTO_PREPARED_KEY, result.preparedAt || new Date().toISOString());
-    return result;
-  }
-
   installLocalStorageMirror();
   window.__epividaOfflineReady = restoreLocalState().then(async restored => {
     await saveSnapshot();
@@ -256,7 +239,6 @@
     saveSnapshot,
     restoreLocalState,
     prepareOffline,
-    autoPrepareOffline,
     cacheStatus,
     checksum,
     async status() {
@@ -280,20 +262,11 @@
         backupVersions: validHistory.length,
         lastBackupSavedAt: validHistory[0]?.savedAt || record?.savedAt || "",
         offlinePreparedAt: safeLocalGet(OFFLINE_PREPARED_KEY) || "",
-        offlineAutoPreparedAt: safeLocalGet(OFFLINE_AUTO_PREPARED_KEY) || "",
         offlineCacheReady: Boolean(cache.ready || (cache.cached && cache.requested && cache.cached >= cache.requested)),
         offlineCacheStatus: cache
       };
     }
   };
-
-  window.addEventListener("load", () => {
-    window.setTimeout(() => {
-      autoPrepareOffline().catch(error => {
-        console.warn("No se pudo preparar automaticamente EpiVida offline.", error);
-      });
-    }, 2500);
-  });
 
   ["pagehide", "beforeunload"].forEach(type => {
     window.addEventListener(type, () => { saveSnapshot(); }, { capture: true });
