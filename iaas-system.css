@@ -8960,7 +8960,77 @@ body:has(.command-shell),
   background: linear-gradient(135deg, #ffffff, #eef4ff) !important;
 }
 
+.command-module-lite {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.command-module-lite-card {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid rgba(163, 185, 224, .55);
+  border-radius: 14px;
+  color: #0c193d;
+  text-decoration: none;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(24, 42, 83, .06);
+}
+
+.command-module-lite-card strong,
+.command-module-lite-card span,
+.command-module-lite-card small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-module-lite-card strong {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.command-module-lite-card span {
+  color: #244fd6;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.command-module-lite-card small {
+  color: #64748b;
+  font-size: 11px;
+}
+
 @media screen and (max-width: 760px) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+
+  .command-shell *,
+  .command-shell *::before,
+  .command-shell *::after {
+    backdrop-filter: none !important;
+    filter: none !important;
+  }
+
+  .command-module-lite {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .command-module-lite-card {
+    min-height: 76px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
   .command-shell .round-nav-actions {
     justify-content: space-between !important;
   }

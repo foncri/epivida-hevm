@@ -10,6 +10,7 @@
   const PRO_ASSET = "./assets/epivida-pro";
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
   const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+  const PERFORMANCE_MODE = window.EPIVIDA_PERFORMANCE_MODE || "";
   const OAUTH_POPUP_TIMEOUT_MS = Number(window.EPIVIDA_OAUTH_POPUP_TIMEOUT_MS || 90000);
   const SHEETS_CONFIG = {
     enabled: false,
@@ -671,6 +672,7 @@
   }
 
   function startDashboardSlideLoop() {
+    if (aggressivePerformanceMode()) return;
     if (ui.dashboardSlideTimer) return;
     ui.dashboardSlideTimer = window.setInterval(() => {
       if (ui.route.page !== "dashboard") return;
@@ -1345,11 +1347,19 @@
           h("h1", {}, ["Centro de Vigilancia"])
         ])
       ]),
-      renderCommandFeatureRail(stats, date),
+      aggressivePerformanceMode() ? renderCommandFeatureRailLite(stats, date) : renderCommandFeatureRail(stats, date),
       renderCommandMetrics(stats, date),
-      renderCommandNotificationPanels(stats, date),
-      renderCommandCalendar(date)
+      ...(aggressivePerformanceMode() ? [] : [
+        renderCommandNotificationPanels(stats, date),
+        renderCommandCalendar(date)
+      ])
     ]);
+  }
+
+  function aggressivePerformanceMode() {
+    if (PERFORMANCE_MODE === "aggressive") return true;
+    if (navigator.connection?.saveData) return true;
+    return Boolean(window.matchMedia?.("(max-width: 760px)")?.matches);
   }
 
   function renderCommandFeatureRail(stats, date) {
@@ -1381,6 +1391,17 @@
         h("button", { class: index === activeIndex ? "active" : "", type: "button", "aria-label": `Ver módulo ${index + 1}`, onclick: () => setDashboardSlide(index) }, [])
       ))
     ]);
+  }
+
+  function renderCommandFeatureRailLite(stats, date) {
+    const modules = dashboardModules(stats, date);
+    return h("section", { class: "command-module-lite", "aria-label": "MÃ³dulos principales del sistema" }, modules.map(module =>
+      h("a", { class: `command-module-lite-card ${module.tone}`, href: module.href }, [
+        h("strong", {}, [module.title]),
+        h("span", {}, [module.action]),
+        h("small", {}, [module.meta.slice(0, 3).join(" Â· ")])
+      ])
+    ));
   }
 
   function commandFeatureCards(stats, date) {
@@ -10224,6 +10245,10 @@
 
   function h(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
+    if (tag === "img") {
+      node.loading = attrs.loading || "lazy";
+      node.decoding = attrs.decoding || "async";
+    }
     Object.entries(attrs || {}).forEach(([key, value]) => {
       if (value === null || value === undefined || value === false) return;
       if (key === "class") node.className = value;

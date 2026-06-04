@@ -55,6 +55,7 @@
       };
       window.EPIVIDA_DATA_PROVIDER = "google_sheets";
       window.EPIVIDA_FIRESTORE_SYNC = false;
+      window.EPIVIDA_PERFORMANCE_MODE = "aggressive";
       window.EPIVIDA_SHEETS_CONFIG = {
         enabled: true,
         spreadsheetId: "1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM",
@@ -92,14 +93,13 @@
     </script>
     <script>
       const loadedEpividaScripts = new Set();
-      const idle = window.requestIdleCallback || (callback => window.setTimeout(callback, 700));
       const epividaCoreScripts = ["./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
       if (location.hostname === "localhost") {
         epividaCoreScripts.push("./data/censo-data.private.js");
       }
       epividaCoreScripts.push("./iaas-urgencias-aisp-system-preloader-2026-06-01.js?v=2026-06-01-aisp02");
       epividaCoreScripts.push("./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01");
-      epividaCoreScripts.push("./iaas-system.js?v=2026-06-04-perf01");
+      epividaCoreScripts.push("./iaas-system.js?v=2026-06-04-perf03");
       epividaCoreScripts.push("./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01");
 
       const epividaRouteBundles = {
@@ -112,19 +112,22 @@
           "./preventive-round-repair.js?v=2026-05-19-noreload01",
           "./preventive-invasive-editor.js?v=2026-05-19-noreload01",
           "./preventive-hide-cultures.js?v=2026-05-19-noreload01",
-          "./preventive-page-behavior-2026-05-12.js?v=2026-05-12-fixedbeds02"
+          "./preventive-page-behavior-2026-05-12.js?v=2026-05-12-fixedbeds02",
+          "./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-05-18-fix05"
         ],
         "seguimiento-iaas": [
           "./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05",
           "./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01",
           "./iaas-history-range-filter-2026-05-12.js?v=2026-05-12-history01",
           "./epivida-iaas-followup-noreload-hotfix-2026-05-13.js?v=2026-05-13-noreload01",
-          "./epivida-iaas-followup-counts-hotfix-2026-05-18.js?v=2026-05-18-fix02"
+          "./epivida-iaas-followup-counts-hotfix-2026-05-18.js?v=2026-05-18-fix02",
+          "./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-05-18-fix05"
         ],
         "pacientes": [
           "./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05",
           "./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01",
-          "./epivida-iaas-followup-noreload-hotfix-2026-05-13.js?v=2026-05-13-noreload01"
+          "./epivida-iaas-followup-noreload-hotfix-2026-05-13.js?v=2026-05-13-noreload01",
+          "./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-05-18-fix05"
         ],
         "importar-censo": [
           "./import-service-fix.js?v=2026-06-02-legacy-disabled01",
@@ -139,18 +142,8 @@
           "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-05-21-monthly01"
         ]
       };
-      epividaRouteBundles.dashboard = [
-        "./contrast-repair.js?v=2026-05-11-contrast11",
-        "./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-05-18-fix05"
-      ];
-      epividaRouteBundles["censo-hospitalario"] = epividaRouteBundles.dashboard;
-
-      const epividaBackgroundScripts = [
-        "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-05-21-monthly01",
-        "./contrast-repair.js?v=2026-05-11-contrast11",
-        "./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-05-18-fix05",
-        ...Object.values(epividaRouteBundles).flat()
-      ];
+      epividaRouteBundles.dashboard = [];
+      epividaRouteBundles["censo-hospitalario"] = [];
 
       function epividaRouteName() {
         return (location.hash || "#/dashboard").replace(/^#\/?/, "").split(/[/?#]/)[0] || "dashboard";
@@ -188,8 +181,7 @@
       (async () => {
         await loadEpividaScripts(epividaCoreScripts);
         await loadCurrentRouteBundle();
-        window.addEventListener("hashchange", () => idle(loadCurrentRouteBundle));
-        idle(() => loadEpividaScripts(epividaBackgroundScripts));
+        window.addEventListener("hashchange", loadCurrentRouteBundle);
       })();
     </script>
   </body>
