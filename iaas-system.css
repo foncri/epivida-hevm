@@ -8718,9 +8718,10 @@ body {
   }
 
   .bed-board {
-    width: calc(100vw - 44px);
-    max-width: calc(100vw - 44px);
-    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    overscroll-behavior: contain;
   }
 
   .bed-board p {
@@ -8729,13 +8730,13 @@ body {
   }
 
   .bed-board-legend {
-    width: calc(100vw - 76px);
-    max-width: calc(100vw - 76px);
+    width: 100%;
+    max-width: 100%;
   }
 
   .bed-board-grid {
-    width: calc(100vw - 76px);
-    max-width: calc(100vw - 76px);
+    width: 100%;
+    max-width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }

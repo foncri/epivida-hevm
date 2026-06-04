@@ -594,6 +594,7 @@
     dashboardSlideTimer: null,
     renderTimer: null,
     renderCache: null,
+    lastRenderedRouteKey: "",
     draftSaveTimer: null,
     draftsDirty: false,
     calendarView: "week",
@@ -1084,14 +1085,30 @@
     }
     const date = activeDate();
     const previousCache = ui.renderCache;
+    const routeKey = renderRouteKey();
+    const preserveScroll = shouldPreserveScrollForRender(routeKey);
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
     ui.renderCache = createRenderCache();
     try {
       recalculateRound(date);
       app.replaceChildren(renderShell());
       restoreFocusedControl();
+      if (preserveScroll) window.requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
     } finally {
+      ui.lastRenderedRouteKey = routeKey;
       ui.renderCache = previousCache;
     }
+  }
+
+  function renderRouteKey() {
+    const route = ui.route || {};
+    return [route.page || "", ...(route.parts || [])].join("/");
+  }
+
+  function shouldPreserveScrollForRender(routeKey) {
+    const page = ui.route?.page || "";
+    return ui.lastRenderedRouteKey === routeKey && (page === "seguimiento-iaas" || page === "ronda" || page === "pacientes");
   }
 
   function createRenderCache() {
@@ -4149,8 +4166,13 @@
   }
 
   function roundNavigationRows(date, patientId, mode, patient) {
-    if (mode === "iaas") return iaasFollowUpRows(date).map(item => item.row);
     const service = normalizeService(patient.currentService || store.dailyCensus?.[date]?.patients?.[patientId]?.service);
+    if (mode === "iaas") {
+      const sameServiceRows = getCensusRows(date)
+        .filter(row => normalizeService(row.service) === service)
+        .sort(sortByServiceBed);
+      return sameServiceRows.length ? sameServiceRows : iaasFollowUpRows(date).map(item => item.row);
+    }
     return getCensusRows(date)
       .filter(row => normalizeService(row.service) === service)
       .sort(sortByServiceBed);
@@ -4181,7 +4203,7 @@
     if (mode === "iaas") {
       const item = enrichMonitoringItem({ row, patient: store.patients[row.patientId] || {} }, date);
       if (!isIaasFollowUpCandidate(item, date)) {
-        return { status: "locked", disabled: true, label: "Sin riesgo", title: "Bloqueada: paciente sin riesgo IAAS definido" };
+        return { status: "available", disabled: false, label: "Cama", title: "Abrir seguimiento IAAS por cama" };
       }
       const reviewed = Boolean(store.dailyRounds[date]?.entries?.[row.patientId]?.iaasAssessment);
       if (reviewed) return { status: "reviewed", disabled: false, label: "Vista", title: "Valoración IAAS capturada" };
@@ -4278,7 +4300,7 @@
     } catch (error) {
       // La preferencia de vista no es critica si el navegador bloquea sessionStorage.
     }
-    render();
+    renderIaas();
   }
 
   function roundNavToggleLabel(mode, collapsed) {
@@ -10132,15 +10154,24 @@
   }
 
   function nextIaasPatientId(date, patientId) {
-    const rows = iaasFollowUpRows(date);
-    const index = rows.findIndex(item => item.row.patientId === patientId);
-    return rows[index + 1]?.row.patientId || null;
+    const rows = iaasNavigationRows(date, patientId);
+    const index = rows.findIndex(row => row.patientId === patientId);
+    return rows[index + 1]?.patientId || null;
   }
 
   function previousIaasPatientId(date, patientId) {
-    const rows = iaasFollowUpRows(date);
-    const index = rows.findIndex(item => item.row.patientId === patientId);
-    return rows[index - 1]?.row.patientId || null;
+    const rows = iaasNavigationRows(date, patientId);
+    const index = rows.findIndex(row => row.patientId === patientId);
+    return rows[index - 1]?.patientId || null;
+  }
+
+  function iaasNavigationRows(date, patientId) {
+    const patient = store.patients[patientId] || {};
+    const service = normalizeService(patient.currentService || store.dailyCensus?.[date]?.patients?.[patientId]?.service);
+    const sameServiceRows = getCensusRows(date)
+      .filter(row => normalizeService(row.service) === service)
+      .sort(sortByServiceBed);
+    return sameServiceRows.length ? sameServiceRows : iaasFollowUpRows(date).map(item => item.row);
   }
 
   function navigationPatientId(date, patientId, section, direction) {
