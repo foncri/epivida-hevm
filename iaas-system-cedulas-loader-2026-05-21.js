@@ -61,12 +61,34 @@
     return new Response(stream).text();
   }
 
+  function applyRegisteredSystemPatches(source) {
+    const patchers = Array.isArray(window.__EPIVIDA_SYSTEM_PATCHERS__)
+      ? [...window.__EPIVIDA_SYSTEM_PATCHERS__]
+      : [];
+    return patchers
+      .sort((left, right) => Number(left.priority || 100) - Number(right.priority || 100))
+      .reduce((next, item) => {
+        if (typeof item.patch !== "function") return next;
+        try {
+          return item.patch(next) || next;
+        } catch (error) {
+          console.warn(`No se pudo aplicar parche registrado de EpiVida: ${item.name || "sin nombre"}`, error);
+          return next;
+        }
+      }, source);
+  }
+
+  function evaluateSystemSource(source, sourceUrl) {
+    const nativeEval = window.__EPIVIDA_NATIVE_EVAL__ || window.eval;
+    nativeEval.call(window, `${applyRegisteredSystemPatches(source)}\n//# sourceURL=${sourceUrl}`);
+  }
+
   window.__epividaCedulasReady = (async () => {
     let source = "";
     try {
       if (!ENABLE_LEGACY_CEDULA_PATCHES) {
         source = await fetchText(SYSTEM_SOURCE);
-        (0, eval)(source + "\n//# sourceURL=iaas-system.base-through-preloaders-2026-06-04.js");
+        evaluateSystemSource(source, "iaas-system.base-through-preloaders-2026-06-04.js");
         return;
       }
       const [followupLoaderSource, systemSource, cedulaOpsJson] = await Promise.all([
@@ -79,10 +101,10 @@
       const cedulaOps = JSON.parse(cedulaOpsJson);
       const patchedFollowup = applyOps(systemSource, followupOps, "seguimiento IAAS");
       const patchedCedulas = applyOps(patchedFollowup, cedulaOps, "cedulas preventivas");
-      (0, eval)(patchedCedulas + "\n//# sourceURL=iaas-system.cedulas-patched-2026-05-21.js");
+      evaluateSystemSource(patchedCedulas, "iaas-system.cedulas-patched-2026-05-21.js");
     } catch (error) {
       console.warn("No se pudo aplicar el cargador de cedulas preventivas; se usa el sistema base.", error);
-      if (source) (0, eval)(source + "\n//# sourceURL=iaas-system.cedulas-fallback-2026-05-21.js");
+      if (source) evaluateSystemSource(source, "iaas-system.cedulas-fallback-2026-05-21.js");
       else throw error;
     }
   })();

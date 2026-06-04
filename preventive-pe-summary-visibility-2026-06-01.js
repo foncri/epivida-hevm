@@ -4,8 +4,6 @@
   if (window.__epividaPeSummaryVisibility20260601) return;
   window.__epividaPeSummaryVisibility20260601 = true;
 
-  const nativeEval = window.eval;
-
   function injectStyle() {
     if (document.getElementById("epivida-pe-summary-visibility-style")) return;
     const style = document.createElement("style");
@@ -123,9 +121,19 @@
     return next + "\n;window.epividaPeSummaryVisibilityApplied = true;\n";
   }
 
-  window.eval = function epividaPeSummaryVisibilityEval(source) {
-    return nativeEval.call(this, patchSource(source));
-  };
+  window.__EPIVIDA_SYSTEM_PATCHERS__ ||= [];
+  window.__EPIVIDA_SYSTEM_PATCHERS__.push({
+    name: "pe-summary-visibility",
+    priority: 40,
+    patch: patchSource
+  });
+
+  if (window.EPIVIDA_USE_GLOBAL_EVAL_PATCHERS === true) {
+    const nativeEval = window.eval;
+    window.eval = function epividaPeSummaryVisibilityEval(source) {
+      return nativeEval.call(this, patchSource(source));
+    };
+  }
 
   injectStyle();
 })();

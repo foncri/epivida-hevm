@@ -2,7 +2,6 @@
   "use strict";
   if (window.__epividaPreventivePackagesEnhancement20260601) return;
   window.__epividaPreventivePackagesEnhancement20260601 = true;
-  const nativeEval = window.eval;
   const LEGACY_PATCH_DEBUG = window.EPIVIDA_LEGACY_PATCH_DEBUG === true;
 
   function style() {
@@ -352,7 +351,17 @@
   }
 
   style();
-  window.eval = function epividaPreventivePackagesEnhancementEval(source) {
-    return nativeEval.call(this, patchSource(source));
-  };
+  window.__EPIVIDA_SYSTEM_PATCHERS__ ||= [];
+  window.__EPIVIDA_SYSTEM_PATCHERS__.push({
+    name: "preventive-packages-enhancement",
+    priority: 20,
+    patch: patchSource
+  });
+
+  if (window.EPIVIDA_USE_GLOBAL_EVAL_PATCHERS === true) {
+    const nativeEval = window.eval;
+    window.eval = function epividaPreventivePackagesEnhancementEval(source) {
+      return nativeEval.call(this, patchSource(source));
+    };
+  }
 })();

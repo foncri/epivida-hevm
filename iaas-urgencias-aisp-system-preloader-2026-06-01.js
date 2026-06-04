@@ -4,8 +4,6 @@
   if (window.__epividaUrgenciasAisPSystemPreloader20260601) return;
   window.__epividaUrgenciasAisPSystemPreloader20260601 = true;
 
-  const nativeEval = window.eval;
-
   function patchServiceFromBedCell(source) {
     const marker = "if (/^AIS[-\\s]*P\\b/.test(key)) return \"URGENCIAS\";";
     if (source.includes(marker)) return source;
@@ -84,7 +82,17 @@
     return patched;
   }
 
-  window.eval = function epividaUrgenciasAisPSystemEval(source) {
-    return nativeEval.call(this, patchSystemSource(source));
-  };
+  window.__EPIVIDA_SYSTEM_PATCHERS__ ||= [];
+  window.__EPIVIDA_SYSTEM_PATCHERS__.push({
+    name: "urgencias-aisp",
+    priority: 60,
+    patch: patchSystemSource
+  });
+
+  if (window.EPIVIDA_USE_GLOBAL_EVAL_PATCHERS === true) {
+    const nativeEval = window.eval;
+    window.eval = function epividaUrgenciasAisPSystemEval(source) {
+      return nativeEval.call(this, patchSystemSource(source));
+    };
+  }
 })();

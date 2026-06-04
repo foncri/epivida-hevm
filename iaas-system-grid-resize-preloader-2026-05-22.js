@@ -20,8 +20,7 @@
     return lines.join("\n");
   }
 
-  const nativeEval = window.eval;
-  window.eval = function epividaCedulasGridResizeEval(source) {
+  function patchSource(source) {
     if (typeof source === "string"
       && source.includes("PREVENTIVE_CEDULA_SPECS")
       && source.includes("preventiveCedulaSheetPayloads")
@@ -33,6 +32,20 @@
         console.warn("No se pudo aplicar la expansion automatica de cedulas preventivas.");
       }
     }
-    return nativeEval.call(this, source);
-  };
+    return source;
+  }
+
+  window.__EPIVIDA_SYSTEM_PATCHERS__ ||= [];
+  window.__EPIVIDA_SYSTEM_PATCHERS__.push({
+    name: "cedulas-grid-resize",
+    priority: 10,
+    patch: patchSource
+  });
+
+  if (window.EPIVIDA_USE_GLOBAL_EVAL_PATCHERS === true) {
+    const nativeEval = window.eval;
+    window.eval = function epividaCedulasGridResizeEval(source) {
+      return nativeEval.call(this, patchSource(source));
+    };
+  }
 })();
