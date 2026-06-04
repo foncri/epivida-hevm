@@ -3,7 +3,7 @@
 
   const FIREBASE_VERSION = "10.12.4";
   const LOGO_SRC = "./assets/epivida/logos/epivida-logo-gradient.svg";
-  const APP_VERSION = "2026-06-04-authgate05";
+  const APP_VERSION = "2026-06-04-authgate06";
   const FULL_STYLES = [
     "./styles/epivida-assets.css",
     "./iaas-system.css?v=2026-06-03-syncperf02",
@@ -29,7 +29,7 @@
     "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-04-registry01",
     "./preventive-packages-enhancement-2026-06-01.js?v=2026-06-04-registry01",
     "./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-06-04-registry01",
-    "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-04-registry01",
+    "./iaas-system-runtime-2026-06-04.js?v=2026-06-04-runtime01",
     "./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01",
     "./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06",
     "./preventive-native-save-guard-2026-05-12.js?v=2026-05-12-iaassave01",
@@ -205,9 +205,6 @@
         try {
           if (src.includes("epivida-offline-storage") && window.__epividaOfflineReady) {
             await window.__epividaOfflineReady;
-          }
-          if (src.includes("iaas-system-cedulas-loader") && window.__epividaCedulasReady) {
-            await window.__epividaCedulasReady;
           }
         } catch (error) {
           console.error("No se pudo completar un cargador diferido de EpiVida.", error);
