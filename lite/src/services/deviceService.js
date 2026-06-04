@@ -1,7 +1,7 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { nowIso } from "../lib/date.js";
 import { cleanText, stripUndefined, validDevice } from "../lib/validators.js";
-import { listCollection } from "./firestoreService.js";
+import { listCollectionWhere } from "./firestoreService.js";
 import { setDocMergeOrQueue, pendingPayloadsForCollection } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
 
@@ -30,7 +30,7 @@ async function mergePending(rows = []) {
 
 export async function listActiveDevices() {
   try {
-    const rows = await listCollection("devices_active");
+    const rows = await listCollectionWhere("devices_active", [["active", "==", true]]);
     const active = (await mergePending(rows)).filter(row => row.active !== false && !row.removalDate && row.status !== "retirado");
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;

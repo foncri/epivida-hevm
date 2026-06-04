@@ -4,7 +4,7 @@ Base modular estatica para reconstruir EPIVIDA sin cargar el runtime legacy.
 
 ## Estado
 
-Fase 2 inicial:
+Fase 3 inicial:
 
 - Shell minimo.
 - Router hash con carga diferida por modulo.
@@ -21,6 +21,10 @@ Fase 2 inicial:
 - Cola offline explicita en IndexedDB para escrituras pendientes.
 - Admin muestra y reintenta sincronizacion pendiente.
 - Reportes exporta CSV bajo demanda, incluida la cola pendiente.
+- Configuracion productiva en `epivida-lite-config.js`.
+- Admin muestra si Firebase esta listo o faltan llaves.
+- Herramienta de migracion legacy de solo lectura en `tools/legacy-export/`.
+- Validador local de paquetes de migracion.
 
 ## Ejecutar local
 
@@ -38,22 +42,21 @@ http://localhost:5199/lite/index.html#/inicio
 
 ## Configurar Firebase
 
-Antes de publicar en produccion, cargar una configuracion equivalente a:
+Antes de publicar en produccion, editar `epivida-lite-config.js`:
 
-```html
-<script>
-  window.EPIVIDA_LITE_FIREBASE_CONFIG = {
-    apiKey: "...",
-    authDomain: "...",
-    projectId: "...",
-    storageBucket: "...",
-    messagingSenderId: "...",
-    appId: "..."
-  };
-</script>
+```js
+window.EPIVIDA_LITE_FIREBASE_CONFIG = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
+};
 ```
 
 La API key de Firebase no es secreto absoluto, pero la proteccion real depende de Auth, reglas Firestore y dominios autorizados.
+Despues de configurar, entrar a `#/admin` y verificar que aparezca `Configurado: <projectId>`.
 
 ## Cloudflare Pages
 
@@ -65,6 +68,7 @@ Configuracion recomendada para esta fase estatica:
 
 `lite/_headers` ya incluye headers de cache para HTML, JS, CSS, assets y manifest.
 Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa filenames con hash; esto evita que Cloudflare o el navegador conserven modulos viejos despues de un despliegue.
+`epivida-lite-config.js` tambien queda `no-cache` para permitir cambios de configuracion entre despliegues.
 
 ## Rutas
 
@@ -77,6 +81,27 @@ Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa
 - `#/dispositivos`
 - `#/reportes`
 - `#/admin`
+
+## Migracion legacy
+
+Herramienta de solo lectura:
+
+```text
+lite/tools/legacy-export/index.html
+```
+
+Uso:
+
+1. Abrir la herramienta en el mismo origen donde se uso EPIVIDA legacy, o cargar un respaldo JSON.
+2. Preparar el paquete.
+3. Descargar `epivida-lite-migration-YYYY-MM-DD.json`.
+4. Validar localmente:
+
+```powershell
+node lite/tools/validate-migration-package.mjs ruta\al\paquete.json
+```
+
+No subir ese paquete al repositorio. Puede contener pacientes, diagnosticos y trazabilidad clinica.
 
 ## Firestore
 
@@ -111,10 +136,12 @@ Colecciones objetivo:
 - No agregar assets decorativos a la carga inicial.
 - No convertir esta base nueva en otro monolito.
 
-## Pruebas Fase 2
+## Pruebas Fase 3
 
 - Sintaxis de todos los `.js`: OK.
 - Busqueda de legacy prohibido (`iaas-system`, `FULL_SCRIPTS`, Sheets, XLSX, `innerHTML`, `localStorage`): sin coincidencias en `lite/src`.
 - Browser integrado: alta de paciente, dispositivo e IAAS en modo local sin Firebase.
 - Chrome local: rutas criticas sin errores de consola ni respuestas 400/500.
 - Mobile 393 px: sin desbordamiento horizontal en formulario de dispositivo.
+- Herramienta `legacy-export`: sintaxis OK.
+- Validador de migracion: probado con paquete sintetico OK.

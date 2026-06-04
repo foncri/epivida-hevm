@@ -1,7 +1,7 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { nowIso } from "../lib/date.js";
 import { stripUndefined, validIaasCase } from "../lib/validators.js";
-import { listCollection } from "./firestoreService.js";
+import { listCollectionWhere } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
 
@@ -30,7 +30,7 @@ async function mergePending(rows = []) {
 
 export async function listActiveIaas() {
   try {
-    const rows = await listCollection("iaas_active");
+    const rows = await listCollectionWhere("iaas_active", [["active", "==", true]]);
     const active = (await mergePending(rows)).filter(row => !["closed", "cerrada", "archived"].includes(String(row.status || "").toLowerCase()));
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;

@@ -10,6 +10,9 @@
 /epivida-lite-sw.js
   Cache-Control: no-cache
 
+/epivida-lite-config.js
+  Cache-Control: no-cache
+
 /*.css
   Cache-Control: public, max-age=31536000, immutable
 

@@ -1,6 +1,6 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { cleanText, stripUndefined, validPatient } from "../lib/validators.js";
-import { listCollection } from "./firestoreService.js";
+import { listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { nowIso } from "../lib/date.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
@@ -30,7 +30,7 @@ async function mergePending(rows = []) {
 
 export async function listActivePatients() {
   try {
-    const rows = await listCollection("patients_active");
+    const rows = await listCollectionWhere("patients_active", [["active", "==", true]]);
     const active = (await mergePending(rows)).filter(row => row.active !== false);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;

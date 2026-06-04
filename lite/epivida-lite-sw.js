@@ -1,5 +1,5 @@
-const CACHE_NAME = "epivida-lite-shell-2026-06-04-phase2";
-const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
+const CACHE_NAME = "epivida-lite-shell-2026-06-04-phase3";
+const CORE = ["./index.html", "./epivida-lite-config.js", "./src/styles/base.css", "./src/main.js"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).catch(() => undefined));
@@ -27,6 +27,10 @@ self.addEventListener("fetch", event => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then(hit => hit || caches.match("./index.html")))
+      .catch(() => caches.match(request).then(hit => {
+        if (hit) return hit;
+        if (request.destination === "document") return caches.match("./index.html");
+        return Response.error();
+      }))
   );
 });

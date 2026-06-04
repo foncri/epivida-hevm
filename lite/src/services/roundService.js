@@ -1,5 +1,5 @@
 import { todayIso, nowIso } from "../lib/date.js";
-import { listCollection } from "./firestoreService.js";
+import { listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 
@@ -12,7 +12,7 @@ async function mergePending(rows = []) {
 
 export async function listTodayRounds(date = todayIso()) {
   try {
-    const rows = await listCollection("nursing_rounds");
+    const rows = await listCollectionWhere("nursing_rounds", [["date", "==", date]]);
     return (await mergePending(rows)).filter(row => row.date === date);
   } catch {
     return (await mergePending([])).filter(row => row.date === date);

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EPIVIDA - Migracion legacy</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../../src/styles/base.css" />
+  </head>
+  <body>
+    <main class="workspace">
+      <section class="module-host stack">
+        <header class="module-head">
+          <div>
+            <h1>EPIVIDA Migracion Legacy</h1>
+            <p>Prepara un paquete JSON desde el store legacy. No sube datos a Firestore.</p>
+          </div>
+          <a class="button ghost" href="../../index.html#/admin">Volver</a>
+        </header>
+
+        <section class="row-card">
+          <strong>Origen</strong>
+          <span class="muted">Usa el store local del navegador actual o carga un respaldo JSON legacy.</span>
+          <div class="toolbar">
+            <button id="read-local" type="button">Leer store local</button>
+            <label class="button ghost">
+              Cargar JSON
+              <input id="file-input" type="file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+        </section>
+
+        <section id="status" class="row-card">
+          <strong>Estado</strong>
+          <span class="muted">Sin paquete preparado.</span>
+        </section>
+
+        <section id="summary" class="row-list"></section>
+
+        <section class="row-card">
+          <strong>Salida</strong>
+          <span class="muted">Descarga el paquete y revisalo antes de cualquier carga productiva.</span>
+          <div class="toolbar">
+            <button id="download" type="button" disabled>Descargar paquete</button>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>

@@ -440,6 +440,33 @@ Medicion local Fase 2, servidor sin cache:
 
 No se detectaron respuestas 400/500 ni errores de consola en estas rutas.
 
+### Avance posterior: Fase 3 preparacion productiva y migracion
+
+Estado: iniciada y validada localmente en `lite/`.
+
+Implementado:
+
+- `epivida-lite-config.js` como archivo editable de configuracion Firebase sin tocar codigo fuente.
+- Validacion de configuracion Firebase en `src/lib/config.js`.
+- `Admin` muestra si Firebase esta configurado y que llaves faltan.
+- Lecturas Firestore mas finas:
+  - `patients_active`: `active == true`.
+  - `devices_active`: `active == true`.
+  - `iaas_active`: `active == true`.
+  - `nursing_rounds`: `date == hoy`.
+- `listCollectionWhere()` centraliza consultas con `where`, `orderBy` y `limit`.
+- Service worker `phase3` corrige fallback: `index.html` solo se devuelve para documentos, no para scripts o CSS.
+- Herramienta `lite/tools/legacy-export/` prepara paquete JSON de migracion desde store legacy o archivo JSON, sin subir datos al servidor.
+- Validador `lite/tools/validate-migration-package.mjs` revisa llaves minimas antes de cualquier importacion productiva.
+- `Admin` enlaza a la herramienta de migracion.
+
+Validacion Fase 3:
+
+- Sintaxis de todos los `.js` y `.mjs`: OK.
+- `lite/src` sigue sin `iaas-system`, `FULL_SCRIPTS`, `FULL_STYLES`, Sheets, XLSX, `innerHTML` ni `localStorage`.
+- `localStorage` solo aparece en `lite/tools/legacy-export/index.js`, como herramienta de exportacion legacy de solo lectura.
+- Paquete sintetico de migracion validado con `validate-migration-package.mjs`: OK.
+
 ### Fase 2: modelo Firestore
 
 Estado: iniciado.
