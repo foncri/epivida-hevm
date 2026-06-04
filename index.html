@@ -16,14 +16,7 @@
     <meta name="apple-mobile-web-app-title" content="EpiVida" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preload" href="./assets/epivida/logos/epivida-logo-gradient.svg" as="image" />
-    <link rel="stylesheet" href="./styles/epivida-assets.css" />
-    <link rel="stylesheet" href="./iaas-system.css?v=2026-06-03-syncperf02" />
-    <link rel="stylesheet" href="./epivida-opd-2026-05-20.css?v=2026-05-20-followup01" />
-    <link rel="stylesheet" href="./preventive-round-hotfix.css?v=2026-05-08-preventive07" />
-    <link rel="stylesheet" href="./preventive-hide-cultures.css?v=2026-05-08-placecultures02" />
-    <link rel="stylesheet" href="./import-census-repair.css?v=2026-05-11-import01" />
-    <link rel="stylesheet" href="./contrast-repair.css?v=2026-05-11-bedcolors01" />
-    <link rel="stylesheet" href="./patient-icon-repair.css?v=2026-05-11-riskposition02" />
+    <link rel="stylesheet" href="./epivida-auth-gate.css?v=2026-06-04-authgate01" />
   </head>
   <body>
     <noscript>
@@ -89,69 +82,6 @@
         }
       })();
     </script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-04-sheets40301").catch(error => {
-            console.warn("No se pudo registrar modo offline EpiVida.", error);
-          });
-        });
-      }
-      const epividaScripts = ["./epivida-offline-storage-2026-06-03.js?v=2026-06-03-localapp01", "./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
-      if (location.hostname === "localhost") {
-        epividaScripts.push("./data/censo-data.private.js");
-      }
-      epividaScripts.push("./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05");
-      epividaScripts.push("./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01");
-      epividaScripts.push("./iaas-history-range-filter-2026-05-12.js?v=2026-05-12-history01");
-      epividaScripts.push("./preventive-bed-prerender-2026-05-12.js?v=2026-06-01-aisp01");
-      epividaScripts.push("./iaas-emergency-label-guard-2026-05-12.js?v=2026-05-12-urgencias01");
-      epividaScripts.push("./iaas-urgencias-aisp-system-preloader-2026-06-01.js?v=2026-06-01-aisp02");
-      epividaScripts.push("./hospital-bed-service-normalizer-2026-06-02.js?v=2026-06-03-censusflow01");
-      epividaScripts.push("./preventive-pe-summary-visibility-2026-06-01.js?v=2026-06-01-pe02");
-      epividaScripts.push("./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-03-notes01");
-      epividaScripts.push("./preventive-packages-enhancement-2026-06-01.js?v=2026-06-01-preventive02");
-      epividaScripts.push("./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01");
-      epividaScripts.push("./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-04-sheets40301");
-      epividaScripts.push("./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01");
-      epividaScripts.push("./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06");
-      epividaScripts.push("./preventive-native-save-guard-2026-05-12.js?v=2026-05-12-iaassave01");
-      epividaScripts.push("./preventive-round-repair.js?v=2026-05-19-noreload01");
-      epividaScripts.push("./preventive-invasive-editor.js?v=2026-05-19-noreload01");
-      epividaScripts.push("./preventive-hide-cultures.js?v=2026-05-19-noreload01");
-      epividaScripts.push("./import-service-fix.js?v=2026-06-03-cirugia01");
-      epividaScripts.push("./import-urgencias-aisp-fix-2026-06-01.js?v=2026-06-01-aisp01");
-      epividaScripts.push("./import-census-repair.js?v=2026-06-03-cirugia01");
-      epividaScripts.push("./contrast-repair.js?v=2026-06-03-syncperf02");
-      epividaScripts.push("./preventive-page-behavior-2026-05-12.js?v=2026-05-12-fixedbeds02");
-      epividaScripts.push("./epivida-iaas-followup-noreload-hotfix-2026-05-13.js?v=2026-05-13-noreload01");
-      epividaScripts.push("./epivida-iaas-sheets-preventive-hotfix-2026-05-18.js?v=2026-06-03-syncperf02");
-      epividaScripts.push("./epivida-iaas-monitor-sync-hotfix-2026-05-18.js?v=2026-05-18-fix02");
-      epividaScripts.push("./epivida-monitor-filter-visibility-hotfix-2026-05-18.js?v=2026-05-19-fix02");
-      epividaScripts.push("./epivida-iaas-followup-counts-hotfix-2026-05-18.js?v=2026-05-18-fix02");
-      (async () => {
-        for (const src of epividaScripts) {
-          await new Promise(resolve => {
-            const script = document.createElement("script");
-            script.src = src;
-            script.onload = async () => {
-              try {
-                if (src.includes("epivida-offline-storage") && window.__epividaOfflineReady) {
-                  await window.__epividaOfflineReady;
-                }
-                if (src.includes("iaas-system-cedulas-loader") && window.__epividaCedulasReady) {
-                  await window.__epividaCedulasReady;
-                }
-              } catch (error) {
-                console.error("No se pudo esperar el cargador de cedulas preventivas.", error);
-              }
-              resolve();
-            };
-            script.onerror = resolve;
-            document.body.append(script);
-          });
-        }
-      })();
-    </script>
+    <script src="./epivida-auth-gate.js?v=2026-06-04-authgate01" defer></script>
   </body>
 </html>

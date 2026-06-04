@@ -9813,14 +9813,25 @@
       return;
     }
     try {
-      const [appMod, authMod, fsMod] = await Promise.all([
-        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
-        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
-      ]);
-      const app = appMod.initializeApp(config);
-      const auth = authMod.getAuth(app);
-      await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+      const gateRuntime = window.__EPIVIDA_FIREBASE_GATE_RUNTIME;
+      let appMod;
+      let authMod;
+      let fsMod;
+      let app;
+      let auth;
+      if (gateRuntime?.appMod && gateRuntime?.authMod && gateRuntime?.app && gateRuntime?.auth) {
+        ({ appMod, authMod, app, auth } = gateRuntime);
+        fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`);
+      } else {
+        [appMod, authMod, fsMod] = await Promise.all([
+          import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+          import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
+          import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
+        ]);
+        app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(config);
+        auth = authMod.getAuth(app);
+        await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+      }
       let db;
       try {
         db = fsMod.initializeFirestore(app, {
