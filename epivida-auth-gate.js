@@ -3,7 +3,7 @@
 
   const FIREBASE_VERSION = "10.12.4";
   const LOGO_SRC = "./assets/epivida/logos/epivida-logo-gradient.svg";
-  const APP_VERSION = "2026-06-04-authgate02";
+  const APP_VERSION = "2026-06-04-authgate03";
   const FULL_STYLES = [
     "./styles/epivida-assets.css",
     "./iaas-system.css?v=2026-06-03-syncperf02",
@@ -178,6 +178,22 @@
     });
   }
 
+  function preloadAsset(href, as) {
+    if (document.querySelector(`link[data-epivida-preload="${href}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.href = href;
+    link.as = as;
+    link.dataset.epividaPreload = href;
+    if (as === "script") link.fetchPriority = "high";
+    document.head.append(link);
+  }
+
+  function warmFullAssets() {
+    FULL_STYLES.forEach(href => preloadAsset(href, "style"));
+    FULL_SCRIPTS.forEach(src => preloadAsset(src, "script"));
+  }
+
   function loadScript(src) {
     if (document.querySelector(`script[data-epivida-full-script="${src}"]`)) return Promise.resolve();
     return new Promise(resolve => {
@@ -223,6 +239,7 @@
     window.__EPIVIDA_AUTH_GATE_REASON = reason;
     renderLoading(reason === "offline" ? "Abriendo respaldo local..." : "Sesion validada. Cargando modulos clinicos...");
     appLoading = (async () => {
+      warmFullAssets();
       await Promise.all(FULL_STYLES.map(loadStyle));
       registerServiceWorkerWhenReady();
       for (const src of FULL_SCRIPTS) {
