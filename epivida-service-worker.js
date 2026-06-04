@@ -1,16 +1,16 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-04-authgate01";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-04-authgate02";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./epivida-auth-gate.css?v=2026-06-04-authgate01",
-  "./epivida-auth-gate.js?v=2026-06-04-authgate01",
+  "./epivida-auth-gate.js?v=2026-06-04-authgate02",
   "./epivida-offline-storage-2026-06-03.js?v=2026-06-03-localapp01",
   "./iaas-system.css?v=2026-06-03-syncperf02",
   "./styles/epivida-assets.css",
   "./epivida-date-guard.js?v=2026-05-08-date01",
   "./data/censo-data.js",
-  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-04-sheets40301",
+  "./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-04-authgate02",
   "./iaas-system.js?v=2026-06-04-sheets40301",
   "./iaas-followup-flow-stabilizer-2026-05-12.js?v=2026-05-13-flow05",
   "./iaas-followup-ownership-2026-05-12.js?v=2026-05-19-noreload01",
