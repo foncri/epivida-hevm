@@ -15,6 +15,7 @@ import {
   NAVM_DEVICE_TYPES,
   NAVM_ORAL_HYGIENE_TYPES,
   packageCreatesDevice,
+  packageLabel,
   packageReviewSummary,
   packageTone,
   PREVENTIVE_CHECKS,
@@ -406,7 +407,8 @@ async function renderPatientRound(app, parsed) {
   }
   const roundMap = new Map(rounds.map(row => [row.patientId, row]));
   const activeDevices = devices.filter(device => device.patientId === patient.patientId);
-  const draft = reviewDraft(local, date, patient.patientId);
+  const existingRound = roundMap.get(patient.patientId);
+  const draft = reviewDraft(local, date, patient.patientId, existingRound);
   const page = el("div", { class: "patient-round stack" });
   let message = "";
 
@@ -414,7 +416,9 @@ async function renderPatientRound(app, parsed) {
     page.replaceChildren(
       renderPatientRoundSummary(patient, date),
       message ? notice(message, message.includes("pendiente") || message.includes("falta") ? "warn" : "ok") : "",
+      renderSavedRoundPanel(existingRound, draft, redraw),
       renderActiveDevicesPanel(activeDevices, draft, redraw),
+      renderPeSummaryPanel(patient.patientId, date, rounds, draft),
       renderAddPackagePanel(date, patient.patientId, draft, redraw),
       renderPendingPanel(draft),
       renderRoundSaveBar(app, date, patient, patients, roundMap, draft, async (status, direction) => {
@@ -440,6 +444,67 @@ function renderPatientRoundSummary(patient, date) {
     el("div", { class: "patient-summary-side" }, [
       badge(patient.currentRiskLevel || patient.riskLevel || "Sin riesgo", "neutral")
     ])
+  ]);
+}
+
+function renderSavedRoundPanel(round, draft, redraw) {
+  if (!round?.packageReviews?.length && !round?.notes && !round?.pendingIssuesAdded?.length) return "";
+  const reviews = round.packageReviews || [];
+  return el("section", { class: "iaas-panel saved-round-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Revision guardada de hoy"]),
+        el("p", {}, ["La captura previa se carga para edicion; guardar vuelve a sincronizar la revision de esta cama."])
+      ]),
+      badge(statusLabel(round.status), round.status === "alerta" ? "bad" : round.status === "incompleto" ? "warn" : "ok")
+    ]),
+    reviews.length ? el("div", { class: "preventive-history-grid" }, reviews.map(review => renderPreventiveReviewCard(review, round.date || round.roundDate))) : "",
+    round.pendingIssuesAdded?.length ? el("p", { class: "muted" }, [`Pendientes: ${round.pendingIssuesAdded.join(" | ")}`]) : "",
+    round.notes ? el("p", { class: "muted" }, [`Notas: ${round.notes}`]) : "",
+    el("div", { class: "toolbar" }, [
+      button("Recargar revision guardada", () => {
+        Object.assign(draft, draftFromRound(round, round.date || round.roundDate, round.patientId));
+        redraw();
+      }, { class: "ghost small" })
+    ])
+  ]);
+}
+
+function renderPreventiveReviewCard(review = {}, date = "") {
+  const fields = review.reviewedFields || Object.entries(review.preventiveChecks || {}).map(([key, value]) => ({ key, label: key, value }));
+  return el("article", { class: `preventive-history-card ${packageTone(review.packageType)}` }, [
+    el("strong", {}, [review.packageType || "Paquete preventivo"]),
+    el("span", {}, [`Cumplimiento: ${review.compliance || preventiveCompliance(review.preventiveChecks || {}) || "Pendiente"}`]),
+    el("span", {}, [`Fecha: ${review.reviewDate || date || "S/D"}`]),
+    review.deviceType ? el("span", {}, [`Dispositivo: ${review.deviceType}`]) : "",
+    review.french ? el("span", {}, [`French: ${review.french}`]) : "",
+    fields.length ? el("ul", {}, fields.map(field =>
+      el("li", {}, [`${field.label || field.key}: ${field.value || "Sin dato"}`])
+    )) : "",
+    review.observations ? el("small", {}, [review.observations]) : ""
+  ]);
+}
+
+function renderPeSummaryPanel(patientId, date, rounds, draft) {
+  const peReviews = peSummaryItems(patientId, date, rounds, draft);
+  if (!peReviews.length) return "";
+  return el("section", { class: "iaas-panel pe-summary-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["P.E. y P.B.M.T."]),
+        el("p", {}, ["Historial rapido de precauciones estandar y medidas basadas en transmision."])
+      ]),
+      badge(`${peReviews.length} registro(s)`, "neutral")
+    ]),
+    el("div", { class: "preventive-history-grid pe-summary-grid" }, peReviews.map(item =>
+      el("article", { class: `preventive-history-card pe-summary-card ${item.source === "draft" ? "draft" : ""}` }, [
+        el("strong", {}, [packageLabel(item.packageType)]),
+        el("span", {}, [`Fecha: ${item.reviewDate || item.date || "S/D"}`]),
+        el("span", {}, [`Cumplimiento: ${item.compliance || preventiveCompliance(item.preventiveChecks || {}) || "Pendiente"}`]),
+        item.source === "draft" ? badge("En captura", "warn") : "",
+        item.observations ? el("small", {}, [item.observations]) : ""
+      ])
+    ))
   ]);
 }
 
@@ -705,7 +770,13 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
   const packageReviews = [];
 
   for (const device of draft.deviceDrafts) {
-    packageReviews.push(packageReviewSummary(device));
+    const reviewId = device.packageReviewId || device.draftId || `${patient.patientId}|${date}|${device.packageType || device.deviceType}`;
+    packageReviews.push({
+      ...packageReviewSummary(device),
+      packageReviewId: reviewId,
+      reviewDate: date,
+      savedEpisodeId: device.savedEpisodeId || device.episodeId || ""
+    });
     if (!packageCreatesDevice(device) || !device.installationDate) continue;
     const saved = await saveDeviceEpisode(app, {
       patientId: patient.patientId,
@@ -789,16 +860,59 @@ function roundState(app) {
   return app.state.moduleState.rondaPaquetes;
 }
 
-function reviewDraft(local, date, patientId) {
+function reviewDraft(local, date, patientId, round = null) {
   const key = `${date}:${patientId}`;
-  local.drafts[key] ||= {
-    deviceDrafts: [],
-    removals: {},
-    pendingText: "",
-    notes: "",
-    noInvasivesConfirmed: false
-  };
+  const roundKey = roundDraftKey(round);
+  local.drafts[key] ||= draftFromRound(round, date, patientId);
+  if (roundKey && local.drafts[key]._loadedRoundKey !== roundKey && !draftTouched(local.drafts[key])) {
+    local.drafts[key] = draftFromRound(round, date, patientId);
+  }
   return local.drafts[key];
+}
+
+function draftFromRound(round = null, date = "", patientId = "") {
+  const packageReviews = round?.packageReviews || [];
+  return {
+    _loadedRoundKey: roundDraftKey(round),
+    removals: {},
+    pendingText: (round?.pendingIssuesAdded || []).join(" | "),
+    notes: round?.notes || "",
+    noInvasivesConfirmed: Boolean(round?.noInvasivesConfirmed),
+    deviceDrafts: packageReviews.map((review, index) => ({
+      ...defaultPreventiveDevice(review.packageType || "ESPECIAL"),
+      ...review,
+      draftId: review.packageReviewId || `${patientId}|${date}|${index}`,
+      packageReviewId: review.packageReviewId || `${patientId}|${date}|${review.packageType || "paquete"}|${index}`,
+      savedEpisodeId: review.savedEpisodeId || review.episodeId || "",
+      episodeId: review.savedEpisodeId || review.episodeId || "",
+      reviewDate: review.reviewDate || date,
+      preventiveChecks: review.preventiveChecks || {},
+      observations: review.observations || ""
+    }))
+  };
+}
+
+function roundDraftKey(round = null) {
+  if (!round) return "";
+  return [
+    round.id || "",
+    round.updatedAt || "",
+    round.reviewedAt || "",
+    round.status || "",
+    JSON.stringify(round.packageReviews || []),
+    JSON.stringify(round.pendingIssuesAdded || []),
+    round.notes || ""
+  ].join("|");
+}
+
+function draftTouched(draft = {}) {
+  return Boolean(
+    draft.deviceDrafts?.length
+    || Object.keys(draft.removals || {}).length
+    || draft.pendingText
+    || draft.notes
+    || draft.noInvasivesConfirmed
+  );
 }
 
 function clearReviewDraft(local, date, patientId) {
@@ -966,6 +1080,14 @@ function roundBadge(round) {
   return badge("Pendiente", "warn");
 }
 
+function statusLabel(status = "") {
+  const normalized = roundStatus({ status });
+  if (normalized === "revisado") return "Revisado";
+  if (normalized === "alerta") return "Alerta";
+  if (normalized === "incompleto") return "Incompleto";
+  return "Pendiente";
+}
+
 function syncLabel(syncStatus = "") {
   if (syncStatus === "local_pending") return "Pendiente sync";
   if (syncStatus === "error") return "Error sync";
@@ -1036,6 +1158,32 @@ function packageSignalsForPatient(patient, devices) {
   const deduped = new Map(signals.map(signal => [signal.label, signal]));
   if (!deduped.size) deduped.set("Valoracion rapida", { label: "Valoracion rapida", tone: "neutral" });
   return [...deduped.values()];
+}
+
+function peSummaryItems(patientId, date, rounds = [], draft = null) {
+  const byKey = new Map();
+  const add = (item, source, fallbackDate = date) => {
+    if (!isPePackageType(item?.packageType)) return;
+    const reviewDate = normalizeDate(item.reviewDate || item.roundDate || item.date) || fallbackDate || "";
+    const key = item.packageReviewId || `${source}|${reviewDate}|${JSON.stringify(item.preventiveChecks || {})}`;
+    byKey.set(key, { ...item, source, reviewDate });
+  };
+  rounds
+    .filter(round => round.patientId === patientId)
+    .forEach(round => (round.packageReviews || []).forEach(review => add(review, "saved", round.date || round.roundDate)));
+  (draft?.deviceDrafts || [])
+    .forEach(device => add({
+      ...packageReviewSummary(device),
+      packageReviewId: device.packageReviewId || device.draftId || "",
+      reviewDate: device.reviewDate || date
+    }, "draft", date));
+  return [...byKey.values()]
+    .sort((a, b) => String(b.reviewDate || "").localeCompare(String(a.reviewDate || "")));
+}
+
+function isPePackageType(type = "") {
+  const key = normalizeRoundText(type).replace(/[^A-Z]/g, "");
+  return key === "PEYPBMT" || key === "PE" || key.includes("PRECAUCIONESESTANDAR");
 }
 
 function navigationPatientId(date, patient, direction) {
