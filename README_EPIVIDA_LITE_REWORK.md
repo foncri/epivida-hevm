@@ -19,6 +19,7 @@ La ruta legacy `#/ronda/2026-06-04` se conserva como entrada compatible y ahora 
 - Ronda movil por cama.
 - Filtros por servicio.
 - Mapa de camas preventivas con estados disponible, vacia, vista y pendiente.
+- Catalogo de camas conocidas por servicio, incluyendo camas vacias/bloqueadas aunque el censo activo tenga huecos.
 - Selector "Ir a cama preventiva".
 - Resumen de paquetes CVC, cateter urinario, ventilacion mecanica e ISQ.
 - Tarjetas por cama con estado, sincronizacion, invasivos y paquetes detectados.

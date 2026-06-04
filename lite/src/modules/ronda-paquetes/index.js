@@ -3,7 +3,7 @@ import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
 import { devicesByPatient, listActiveDevices, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
-import { filterPatients, listActivePatients } from "../../services/patientService.js";
+import { listActivePatients } from "../../services/patientService.js";
 import {
   defaultPreventiveDevice,
   deviceDisplayName,
@@ -25,6 +25,49 @@ import {
 } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
 import { listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
+
+const ROUND_SERVICE_FILTERS = [
+  { value: "Todos", label: "Todos" },
+  { value: "MEDICINA INTERNA", label: "Medicina Interna" },
+  { value: "CIRUGIA Y TRAUMATOLOGIA", label: "Cirugia y Traumatologia" },
+  { value: "PEDIATRIA", label: "Pediatria" },
+  { value: "CUNEROS", label: "Cuneros" },
+  { value: "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", label: "UCIN" },
+  { value: "HEMODIALISIS", label: "Hemodialisis" },
+  { value: "GINECOLOGIA Y OBSTETRICIA", label: "Ginecologia y Obstetricia" },
+  { value: "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS", label: "UCIP" },
+  { value: "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", label: "UCIA" },
+  { value: "URGENCIAS", label: "Urgencias" },
+  { value: "AMBULATORIO", label: "Ambulatorio" }
+];
+
+const KNOWN_SERVICE_BEDS = {
+  "MEDICINA INTERNA": [
+    ...range(1, 30),
+    "AIS 1 MI", "AIS 2 MI", "AIS 3 MI", "OBS 1 MI", "OBS 2 MI"
+  ],
+  "CIRUGIA Y TRAUMATOLOGIA": [
+    ...range(43, 66),
+    "AIS 1 CX", "AIS 2 CX", "AIS 3 CX", "OBS 1 CX", "OBS 2 CX"
+  ],
+  PEDIATRIA: [
+    ...range(67, 74),
+    "AIS 1 PED", "AIS 2 PED", "AIS 3 PED", "ESC 1", "ESC 2", "ESC 3"
+  ],
+  CUNEROS: ["CUN 1", "CUN 2", "CUN 3"],
+  "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES": ["UCIN 1", "UCIN 2"],
+  HEMODIALISIS: range(1, 100).map(number => `HEM ${number}`),
+  "GINECOLOGIA Y OBSTETRICIA": range(1, 5).map(number => `ALOJ ${number}`),
+  "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS": ["UTIP 1"],
+  "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS": ["UCIA 2", "UCIA 3", "UCIA AIS 4", "UCIA 5", "UCIA 6", "UCIA AIS 7", "UCIA 8"],
+  URGENCIAS: [
+    ...range(1, 4).map(number => `F${number}`),
+    ...range(1, 11).map(number => `UX ${number}`),
+    ...range(1, 5).map(number => `P${number}`),
+    "AIS P", "AISLADO 1", "AISLADO 2", "OBS 1 URG", "OBS 2 URG", "CHOQUE",
+    ...range(1, 14).map(number => `B${number}`)
+  ]
+};
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -60,7 +103,7 @@ async function renderRoundPage(app, parsed) {
       }),
       message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
       renderServiceFilters(patients, local, redraw),
-      renderBedBoard(visible, roundMap, date),
+      renderBedBoard(visible, roundMap, date, local.filters.service),
       renderPreventivePackagePanel(roundStats),
       stats([
         [String(roundStats.totalPatients), "Pacientes"],
@@ -118,13 +161,18 @@ function renderRoundHeader(app, date, roundStats, onSessionSaved, onMessage) {
 
 function renderServiceFilters(patients, local, redraw) {
   const counts = serviceCounts(patients);
-  const filters = ["Todos", ...counts.keys()];
+  const knownKeys = new Set(ROUND_SERVICE_FILTERS.map(filter => normalizeServiceKey(filter.value)));
+  const extraFilters = [...counts.keys()]
+    .filter(key => !knownKeys.has(key))
+    .map(key => ({ value: counts.get(key).label, label: counts.get(key).label }));
+  const filters = [...ROUND_SERVICE_FILTERS, ...extraFilters];
   return el("section", { class: "service-filter round-service-filter", "aria-label": "Filtrar camas por servicio" }, [
-    ...filters.map(service => {
-      const active = local.filters.service === service;
-      const count = service === "Todos" ? patients.length : counts.get(service) || 0;
-      return button(service === "Todos" ? `Todos ${count}` : `${service} ${count}`, () => {
-        local.filters.service = service;
+    ...filters.map(filter => {
+      const key = normalizeServiceKey(filter.value);
+      const active = normalizeServiceKey(local.filters.service) === key;
+      const count = filter.value === "Todos" ? activePatientCount(patients) : counts.get(key)?.count || 0;
+      return button(`${filter.label} ${count}`, () => {
+        local.filters.service = filter.value;
         redraw();
       }, {
         class: `${active ? "active" : ""}${count ? "" : " empty"}`.trim(),
@@ -142,8 +190,8 @@ function renderServiceFilters(patients, local, redraw) {
   ]);
 }
 
-function renderBedBoard(patients, roundMap, date) {
-  const items = bedBoardItems(patients);
+function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
+  const items = bedBoardItems(patients, serviceFilter);
   const pending = items.filter(item => item.patient && bedTileState(item.patient, roundMap).status === "overdue").length;
   const reviewed = items.filter(item => item.patient && bedTileState(item.patient, roundMap).status === "reviewed").length;
   return el("section", { class: "bed-board preventive" }, [
@@ -537,8 +585,9 @@ function renderRoundSaveBar(app, date, patient, patients, roundMap, draft, onSav
 
 function renderRoundNavigationBoard(date, patient, patients, roundMap) {
   const service = patientService(patient);
-  const rows = patients.filter(row => patientService(row) === service).sort(sortByServiceBed);
-  const items = bedBoardItems(rows);
+  const serviceKey = normalizeServiceKey(service);
+  const rows = patients.filter(row => normalizeServiceKey(patientService(row)) === serviceKey).sort(sortByServiceBed);
+  const items = bedBoardItems(rows, service);
   if (!items.length) return "";
   return el("div", { class: "round-nav-board preventive" }, [
     el("div", { class: "round-nav-head" }, [
@@ -690,7 +739,25 @@ function parseRoundRoute(parts = []) {
 }
 
 function filterAndSortRoundPatients(patients, filters) {
-  return filterPatients(patients, filters).sort(sortByServiceBed);
+  const serviceKey = normalizeServiceKey(filters.service || "Todos");
+  const query = normalizeRoundText(filters.query || "");
+  return patients
+    .filter(patient => patient.active !== false)
+    .filter(patient => serviceKey === "TODOS" || normalizeServiceKey(patientService(patient)) === serviceKey)
+    .filter(patient => {
+      if (!query) return true;
+      const haystack = normalizeRoundText([
+        patientLabel(patient),
+        patientBed(patient),
+        patientService(patient),
+        patientDiagnosis(patient),
+        patient.sector,
+        patient.status || patient.currentState,
+        patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis
+      ].join(" "));
+      return haystack.includes(query);
+    })
+    .sort(sortByServiceBed);
 }
 
 function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending, roundSession = null) {
@@ -719,39 +786,75 @@ function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pend
 
 function serviceCounts(patients) {
   const map = new Map();
-  patients.forEach(patient => {
+  patients.filter(patient => patient.active !== false).forEach(patient => {
     const service = patientService(patient);
     if (!service) return;
-    map.set(service, (map.get(service) || 0) + 1);
+    const key = normalizeServiceKey(service);
+    const current = map.get(key) || { label: service, count: 0 };
+    map.set(key, { label: current.label, count: current.count + 1 });
   });
-  return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "es")));
+  return new Map([...map.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label, "es")));
 }
 
-function bedBoardItems(patients) {
+function activePatientCount(patients) {
+  return patients.filter(patient => patient.active !== false).length;
+}
+
+function bedBoardItems(patients, serviceFilter = "Todos") {
   const sorted = dedupeBedRows(patients).sort(sortByServiceBed);
-  const services = new Set(sorted.map(patientService).filter(Boolean));
-  if (services.size !== 1) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
+  const selectedServiceKey = normalizeServiceKey(serviceFilter === "Todos" ? "" : serviceFilter);
+  const services = new Set(sorted.map(patient => normalizeServiceKey(patientService(patient))).filter(Boolean));
+  const serviceKey = selectedServiceKey || (services.size === 1 ? [...services][0] : "");
+  if (!serviceKey) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
+  const knownBeds = knownBedsForService(serviceKey, sorted);
   const numericRows = sorted
     .map(patient => ({ patient, number: bedNumberToken(patientBed(patient)) }))
     .filter(item => Number.isFinite(item.number));
-  if (numericRows.length < Math.max(3, Math.floor(sorted.length * 0.6))) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
+  const occupiedItems = sorted.map(patient => ({ bed: patientBed(patient), patient }));
+  if (numericRows.length < Math.max(3, Math.floor(sorted.length * 0.6))) return mergeKnownBedItems(occupiedItems, knownBeds);
   const min = Math.min(...numericRows.map(item => item.number));
   const max = Math.max(...numericRows.map(item => item.number));
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max - min > 80) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max - min > 80) return mergeKnownBedItems(occupiedItems, knownBeds);
   const byNumber = new Map(numericRows.map(item => [item.number, item.patient]));
   const inferred = [];
   for (let number = min; number <= max; number += 1) {
     const patient = byNumber.get(number) || null;
     inferred.push({ bed: patient ? patientBed(patient) : String(number), patient });
   }
-  return inferred;
+  return mergeKnownBedItems(inferred, knownBeds);
 }
 
 function dedupeBedRows(patients) {
   const map = new Map();
   patients.filter(patient => patient.active !== false).forEach(patient => {
-    const key = `${patientService(patient)}|${normalizeRoundText(patientBed(patient))}`;
+    const key = `${normalizeServiceKey(patientService(patient))}|${normalizeRoundText(patientBed(patient))}`;
     if (!map.has(key)) map.set(key, patient);
+  });
+  return [...map.values()];
+}
+
+function knownBedsForService(service, patients = []) {
+  const serviceKey = normalizeServiceKey(service);
+  const knownBeds = KNOWN_SERVICE_BEDS[serviceKey] || [];
+  const occupiedBeds = patients.map(patientBed).filter(Boolean);
+  return uniqueValues([...knownBeds, ...occupiedBeds]).sort(compareBeds);
+}
+
+function mergeKnownBedItems(items, knownBeds = []) {
+  if (!knownBeds.length) return items;
+  const byBed = new Map(items.map(item => [normalizeRoundText(item.bed), item]));
+  knownBeds.forEach(bed => {
+    const key = normalizeRoundText(bed);
+    if (!byBed.has(key)) byBed.set(key, { bed, patient: null });
+  });
+  return [...byBed.values()].sort((a, b) => compareBeds(a.bed, b.bed));
+}
+
+function uniqueValues(values = []) {
+  const map = new Map();
+  values.filter(Boolean).forEach(value => {
+    const key = normalizeRoundText(value);
+    if (!map.has(key)) map.set(key, value);
   });
   return [...map.values()];
 }
@@ -857,6 +960,28 @@ function truncate(value, length) {
 
 function normalizeRoundText(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+}
+
+function normalizeServiceKey(value) {
+  const text = normalizeRoundText(value).replace(/\s+/g, " ");
+  if (!text) return "";
+  if (text === "TODOS") return "TODOS";
+  if (text === "MI" || text.includes("MEDICINA INTERNA")) return "MEDICINA INTERNA";
+  if (text.includes("CIRUG") || text.includes("TRAUMATO")) return "CIRUGIA Y TRAUMATOLOGIA";
+  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text === "UCIN") return "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES";
+  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text === "UCIP" || text === "UTIP") return "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS";
+  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text === "UCIA") return "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS";
+  if (text.includes("PEDIATR")) return "PEDIATRIA";
+  if (text.includes("CUNERO") || text === "CUN") return "CUNEROS";
+  if (text.includes("HEMODI") || text === "HD") return "HEMODIALISIS";
+  if (text.includes("GINECO") || text.includes("OBSTETRIC")) return "GINECOLOGIA Y OBSTETRICIA";
+  if (text.includes("URGENCIA") || text === "URG") return "URGENCIAS";
+  if (text.includes("AMBULATOR")) return "AMBULATORIO";
+  return text;
+}
+
+function range(start, end) {
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => String(start + index));
 }
 
 function isCvcDevice(device) {

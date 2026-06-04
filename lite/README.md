@@ -19,6 +19,7 @@ Fase 4 inicial: remake fiel de Paquetes Preventivos sobre la base modular.
 - CRUD minimo en censo, dispositivos e IAAS.
 - Ronda `#/ronda/fecha` compatible con la URL legacy.
 - Paquetes Preventivos con mapa de camas, filtros por servicio, tarjetas por cama y captura por paciente.
+- Catalogo liviano de camas conocidas por servicio para conservar camas vacias/bloqueadas del tablero legacy.
 - Guardado de ronda, paquetes, dispositivos creados/retiros, sesiones y auditoria.
 - Cola offline explicita en IndexedDB para escrituras pendientes.
 - Admin muestra y reintenta sincronizacion pendiente.
