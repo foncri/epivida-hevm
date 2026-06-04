@@ -44,3 +44,29 @@ export async function saveRoundReview(app, review) {
   });
   return saved;
 }
+
+export async function saveRoundSession(app, session) {
+  const date = session.date || todayIso();
+  const sessionId = session.sessionId || date;
+  const payload = {
+    ...session,
+    sessionId,
+    date,
+    status: session.status || "in_progress",
+    updatedAt: nowIso(),
+    updatedBy: app.state.auth.user?.uid || ""
+  };
+  const saved = await setDocMergeOrQueue(app, `round_sessions/${sessionId}`, payload, {
+    module: "ronda-paquetes",
+    entityType: "round_session",
+    entityId: sessionId
+  });
+  await writeAudit(app, {
+    actionType: "round_session_update",
+    module: "ronda-paquetes",
+    entityType: "round_session",
+    entityId: sessionId,
+    after: saved
+  });
+  return saved;
+}

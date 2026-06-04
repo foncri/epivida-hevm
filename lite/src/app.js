@@ -39,12 +39,13 @@ export function createApp(root) {
   function shell(children) {
     const user = state.auth.user;
     const role = state.auth.profile?.role || "";
+    const activeRoute = state.route.key === "ronda" ? "ronda-paquetes" : state.route.key;
     const allowedNav = NAV.filter(([route]) => canAccessRoute(route, role));
     return el("div", { class: "app-shell" }, [
       el("header", { class: "topbar" }, [
         link("#/inicio", "EPIVIDA", { class: "brand", "aria-label": "EPIVIDA inicio" }),
         el("nav", { class: "main-nav", "aria-label": "Modulos" }, allowedNav.map(([route, label]) =>
-          link(`#/${route}`, label, { class: route === state.route.key ? "active" : "" })
+          link(`#/${route}`, label, { class: route === activeRoute ? "active" : "" })
         )),
         el("div", { class: "session" }, [
           statusDot(state.auth.status === "ready" ? "ok" : state.auth.status === "denied" ? "bad" : "idle"),

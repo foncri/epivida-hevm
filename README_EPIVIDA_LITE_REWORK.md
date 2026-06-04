@@ -9,6 +9,24 @@ Repositorio base: `foncri/epivida-hevm`
 
 Reconstruir EPIVIDA como una app hospitalaria modular, sobria, segura y muy rapida. El nombre visible de la app se conserva como **EPIVIDA**. La version nueva no debe ser un conjunto de hotfixes sobre el monolito actual: debe separar rutas, datos, servicios, reglas, cache y exportadores.
 
+## Correccion de rumbo: remake fiel, no app nueva
+
+EPIVIDA Lite debe conservar la experiencia operativa que ya existia en EPIVIDA. La meta no es inventar una app distinta, sino rehacer la pagina anterior con carga modular, menos peso y Firestore como base organizada.
+
+La ruta legacy `#/ronda/2026-06-04` se conserva como entrada compatible y ahora abre el modulo rapido de **Paquetes Preventivos**. Este flujo mantiene:
+
+- Encabezado `Paquetes Preventivos`.
+- Ronda movil por cama.
+- Filtros por servicio.
+- Mapa de camas preventivas con estados disponible, vacia, vista y pendiente.
+- Selector "Ir a cama preventiva".
+- Resumen de paquetes CVC, cateter urinario, ventilacion mecanica e ISQ.
+- Tarjetas por cama con estado, sincronizacion, invasivos y paquetes detectados.
+- Vista por paciente/cama con invasivos activos, alta de paquete preventivo, criterios SI/NO/NA, porcentaje de cumplimiento, pendientes, observaciones y navegacion anterior/siguiente cama.
+- Guardado en `nursing_rounds`, dispositivos en `devices_active`, sesiones en `round_sessions`, auditoria y cola offline.
+
+Los pacientes reales pueden limpiarse o migrarse despues; lo que no debe perderse es la tecnologia clinico-operativa de camas, paquetes preventivos, dispositivos y ronda.
+
 Prioridades:
 
 1. Velocidad.

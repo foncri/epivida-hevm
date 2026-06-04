@@ -3,6 +3,7 @@ const ROUTE_ROLES = {
   inicio: ["admin_epidemiologia", "epidemiologia", "lectura"],
   censo: ["admin_epidemiologia", "epidemiologia", "lectura"],
   "monitoreo-epidemiologico": ["admin_epidemiologia", "epidemiologia", "lectura"],
+  ronda: ["admin_epidemiologia", "epidemiologia", "enfermeria"],
   "ronda-paquetes": ["admin_epidemiologia", "epidemiologia", "enfermeria"],
   "epi-iaas": ["admin_epidemiologia", "epidemiologia"],
   dispositivos: ["admin_epidemiologia", "epidemiologia", "enfermeria"],
@@ -30,7 +31,7 @@ export function canAccessRoute(route, role) {
 export function canWrite(module, role) {
   const normalized = normalizeRole(role);
   if (normalized === "admin_epidemiologia") return true;
-  if (module === "ronda-paquetes" || module === "dispositivos") return ["epidemiologia", "enfermeria"].includes(normalized);
+  if (module === "ronda" || module === "ronda-paquetes" || module === "dispositivos") return ["epidemiologia", "enfermeria"].includes(normalized);
   if (["censo", "monitoreo-epidemiologico", "epi-iaas"].includes(module)) return normalized === "epidemiologia";
   return false;
 }

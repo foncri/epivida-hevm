@@ -4,7 +4,7 @@ Base modular estatica para reconstruir EPIVIDA sin cargar el runtime legacy.
 
 ## Estado
 
-Fase 3 inicial:
+Fase 4 inicial: remake fiel de Paquetes Preventivos sobre la base modular.
 
 - Shell minimo.
 - Router hash con carga diferida por modulo.
@@ -17,7 +17,9 @@ Fase 3 inicial:
 - XLSX no se carga en el arranque.
 - No hay datos clinicos seed.
 - CRUD minimo en censo, dispositivos e IAAS.
-- Revision de ronda con guardado puntual.
+- Ronda `#/ronda/fecha` compatible con la URL legacy.
+- Paquetes Preventivos con mapa de camas, filtros por servicio, tarjetas por cama y captura por paciente.
+- Guardado de ronda, paquetes, dispositivos creados/retiros, sesiones y auditoria.
 - Cola offline explicita en IndexedDB para escrituras pendientes.
 - Admin muestra y reintenta sincronizacion pendiente.
 - Reportes exporta CSV bajo demanda, incluida la cola pendiente.
@@ -77,6 +79,8 @@ Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa
 - `#/censo`
 - `#/monitoreo-epidemiologico`
 - `#/ronda-paquetes`
+- `#/ronda/YYYY-MM-DD` alias compatible con EPIVIDA legacy.
+- `#/ronda/YYYY-MM-DD/paciente/:patientId` captura por cama compatible con EPIVIDA legacy.
 - `#/epi-iaas`
 - `#/dispositivos`
 - `#/reportes`
@@ -123,6 +127,7 @@ Colecciones objetivo:
 - `iaas_archive`
 - `daily_snapshots`
 - `audit_logs`
+- `round_sessions`
 - `catalogs`
 - `sync_queue`
 - `exports_log`
@@ -145,3 +150,14 @@ Colecciones objetivo:
 - Mobile 393 px: sin desbordamiento horizontal en formulario de dispositivo.
 - Herramienta `legacy-export`: sintaxis OK.
 - Validador de migracion: probado con paquete sintetico OK.
+
+## Pruebas Fase 4: remake de ronda
+
+- Sintaxis de todos los `.js`: OK con Node incluido en Codex.
+- Sin `iaas-system`, Sheets, XLSX, `innerHTML` ni `localStorage` en `lite/src`.
+- URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
+- Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
+- Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.
+- Chrome local: `#/ronda/2026-06-04/paciente/p_uci_02` permite agregar `NAVM` y muestra criterios SI/NO/NA, French, higiene oral, cumplimiento, pendientes y navegacion por cama.
+- Chrome local: guardar como incompleto deja `nursing_rounds` y `audit_logs` en cola offline cuando Firestore no esta configurado.
+- Mobile 390 px: ronda de camas sin desbordamiento horizontal.
