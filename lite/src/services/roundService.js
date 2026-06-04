@@ -1,13 +1,21 @@
 import { todayIso, nowIso } from "../lib/date.js";
-import { listCollection, setDocMerge } from "./firestoreService.js";
+import { listCollection } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
+import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+
+async function mergePending(rows = []) {
+  const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
+  const pending = await pendingPayloadsForCollection("nursing_rounds");
+  pending.forEach(row => map.set(row.roundId || row.id, { ...map.get(row.roundId || row.id), ...row }));
+  return [...map.values()];
+}
 
 export async function listTodayRounds(date = todayIso()) {
   try {
     const rows = await listCollection("nursing_rounds");
-    return rows.filter(row => row.date === date);
+    return (await mergePending(rows)).filter(row => row.date === date);
   } catch {
-    return [];
+    return (await mergePending([])).filter(row => row.date === date);
   }
 }
 
@@ -21,14 +29,18 @@ export async function saveRoundReview(app, review) {
     updatedAt: nowIso(),
     updatedBy: app.state.auth.user?.uid || ""
   };
-  await setDocMerge(`nursing_rounds/${roundId}`, payload);
+  const saved = await setDocMergeOrQueue(app, `nursing_rounds/${roundId}`, payload, {
+    module: "ronda-paquetes",
+    entityType: "nursing_round",
+    entityId: roundId
+  });
   await writeAudit(app, {
     actionType: "round_review",
     module: "ronda-paquetes",
     entityType: "nursing_round",
     entityId: roundId,
     patientId: review.patientId,
-    after: payload
+    after: saved
   });
-  return payload;
+  return saved;
 }

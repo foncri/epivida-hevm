@@ -1,24 +1,122 @@
-import { el, table } from "../../components/dom.js";
+import { badge, button, dateInput, el, field, notice, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
-import { listActiveIaas } from "../../services/iaasService.js";
+import { todayIso } from "../../lib/date.js";
+import { canWrite } from "../../lib/security.js";
+import { closeIaasCase, listActiveIaas, saveIaasCase } from "../../services/iaasService.js";
+import { listActivePatients } from "../../services/patientService.js";
 
-export async function render() {
-  const rows = await listActiveIaas();
-  return modulePage("EPI-IAAS", "Seguimiento IAAS independiente. No carga dashboard, ronda ni exportadores.", [
-    stats([
-      [String(rows.length), "IAAS activas"],
-      [String(new Set(rows.map(row => row.service).filter(Boolean)).size), "Servicios"],
-      [String(rows.filter(row => row.status === "sospecha").length), "Sospechas"],
-      [String(rows.filter(row => row.status === "confirmada").length), "Confirmadas"]
-    ]),
-    table(["Paciente", "Servicio", "Cama", "Tipo", "Estado"], rows.map(row =>
-      el("tr", {}, [
-        el("td", {}, [row.patientName || row.patientId || ""]),
-        el("td", {}, [row.service || ""]),
-        el("td", {}, [row.bed || ""]),
-        el("td", {}, [row.iaasType || ""]),
-        el("td", {}, [row.status || ""])
-      ])
-    ))
+const IAAS_TYPES = ["", "ITS - CC", "ITU - CU", "NAVM", "ISQ", "COVID/Influenza", "Otro"];
+const IAAS_STATUS = [["sospecha", "Sospecha"], ["probable", "Probable"], ["confirmada", "Confirmada"], ["descartada", "Descartada"]];
+
+export async function render({ app }) {
+  let [rows, patients] = await Promise.all([listActiveIaas(), listActivePatients()]);
+  const role = app.state.auth.profile?.role;
+  const writable = canWrite("epi-iaas", role);
+  let editing = null;
+  let message = "";
+  const body = el("div", { class: "stack" });
+
+  function redraw() {
+    body.replaceChildren(
+      message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
+      stats([
+        [String(rows.length), "IAAS activas"],
+        [String(new Set(rows.map(row => row.service).filter(Boolean)).size), "Servicios"],
+        [String(rows.filter(row => row.status === "sospecha").length), "Sospechas"],
+        [String(rows.filter(row => row.status === "confirmada").length), "Confirmadas"]
+      ]),
+      editing ? iaasForm(app, editing, patients, saved => {
+        rows = upsertIaas(rows, saved);
+        editing = null;
+        message = saved.syncStatus === "local_pending"
+          ? "IAAS guardada localmente; queda pendiente de sincronizar."
+          : "IAAS sincronizada.";
+        redraw();
+      }, () => { editing = null; redraw(); }) : "",
+      table(["Paciente", "Servicio", "Cama", "Tipo", "Estado", ...(writable ? ["Acciones"] : [])], rows.map(row =>
+        el("tr", {}, [
+          el("td", {}, [row.patientName || patientName(patients, row.patientId)]),
+          el("td", {}, [row.service || ""]),
+          el("td", {}, [row.bed || ""]),
+          el("td", {}, [row.iaasType || ""]),
+          el("td", {}, [row.syncStatus === "local_pending" ? badge("Pendiente", "warn") : statusLabel(row.status)]),
+          writable ? el("td", { class: "actions-cell" }, [
+            button("Editar", () => { editing = row; redraw(); }, { class: "small ghost" }),
+            button("Cerrar", async () => {
+              const saved = await closeIaasCase(app, row, "cierre_manual_lite");
+              rows = rows.filter(item => item.iaasId !== saved.iaasId);
+              message = saved.syncStatus === "local_pending"
+                ? "Cierre guardado localmente; queda pendiente de sincronizar."
+                : "Cierre sincronizado.";
+              redraw();
+            }, { class: "small ghost" })
+          ]) : ""
+        ])
+      ))
+    );
+  }
+
+  redraw();
+  return modulePage("EPI-IAAS", "Seguimiento IAAS independiente. No carga dashboard, ronda ni exportadores.", [body], [
+    writable ? button("Nueva IAAS", () => { editing = {}; redraw(); }, { class: "ghost" }) : ""
   ]);
+}
+
+function iaasForm(app, iaas, patients, onSaved, onCancel) {
+  return el("form", {
+    class: "form-card",
+    onsubmit: async event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.currentTarget));
+      const patient = patients.find(row => row.patientId === data.patientId) || {};
+      const saved = await saveIaasCase(app, {
+        ...iaas,
+        patientId: data.patientId,
+        patientName: patient.patientName || iaas.patientName || "",
+        service: patient.service || patient.currentService || iaas.service || "",
+        bed: patient.bed || patient.currentBed || iaas.bed || "",
+        iaasType: data.iaasType,
+        status: data.status,
+        onsetDate: data.onsetDate,
+        probableOrigin: data.probableOrigin,
+        notes: data.notes
+      });
+      onSaved(saved);
+    }
+  }, [
+    el("div", { class: "form-grid" }, [
+      field("Paciente", selectInput(patientOptions(patients), { name: "patientId", required: true, value: iaas.patientId || "" })),
+      field("Tipo IAAS", selectInput(IAAS_TYPES, { name: "iaasType", required: true, value: iaas.iaasType || "" })),
+      field("Estado", selectInput(IAAS_STATUS, { name: "status", required: true, value: iaas.status || "sospecha" })),
+      field("Fecha inicio", dateInput({ name: "onsetDate", value: iaas.onsetDate || todayIso() })),
+      field("Origen probable", textInput({ name: "probableOrigin", value: iaas.probableOrigin || "" }))
+    ]),
+    field("Notas", textareaInput({ name: "notes", rows: 3, value: iaas.notes || "" })),
+    el("div", { class: "toolbar" }, [
+      button("Guardar", null, { type: "submit" }),
+      button("Cancelar", onCancel, { class: "ghost" })
+    ])
+  ]);
+}
+
+function patientOptions(patients) {
+  return [["", "Seleccionar"], ...patients.map(patient => [
+    patient.patientId,
+    `${patient.bed || patient.currentBed || "S/C"} - ${patient.patientName || patient.patientId}`
+  ])];
+}
+
+function patientName(patients, patientId) {
+  const patient = patients.find(row => row.patientId === patientId);
+  return patient?.patientName || patientId || "";
+}
+
+function statusLabel(value = "") {
+  return IAAS_STATUS.find(([key]) => key === value)?.[1] || value;
+}
+
+function upsertIaas(rows, iaas) {
+  const next = rows.filter(row => row.iaasId !== iaas.iaasId);
+  if (!["closed", "cerrada", "archived"].includes(String(iaas.status || "").toLowerCase())) next.unshift(iaas);
+  return next;
 }

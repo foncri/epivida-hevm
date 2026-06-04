@@ -24,11 +24,11 @@ export async function render() {
       ]),
       table(["Servicio", "Cama", "Paciente", "Sexo", "Dx epidemiologico"], visible.map(patient =>
         el("tr", {}, [
-          el("td", {}, [patient.service || ""]),
-          el("td", {}, [patient.bed || ""]),
+          el("td", {}, [patient.service || patient.currentService || ""]),
+          el("td", {}, [patient.bed || patient.currentBed || ""]),
           el("td", {}, [patient.patientName || patient.patientId || ""]),
           el("td", {}, [patient.sex || ""]),
-          el("td", {}, [patient.epidemiologicalDiagnosis || ""])
+          el("td", {}, [patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis || ""])
         ])
       ))
     );

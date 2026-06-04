@@ -399,7 +399,50 @@ Prueba local realizada:
 - 1 script HTML inicial: `src/main.js`.
 - Sin respuestas 404/500 despues de agregar `favicon.svg`.
 
+### Avance posterior: Fase 2 CRUD modular y cola offline explicita
+
+Estado: iniciada y validada localmente en `lite/`.
+
+Implementado:
+
+- Alta, edicion y egreso logico de pacientes en `#/censo`.
+- Alta, edicion y retiro logico de dispositivos en `#/dispositivos`.
+- Alta, edicion y cierre logico de casos IAAS en `#/epi-iaas`.
+- Guardado de revision de ronda con estado visible de sincronizacion en `#/ronda-paquetes`.
+- Cola IndexedDB `sync_queue:pending` para escrituras que no llegan a Firestore.
+- `Admin` muestra operaciones pendientes y permite reintentar sincronizacion.
+- `Inicio` muestra pendientes de sincronizacion.
+- `Reportes` exporta censo, dispositivos, IAAS y cola pendiente en CSV, sin XLSX.
+- Auditoria append-only por accion clinica; si Firestore no esta configurado, la auditoria tambien queda en cola local.
+- Headers ajustados para no dejar modulos `src/*` cacheados entre despliegues.
+- Service worker versionado a `epivida-lite-shell-2026-06-04-phase2`.
+
+Prueba local Fase 2:
+
+- Browser integrado: flujo `#/censo` -> alta de paciente -> visible como `Pendiente`, sin errores de consola.
+- Browser integrado: flujo `#/dispositivos` -> alta de dispositivo -> visible como `Pendiente`, sin errores de consola.
+- Browser integrado: flujo `#/epi-iaas` -> alta IAAS -> visible como `Pendiente`, sin errores de consola.
+- Browser integrado: `#/admin` muestra 6 operaciones pendientes para paciente, dispositivo, IAAS y auditorias.
+- Chrome local: paciente -> dispositivo -> IAAS -> admin pasa completo.
+- Mobile 393 px: formulario de dispositivo sin desbordamiento horizontal.
+
+Medicion local Fase 2, servidor sin cache:
+
+| Ruta | Recursos | Transfer aprox. | Legacy |
+|---|---:|---:|---|
+| `#/censo` | 23 | 44.5 KB | 0 |
+| `#/monitoreo-epidemiologico` | 22 | 38.9 KB | 0 |
+| `#/dispositivos` | 23 | 46.6 KB | 0 |
+| `#/epi-iaas` | 23 | 45.7 KB | 0 |
+| `#/ronda-paquetes` | 24 | 46.1 KB | 0 |
+| `#/reportes` | 25 | 31.8 KB | 0 |
+| `#/admin` | 21 | 38.2 KB | 0 |
+
+No se detectaron respuestas 400/500 ni errores de consola en estas rutas.
+
 ### Fase 2: modelo Firestore
+
+Estado: iniciado.
 
 - Crear `firebase/firestore.rules`.
 - Crear `firebase/firestore.indexes.json`.

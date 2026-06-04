@@ -1,4 +1,4 @@
-const CACHE_NAME = "epivida-lite-shell-2026-06-04";
+const CACHE_NAME = "epivida-lite-shell-2026-06-04-phase2";
 const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
 
 self.addEventListener("install", event => {

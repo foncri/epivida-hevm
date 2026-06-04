@@ -4,7 +4,7 @@ Base modular estatica para reconstruir EPIVIDA sin cargar el runtime legacy.
 
 ## Estado
 
-Fase 1 inicial:
+Fase 2 inicial:
 
 - Shell minimo.
 - Router hash con carga diferida por modulo.
@@ -16,10 +16,15 @@ Fase 1 inicial:
 - Google Sheets no se carga en el arranque.
 - XLSX no se carga en el arranque.
 - No hay datos clinicos seed.
+- CRUD minimo en censo, dispositivos e IAAS.
+- Revision de ronda con guardado puntual.
+- Cola offline explicita en IndexedDB para escrituras pendientes.
+- Admin muestra y reintenta sincronizacion pendiente.
+- Reportes exporta CSV bajo demanda, incluida la cola pendiente.
 
 ## Ejecutar local
 
-Desde la raiz del repositorio:
+Desde la raiz del repositorio, usar cualquier servidor estatico. En este equipo no siempre existe Python; si esta disponible:
 
 ```powershell
 python -m http.server 5199
@@ -59,6 +64,7 @@ Configuracion recomendada para esta fase estatica:
 - Variables: ninguna obligatoria si se inyecta la configuracion por script seguro. En una fase posterior con Vite, usar `VITE_FIREBASE_*`.
 
 `lite/_headers` ya incluye headers de cache para HTML, JS, CSS, assets y manifest.
+Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa filenames con hash; esto evita que Cloudflare o el navegador conserven modulos viejos despues de un despliegue.
 
 ## Rutas
 
@@ -104,3 +110,11 @@ Colecciones objetivo:
 - No usar localStorage como fuente de verdad.
 - No agregar assets decorativos a la carga inicial.
 - No convertir esta base nueva en otro monolito.
+
+## Pruebas Fase 2
+
+- Sintaxis de todos los `.js`: OK.
+- Busqueda de legacy prohibido (`iaas-system`, `FULL_SCRIPTS`, Sheets, XLSX, `innerHTML`, `localStorage`): sin coincidencias en `lite/src`.
+- Browser integrado: alta de paciente, dispositivo e IAAS en modo local sin Firebase.
+- Chrome local: rutas criticas sin errores de consola ni respuestas 400/500.
+- Mobile 393 px: sin desbordamiento horizontal en formulario de dispositivo.

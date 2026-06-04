@@ -42,12 +42,39 @@ export function textInput(attrs = {}) {
   return el("input", { type: "text", ...attrs });
 }
 
+export function dateInput(attrs = {}) {
+  return el("input", { type: "date", ...attrs });
+}
+
+export function numberInput(attrs = {}) {
+  return el("input", { type: "number", inputMode: "numeric", ...attrs });
+}
+
+export function textareaInput(attrs = {}) {
+  return el("textarea", attrs);
+}
+
+export function checkboxInput(attrs = {}) {
+  return el("input", { type: "checkbox", ...attrs });
+}
+
 export function selectInput(options = [], attrs = {}) {
-  return el("select", attrs, options.map(item => {
+  const { value: currentValue, ...selectAttrs } = attrs;
+  const node = el("select", selectAttrs, options.map(item => {
     const value = Array.isArray(item) ? item[0] : item;
     const label = Array.isArray(item) ? item[1] : item;
     return el("option", { value }, [label]);
   }));
+  if (currentValue !== undefined) node.value = currentValue;
+  return node;
+}
+
+export function badge(label, tone = "") {
+  return el("span", { class: `badge ${tone}` }, [label]);
+}
+
+export function notice(message, tone = "") {
+  return el("p", { class: `notice ${tone}` }, [message]);
 }
 
 export function table(headers = [], rows = []) {

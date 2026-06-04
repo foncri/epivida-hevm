@@ -32,3 +32,14 @@ export async function cacheSet(key, value) {
     tx.onerror = () => resolve(false);
   });
 }
+
+export async function cacheDelete(key) {
+  const db = await openDb().catch(() => null);
+  if (!db) return false;
+  return new Promise(resolve => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).delete(key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  });
+}

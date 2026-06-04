@@ -1,20 +1,42 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { cleanText, stripUndefined, validPatient } from "../lib/validators.js";
-import { listCollection, setDocMerge } from "./firestoreService.js";
+import { listCollection } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { nowIso } from "../lib/date.js";
+import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 
 const CACHE_KEY = "patients_active:last";
+
+function makePatientId() {
+  if (globalThis.crypto?.randomUUID) return `patient_${globalThis.crypto.randomUUID()}`;
+  return `patient_${Date.now().toString(36)}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function byPatientId(rows = []) {
+  return rows.reduce((map, row) => {
+    const id = row.patientId || row.id;
+    if (!id) return map;
+    map.set(id, { ...map.get(id), ...row, patientId: id });
+    return map;
+  }, new Map());
+}
+
+async function mergePending(rows = []) {
+  const map = byPatientId(rows);
+  const pending = await pendingPayloadsForCollection("patients_active");
+  pending.forEach(row => map.set(row.patientId || row.id, { ...map.get(row.patientId || row.id), ...row }));
+  return [...map.values()];
+}
 
 export async function listActivePatients() {
   try {
     const rows = await listCollection("patients_active");
-    const active = rows.filter(row => row.active !== false);
+    const active = (await mergePending(rows)).filter(row => row.active !== false);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return cached?.value || [];
+    return mergePending(cached?.value || []);
   }
 }
 
@@ -27,14 +49,18 @@ export function filterPatients(patients, filters = {}) {
     const haystack = [
       patient.patientName,
       patient.bed,
+      patient.currentBed,
       patient.service,
+      patient.currentService,
       patient.sector,
       patient.epidemiologicalDiagnosis,
-      patient.hospitalDiagnosis
+      patient.currentEpidemiologicalDiagnosis,
+      patient.hospitalDiagnosis,
+      patient.currentDiagnosis
     ].join(" ").toLowerCase();
     if (query && !haystack.includes(query)) return false;
-    if (service && service !== "Todos" && patient.service !== service) return false;
-    if (status && status !== "Todos" && patient.status !== status) return false;
+    if (service && service !== "Todos" && (patient.service || patient.currentService) !== service) return false;
+    if (status && status !== "Todos" && (patient.status || patient.currentState) !== status) return false;
     if (sex && sex !== "Todos" && patient.sex !== sex) return false;
     return true;
   });
@@ -42,7 +68,7 @@ export function filterPatients(patients, filters = {}) {
 
 export async function savePatient(app, patient) {
   if (!validPatient(patient)) throw new Error("Paciente sin nombre o servicio.");
-  const patientId = patient.patientId || crypto.randomUUID();
+  const patientId = patient.patientId || makePatientId();
   const payload = stripUndefined({
     ...patient,
     patientId,
@@ -52,18 +78,57 @@ export async function savePatient(app, patient) {
     createdAt: patient.createdAt || nowIso(),
     createdBy: patient.createdBy || app.state.auth.user?.uid || ""
   });
-  await setDocMerge(`patients_active/${patientId}`, payload);
+  const saved = await setDocMergeOrQueue(app, `patients_active/${patientId}`, payload, {
+    module: "censo",
+    entityType: "patient",
+    entityId: patientId
+  });
   await writeAudit(app, {
     actionType: patient.patientId ? "patient_update" : "patient_create",
     module: "censo",
     entityType: "patient",
     entityId: patientId,
     patientId,
-    after: payload
+    after: saved
   });
-  return payload;
+  const cached = await listActivePatients().catch(() => []);
+  cacheSet(CACHE_KEY, [...byPatientId(cached).set(patientId, saved).values()]).catch(() => undefined);
+  return saved;
+}
+
+export async function archivePatient(app, patient, reason = "") {
+  if (!patient?.patientId) throw new Error("Paciente sin identificador.");
+  const payload = stripUndefined({
+    ...patient,
+    active: false,
+    dischargeReason: cleanText(reason, 240) || patient.dischargeReason || "egreso_manual",
+    dischargedAt: nowIso(),
+    updatedAt: nowIso(),
+    updatedBy: app.state.auth.user?.uid || ""
+  });
+  const saved = await setDocMergeOrQueue(app, `patients_active/${patient.patientId}`, payload, {
+    module: "censo",
+    entityType: "patient",
+    entityId: patient.patientId
+  });
+  await writeAudit(app, {
+    actionType: "patient_archive",
+    module: "censo",
+    entityType: "patient",
+    entityId: patient.patientId,
+    patientId: patient.patientId,
+    before: patient,
+    after: saved
+  });
+  return saved;
 }
 
 export function uniqueValues(rows, field) {
-  return ["Todos", ...new Set(rows.map(row => cleanText(row[field])).filter(Boolean).sort((a, b) => a.localeCompare(b, "es")))];
+  const valueFor = row => {
+    if (field === "service") return row.service || row.currentService;
+    if (field === "status") return row.status || row.currentState;
+    if (field === "bed") return row.bed || row.currentBed;
+    return row[field];
+  };
+  return ["Todos", ...new Set(rows.map(row => cleanText(valueFor(row))).filter(Boolean).sort((a, b) => a.localeCompare(b, "es")))];
 }
