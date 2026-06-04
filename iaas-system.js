@@ -607,7 +607,7 @@
     reviewDrafts: loadJson(DRAFT_KEY, {}),
     activeDeviceType: "",
     firebase: {
-      enabled: false,
+      enabled: Boolean(window.EPIVIDA_FIREBASE_CONFIG),
       ready: false,
       denied: false,
       user: null,
@@ -640,6 +640,7 @@
   let store = loadStore();
   let firebaseRuntime = null;
   let remoteUnsubscribers = [];
+  let bootRendered = false;
 
   window.addEventListener("hashchange", () => {
     ui.route = parseRoute();
@@ -659,11 +660,13 @@
   boot();
 
   async function boot() {
-    await initFirebaseIfConfigured();
     if (!location.hash) location.hash = "#/dashboard";
     renderIaas();
+    bootRendered = true;
     startDashboardSlideLoop();
-    flushSyncQueue();
+    await initFirebaseIfConfigured();
+    if (!bootRendered) renderIaas();
+    if (ui.firebase.ready || !ui.firebase.enabled) flushSyncQueue();
   }
 
   function startDashboardSlideLoop() {
@@ -5751,6 +5754,7 @@
 
   function renderLogin() {
     const isGoogle = ui.firebase.authProvider === "google";
+    const authLoading = ui.firebase.enabled && !firebaseRuntime && !ui.firebase.error;
     if (isGoogle) {
       return h("section", { class: "iaas-page" }, [
         h("article", { class: "iaas-panel login-panel" }, [
@@ -5758,7 +5762,7 @@
           h("h1", {}, ["Acceso requerido"]),
           h("p", {}, ["Firebase esta configurado. Inicia sesion con una cuenta de Google autorizada para ver datos clinicos."]),
           ui.firebase.error ? h("div", { class: "notice error" }, [ui.firebase.error]) : "",
-          h("button", { class: "iaas-button primary", onclick: signInFirebase }, ["Iniciar sesion con Google"])
+          h("button", { class: "iaas-button primary", disabled: authLoading, onclick: signInFirebase }, [authLoading ? "Preparando acceso..." : "Iniciar sesion con Google"])
         ])
       ]);
     }
@@ -5770,7 +5774,7 @@
         ui.firebase.error ? h("div", { class: "notice error" }, [ui.firebase.error]) : "",
         h("label", { class: "field" }, [h("span", {}, ["Correo"]), h("input", { id: "login-email", type: "email" })]),
         h("label", { class: "field" }, [h("span", {}, ["Contraseña"]), h("input", { id: "login-password", type: "password" })]),
-        h("button", { class: "iaas-button primary", onclick: signInFirebase }, ["Iniciar sesión"])
+        h("button", { class: "iaas-button primary", disabled: authLoading, onclick: signInFirebase }, [authLoading ? "Preparando acceso..." : "Iniciar sesión"])
       ])
     ]);
   }
@@ -8918,23 +8922,28 @@
     if (!config) return;
     ui.firebase.enabled = true;
     try {
-      const [appMod, authMod, fsMod] = await Promise.all([
+      const [appMod, authMod] = await Promise.all([
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
-        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`)
       ]);
       const app = appMod.initializeApp(config);
       const auth = authMod.getAuth(app);
       await authMod.setPersistence(auth, authMod.browserLocalPersistence);
       let db;
-      try {
-        db = fsMod.initializeFirestore(app, {
-          localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
-        });
-        ui.firebase.offlinePersistence = "Persistencia offline Firestore activa";
-      } catch {
-        db = fsMod.getFirestore(app);
-        ui.firebase.offlinePersistence = "Persistencia offline no disponible en este navegador";
+      let fsMod = null;
+      if (!ui.sheets.enabled) {
+        fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`);
+        try {
+          db = fsMod.initializeFirestore(app, {
+            localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+          });
+          ui.firebase.offlinePersistence = "Persistencia offline Firestore activa";
+        } catch {
+          db = fsMod.getFirestore(app);
+          ui.firebase.offlinePersistence = "Persistencia offline no disponible en este navegador";
+        }
+      } else {
+        ui.firebase.offlinePersistence = "Firestore omitido: Google Sheets es la base activa";
       }
       firebaseRuntime = { appMod, authMod, fsMod, app, auth, db };
       await consumeAuthRedirectResult();
@@ -8969,7 +8978,11 @@
   }
 
   async function signInFirebase() {
-    if (!firebaseRuntime) return;
+    if (!firebaseRuntime) {
+      ui.firebase.error = "El acceso seguro todavia se esta preparando. Intenta de nuevo en unos segundos.";
+      renderIaas();
+      return;
+    }
     try {
       if (ui.firebase.authProvider === "google") {
         const provider = new firebaseRuntime.authMod.GoogleAuthProvider();
