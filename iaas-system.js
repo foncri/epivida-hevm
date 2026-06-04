@@ -11,6 +11,22 @@
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
   const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
   const PERFORMANCE_MODE = window.EPIVIDA_PERFORMANCE_MODE || "";
+  const PERFORMANCE_RENDER_LIMITS = {
+    beds: 96,
+    census: 70,
+    discharge: 18,
+    iaas: 36,
+    monitor: 60,
+    round: 32
+  };
+  const PERFORMANCE_RENDER_STEPS = {
+    beds: 96,
+    census: 70,
+    discharge: 18,
+    iaas: 36,
+    monitor: 60,
+    round: 32
+  };
   const OAUTH_POPUP_TIMEOUT_MS = Number(window.EPIVIDA_OAUTH_POPUP_TIMEOUT_MS || 90000);
   const SHEETS_CONFIG = {
     enabled: false,
@@ -595,6 +611,7 @@
     dashboardSlideTimer: null,
     renderTimer: null,
     renderCache: null,
+    listRenderLimits: {},
     lastRenderedRouteKey: "",
     draftSaveTimer: null,
     draftsDirty: false,
@@ -1093,7 +1110,7 @@
     const scrollY = window.scrollY;
     ui.renderCache = createRenderCache();
     try {
-      recalculateRound(date);
+      if (shouldRecalculateRoundForRender()) recalculateRound(date);
       app.replaceChildren(renderShell());
       restoreFocusedControl();
       if (preserveScroll) window.requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
@@ -1113,13 +1130,23 @@
     return ui.lastRenderedRouteKey === routeKey && (page === "seguimiento-iaas" || page === "ronda" || page === "pacientes");
   }
 
+  function shouldRecalculateRoundForRender() {
+    const page = ui.route?.page || "";
+    return page === "ronda" || page === "seguimiento-iaas";
+  }
+
   function createRenderCache() {
     return {
       deviceEpisodes: Object.values(store.deviceEpisodes || {}),
+      episodeMap: null,
+      activeEpisodeIndex: new Map(),
       activeEpisodes: new Map(),
       patientEpisodes: new Map(),
       censusRows: new Map(),
       censusDates: new Map(),
+      lastReviewedDates: new Map(),
+      lastIaasAssessmentDates: new Map(),
+      bedStates: new Map(),
       stats: new Map()
     };
   }
@@ -1362,6 +1389,42 @@
     return Boolean(window.matchMedia?.("(max-width: 760px)")?.matches);
   }
 
+  function performanceLimitKey(type, parts = []) {
+    return [type, ...parts.map(part => cleanCell(part || "todos"))].join("|");
+  }
+
+  function limitedRowsForRender(rows, key, type) {
+    if (!aggressivePerformanceMode()) {
+      return { rows, shown: rows.length, total: rows.length, limited: false };
+    }
+    const total = rows.length;
+    const initial = PERFORMANCE_RENDER_LIMITS[type] || 50;
+    const requested = Number(ui.listRenderLimits[key] || initial);
+    const shown = Math.min(total, Math.max(0, requested));
+    return {
+      rows: rows.slice(0, shown),
+      shown,
+      total,
+      limited: shown < total
+    };
+  }
+
+  function renderShowMoreRows(key, type, limited, label = "registros") {
+    if (!limited?.limited) return "";
+    const step = PERFORMANCE_RENDER_STEPS[type] || PERFORMANCE_RENDER_LIMITS[type] || 50;
+    return h("div", { class: "performance-load-more" }, [
+      h("span", {}, [`Mostrando ${limited.shown} de ${limited.total} ${label}`]),
+      h("button", {
+        class: "iaas-button ghost compact",
+        type: "button",
+        onclick: () => {
+          ui.listRenderLimits[key] = Math.min(limited.total, limited.shown + step);
+          renderIaas();
+        }
+      }, ["Mostrar mas"])
+    ]);
+  }
+
   function renderCommandFeatureRail(stats, date) {
     const modules = dashboardModules(stats, date);
     const activeIndex = ((ui.dashboardSlide % modules.length) + modules.length) % modules.length;
@@ -1550,15 +1613,29 @@
     const headers = epidemiologicalOnly
       ? ["Servicio", "Datos del paciente", "Edad / sexo", "Estado", "Ingreso", "Diagnósticos hospitalarios", "Diagnósticos epidemiológicos", "Observaciones"]
       : ["Servicio", "Datos del paciente", "Edad / sexo", "Estado", "Ingreso", "Diagnósticos hospitalarios", "Observaciones"];
+    const prefix = monitorPrefix(scope);
+    const listKey = performanceLimitKey("monitor", [
+      scope,
+      activeDate(),
+      ui[`${prefix}Service`],
+      ui[`${prefix}Sector`],
+      ui[`${prefix}AgeRange`],
+      ui[`${prefix}Sex`],
+      ui[`${prefix}Sort`],
+      ui[`${prefix}Diagnosis`],
+      ui[`${prefix}Query`]
+    ]);
+    const limited = limitedRowsForRender(items, listKey, "monitor");
     return h("div", { class: "monitor-census-scroll" }, [
       h("table", { class: `iaas-table monitoring-census-table ${epidemiologicalOnly ? "epi" : "hospital"}` }, [
         h("thead", {}, [h("tr", {}, headers.map(label => h("th", {}, [label])))]),
-        h("tbody", {}, items.map((item, index) =>
+        h("tbody", {}, limited.rows.map((item, index) =>
           epidemiologicalOnly
-            ? renderEpidemiologicalMonitorRow(item, items[index - 1], scope)
-            : renderHospitalMonitorRow(item, items[index - 1], scope)
+            ? renderEpidemiologicalMonitorRow(item, limited.rows[index - 1], scope)
+            : renderHospitalMonitorRow(item, limited.rows[index - 1], scope)
         ))
-      ])
+      ]),
+      renderShowMoreRows(listKey, "monitor", limited, "registros")
     ]);
   }
 
@@ -1687,7 +1764,8 @@
           placeholder: "Nombre, cama, diagnóstico u observación",
           oninput: event => {
             ui[`${prefix}Query`] = event.target.value;
-            applyMonitorSearchDom(scope);
+            if (aggressivePerformanceMode()) scheduleRenderIaas(120);
+            else applyMonitorSearchDom(scope);
           }
         })
       ]),
@@ -2405,11 +2483,21 @@
   }
 
   function lastReviewedDateForPatient(patientId, throughDate) {
-    return Object.entries(store.dailyRounds || {})
-      .filter(([date, round]) => date <= throughDate && ["revisado", "alerta"].includes(round?.entries?.[patientId]?.status))
-      .map(([date]) => date)
-      .sort()
-      .at(-1) || "";
+    return lastReviewedDateMap(throughDate).get(patientId) || "";
+  }
+
+  function lastReviewedDateMap(throughDate) {
+    const cache = ui.renderCache?.lastReviewedDates;
+    if (cache?.has(throughDate)) return cache.get(throughDate);
+    const map = new Map();
+    Object.entries(store.dailyRounds || {}).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, round]) => {
+      if (date > throughDate) return;
+      Object.entries(round?.entries || {}).forEach(([patientId, entry]) => {
+        if (["revisado", "alerta"].includes(entry?.status)) map.set(patientId, date);
+      });
+    });
+    if (cache) cache.set(throughDate, map);
+    return map;
   }
 
   function iaasRiskNotificationRows(date) {
@@ -3385,6 +3473,8 @@
   function renderIaasFollowUpHub() {
     const date = activeDate();
     const rows = iaasFollowUpRows(date);
+    const listKey = performanceLimitKey("iaas", [date, ui.monitorEpiService, ui.monitorEpiQuery]);
+    const limitedRows = limitedRowsForRender(rows, listKey, "iaas");
     const relevantDeviceSignals = rows.reduce((sum, item) => sum + riskRelevantDevicesForItem(item, date).length, 0);
     const pendingValuations = rows.filter(item => !store.dailyRounds[date]?.entries?.[item.row.patientId]?.iaasAssessment).length;
     const cultures = rows.filter(item => normalizeText(`${item.patient.cultureStatus || item.row.cultureStatus || ""} ${item.patient.observations || item.row.observations || ""}`).includes("CULT")).length;
@@ -3411,9 +3501,12 @@
           ]),
           h("a", { href: "#/censo-hospitalario" }, ["Ver vigilancia hospitalaria"])
         ]),
-        rows.length
-          ? renderIaasFollowUpCards(rows, date)
-          : h("p", { class: "muted" }, ["Sin pacientes IAAS o riesgo IAAS activos en el censo actual."])
+        ...(rows.length
+          ? [
+            renderIaasFollowUpCards(limitedRows.rows, date),
+            renderShowMoreRows(listKey, "iaas", limitedRows, "pacientes IAAS")
+          ]
+          : [h("p", { class: "muted" }, ["Sin pacientes IAAS o riesgo IAAS activos en el censo actual."])])
       ])
     ]);
   }
@@ -3465,6 +3558,9 @@
     const rows = hospitalCensusRows(date).sort((a, b) => sortByServiceBed(a.row, b.row));
     const serviceRows = rows.filter(censusServiceMatch);
     const visibleRows = serviceRows.filter(censusSearchMatch);
+    const censusListKey = performanceLimitKey("census", [date, ui.censusService, ui.censusQuery]);
+    const censusTableSource = aggressivePerformanceMode() ? visibleRows : serviceRows;
+    const limitedCensusRows = limitedRowsForRender(censusTableSource, censusListKey, "census");
     const stats = computeStats(date);
     const epiTotals = censusEpiCounts(rows);
     return h("div", { class: "iaas-page hospital-census-page" }, [
@@ -3512,18 +3608,20 @@
                 placeholder: "Paciente, cama, servicio, diagnostico...",
                 oninput: event => {
                   ui.censusQuery = event.target.value;
-                  applyCensusSearchDom();
+                  if (aggressivePerformanceMode()) scheduleRenderIaas(120);
+                  else applyCensusSearchDom();
                 }
               })
             ]),
             h("span", { class: "badge neutral", "data-census-count": "true", "data-census-total": String(serviceRows.length) }, [`${visibleRows.length} de ${serviceRows.length}`])
           ])
         ]),
-        serviceRows.length ? h("div", { class: "table-wrap census-scroll" }, [
+        censusTableSource.length ? h("div", { class: "table-wrap census-scroll" }, [
           h("table", { class: "iaas-table hospital-census-table" }, [
             h("thead", {}, [h("tr", {}, ["Servicio / cama", "Paciente", "Edad / sexo", "Ingreso / estancia", "Estado", "Dx hospitalarios", "Dx epidemiologico", "Observaciones"].map(label => h("th", {}, [label])))]),
-            h("tbody", {}, serviceRows.map(renderHospitalCensusRow))
-          ])
+            h("tbody", {}, limitedCensusRows.rows.map(renderHospitalCensusRow))
+          ]),
+          renderShowMoreRows(censusListKey, "census", limitedCensusRows, "pacientes")
         ]) : h("div", { class: "empty-inline" }, [
           h("strong", {}, ["Sin coincidencias"]),
           h("span", {}, ["Ajusta la busqueda o cambia de servicio."])
@@ -3861,6 +3959,8 @@
     const filtered = rows
       .filter(row => serviceMatchesFilter(row.service, ui.selectedService))
       .sort(sortByServiceBed);
+    const roundListKey = performanceLimitKey("round", [date, ui.selectedService]);
+    const limitedRoundRows = limitedRowsForRender(filtered, roundListKey, "round");
     const stats = computeStats(date);
     return h("div", { class: "iaas-page round-page" }, [
       h("section", { class: "iaas-panel round-header" }, [
@@ -3886,7 +3986,8 @@
       ], "compact"),
       renderRoundWorklistSummary(rows, filtered, stats, date),
       renderDischargeReviewPanel(date),
-      h("section", { class: "round-list" }, filtered.map(row => renderRoundCard(row, date)))
+      h("section", { class: "round-list" }, limitedRoundRows.rows.map(row => renderRoundCard(row, date))),
+      renderShowMoreRows(roundListKey, "round", limitedRoundRows, "tarjetas")
     ]);
   }
 
@@ -3925,6 +4026,8 @@
       })
       .sort(sortByServiceBed);
     if (!rows.length) return "";
+    const listKey = performanceLimitKey("discharge", [date]);
+    const limitedRows = limitedRowsForRender(rows, listKey, "discharge");
     return h("section", { class: "iaas-panel discharge-review-panel" }, [
       h("div", { class: "panel-head" }, [
         h("div", {}, [
@@ -3933,7 +4036,8 @@
         ]),
         h("span", { class: "badge warn" }, [`${rows.length} pendiente(s)`])
       ]),
-      h("div", { class: "discharge-review-list" }, rows.map(row => renderDischargeReviewCard(row, date)))
+      h("div", { class: "discharge-review-list" }, limitedRows.rows.map(row => renderDischargeReviewCard(row, date))),
+      renderShowMoreRows(listKey, "discharge", limitedRows, "altas")
     ]);
   }
 
@@ -4050,6 +4154,8 @@
 
   function renderBedBoard(rows, date, mode = "preventive") {
     const items = bedBoardItems(rows, date, mode);
+    const boardKey = performanceLimitKey("beds", [mode, date, ui.selectedService, ui.monitorCensusView, rows.length]);
+    const visibleItems = limitedRowsForRender(items, boardKey, "beds");
     const label = mode === "iaas" ? "Mapa de camas IAAS" : "Mapa de camas preventivas";
     const pending = items.filter(item => item.row && bedTileState(item.row, date, mode).status === "overdue").length;
     const reviewed = items.filter(item => item.row && bedTileState(item.row, date, mode).status === "reviewed").length;
@@ -4074,7 +4180,8 @@
         h("span", { class: "legend overdue" }, ["Pendiente"])
       ]),
       renderBedBoardPicker(items, date, mode),
-      h("div", { class: "bed-board-grid" }, items.map(item => renderBedTile(item, date, mode)))
+      h("div", { class: "bed-board-grid" }, visibleItems.rows.map(item => renderBedTile(item, date, mode))),
+      renderShowMoreRows(boardKey, "beds", visibleItems, "camas")
     ]);
   }
 
@@ -4218,6 +4325,15 @@
   }
 
   function bedTileState(row, date, mode) {
+    const cache = ui.renderCache?.bedStates;
+    const key = `${mode}|${date}|${row?.patientId || "empty"}`;
+    if (cache?.has(key)) return cache.get(key);
+    const state = computeBedTileState(row, date, mode);
+    if (cache) cache.set(key, state);
+    return state;
+  }
+
+  function computeBedTileState(row, date, mode) {
     if (!row?.patientId) {
       return { status: "vacant", disabled: true, label: "Vacía", title: "Cama desocupada" };
     }
@@ -4244,11 +4360,21 @@
   }
 
   function lastIaasAssessmentDateForPatient(patientId, throughDate) {
-    return Object.entries(store.dailyRounds || {})
-      .filter(([date, round]) => date <= throughDate && round?.entries?.[patientId]?.iaasAssessment)
-      .map(([date]) => date)
-      .sort()
-      .at(-1) || "";
+    return lastIaasAssessmentDateMap(throughDate).get(patientId) || "";
+  }
+
+  function lastIaasAssessmentDateMap(throughDate) {
+    const cache = ui.renderCache?.lastIaasAssessmentDates;
+    if (cache?.has(throughDate)) return cache.get(throughDate);
+    const map = new Map();
+    Object.entries(store.dailyRounds || {}).sort(([a], [b]) => a.localeCompare(b)).forEach(([date, round]) => {
+      if (date > throughDate) return;
+      Object.entries(round?.entries || {}).forEach(([patientId, entry]) => {
+        if (entry?.iaasAssessment) map.set(patientId, date);
+      });
+    });
+    if (cache) cache.set(throughDate, map);
+    return map;
   }
 
   function renderRoundCard(row, date) {
@@ -7684,17 +7810,15 @@
     const censusRows = getCensusRows(date);
     const entries = Object.values(round.entries || {});
     const episodes = deviceEpisodesForCurrentRender();
-    const active = episodes.filter(ep => isEpisodeActiveOn(ep, date));
+    const activeIndex = activeEpisodeIndexForDate(date);
+    const active = activeIndex.list;
     const installedToday = episodes.filter(ep => ep.installationDate === date).length;
     const removedToday = episodes.filter(ep => ep.removalDate === date).length;
     const reinstallationsToday = episodes.filter(ep => ep.isReinstallation && ep.createdDuringRoundDate === date).length;
     const deviceDaysByType = {};
-    const activeByPatient = new Map();
+    const activeByPatient = activeIndex.byPatient;
     active.forEach(ep => {
       deviceDaysByType[ep.deviceType] = (deviceDaysByType[ep.deviceType] || 0) + 1;
-      const list = activeByPatient.get(ep.patientId) || [];
-      list.push(ep);
-      activeByPatient.set(ep.patientId, list);
     });
     const byService = {};
     censusRows.forEach(row => {
@@ -10112,7 +10236,7 @@
     const cache = ui.renderCache?.activeEpisodes;
     const key = `${patientId}|${date}`;
     if (cache?.has(key)) return cache.get(key);
-    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId && isEpisodeActiveOn(ep, date));
+    const episodes = activeEpisodeIndexForDate(date).byPatient.get(patientId) || [];
     if (cache) cache.set(key, episodes);
     return episodes;
   }
@@ -10120,9 +10244,38 @@
   function episodesForPatient(patientId) {
     const cache = ui.renderCache?.patientEpisodes;
     if (cache?.has(patientId)) return cache.get(patientId);
-    const episodes = deviceEpisodesForCurrentRender().filter(ep => ep.patientId === patientId);
+    const episodes = episodeMapForCurrentRender().get(patientId) || [];
     if (cache) cache.set(patientId, episodes);
     return episodes;
+  }
+
+  function episodeMapForCurrentRender() {
+    if (ui.renderCache?.episodeMap) return ui.renderCache.episodeMap;
+    const map = new Map();
+    deviceEpisodesForCurrentRender().forEach(ep => {
+      const list = map.get(ep.patientId) || [];
+      list.push(ep);
+      map.set(ep.patientId, list);
+    });
+    if (ui.renderCache) ui.renderCache.episodeMap = map;
+    return map;
+  }
+
+  function activeEpisodeIndexForDate(date) {
+    const cache = ui.renderCache?.activeEpisodeIndex;
+    if (cache?.has(date)) return cache.get(date);
+    const list = [];
+    const byPatient = new Map();
+    deviceEpisodesForCurrentRender().forEach(ep => {
+      if (!isEpisodeActiveOn(ep, date)) return;
+      list.push(ep);
+      const patientEpisodes = byPatient.get(ep.patientId) || [];
+      patientEpisodes.push(ep);
+      byPatient.set(ep.patientId, patientEpisodes);
+    });
+    const index = { list, byPatient };
+    if (cache) cache.set(date, index);
+    return index;
   }
 
   function deviceEpisodesForCurrentRender() {

@@ -9042,3 +9042,135 @@ body:has(.command-shell),
     font-size: 11px !important;
   }
 }
+
+/* Aggressive performance mode: remove expensive paint and cap long-list cost. */
+html.epivida-perf-aggressive body,
+html.epivida-perf-aggressive body:has(.command-shell),
+html.epivida-perf-aggressive .command-shell,
+html.epivida-perf-aggressive .command-shell .iaas-main {
+  background: #f4f7fb !important;
+}
+
+html.epivida-perf-aggressive .command-dashboard,
+html.epivida-perf-aggressive .command-shell .iaas-topbar,
+html.epivida-perf-aggressive .command-topbar,
+html.epivida-perf-aggressive .command-sidebar-sync,
+html.epivida-perf-aggressive .command-panel,
+html.epivida-perf-aggressive .command-shell .iaas-panel,
+html.epivida-perf-aggressive .census-command,
+html.epivida-perf-aggressive .census-command .command-visual,
+html.epivida-perf-aggressive .preventive-command,
+html.epivida-perf-aggressive .preventive-command-hero,
+html.epivida-perf-aggressive .follow-hero,
+html.epivida-perf-aggressive .census-hero-panel {
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html.epivida-perf-aggressive .command-dashboard::before,
+html.epivida-perf-aggressive .command-dashboard::after,
+html.epivida-perf-aggressive .command-shell .iaas-topbar::after,
+html.epivida-perf-aggressive .command-topbar::after,
+html.epivida-perf-aggressive .command-panel::after,
+html.epivida-perf-aggressive .census-command .command-visual::before,
+html.epivida-perf-aggressive .preventive-command-hero::before {
+  display: none !important;
+}
+
+html.epivida-perf-aggressive .command-dashboard {
+  min-height: auto !important;
+  color: #0f172a !important;
+  background: #ffffff !important;
+}
+
+html.epivida-perf-aggressive .command-heading,
+html.epivida-perf-aggressive .command-heading h1,
+html.epivida-perf-aggressive .command-heading p {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+html.epivida-perf-aggressive .command-metric-card,
+html.epivida-perf-aggressive .command-module-lite-card,
+html.epivida-perf-aggressive .round-card,
+html.epivida-perf-aggressive .iaas-follow-card,
+html.epivida-perf-aggressive .discharge-review-card,
+html.epivida-perf-aggressive .bed-tile {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+html.epivida-perf-aggressive .command-visual img,
+html.epivida-perf-aggressive .follow-hero img,
+html.epivida-perf-aggressive .census-hero-copy > img,
+html.epivida-perf-aggressive .preventive-package img,
+html.epivida-perf-aggressive .command-module-art,
+html.epivida-perf-aggressive .command-feature-card img {
+  display: none !important;
+}
+
+.performance-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 4px 4px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.performance-load-more .iaas-button {
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+html.epivida-perf-aggressive .round-card,
+html.epivida-perf-aggressive .iaas-follow-card,
+html.epivida-perf-aggressive .discharge-review-card,
+html.epivida-perf-aggressive .bed-tile {
+  contain: layout paint style;
+}
+
+@media screen and (max-width: 760px) {
+  html.epivida-perf-aggressive .command-shell .iaas-topbar,
+  html.epivida-perf-aggressive .command-topbar {
+    position: static !important;
+    min-height: auto !important;
+    border-radius: 16px !important;
+  }
+
+  html.epivida-perf-aggressive .command-dashboard,
+  html.epivida-perf-aggressive .iaas-page,
+  html.epivida-perf-aggressive .command-shell .iaas-main {
+    padding-inline: 8px !important;
+  }
+
+  html.epivida-perf-aggressive .command-heading {
+    padding: 0 !important;
+    margin-bottom: 10px !important;
+  }
+
+  html.epivida-perf-aggressive .command-heading h1 {
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+  }
+
+  html.epivida-perf-aggressive .command-metric-row,
+  html.epivida-perf-aggressive .round-list,
+  html.epivida-perf-aggressive .iaas-follow-list,
+  html.epivida-perf-aggressive .discharge-review-list {
+    gap: 8px !important;
+  }
+
+  .performance-load-more {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .performance-load-more .iaas-button {
+    width: 100%;
+  }
+}

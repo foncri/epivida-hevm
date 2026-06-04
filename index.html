@@ -12,20 +12,6 @@
     <link rel="preload" href="./assets/epivida/logos/epivida-logo-gradient.svg" as="image" />
     <link rel="stylesheet" href="./styles/epivida-assets.css" />
     <link rel="stylesheet" href="./iaas-system.css?v=2026-05-08-corefix01" />
-    <link rel="stylesheet" href="./epivida-opd-2026-05-20.css?v=2026-05-20-followup01" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="./preventive-round-hotfix.css?v=2026-05-08-preventive07" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="./preventive-hide-cultures.css?v=2026-05-08-placecultures02" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="./import-census-repair.css?v=2026-05-11-import01" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="./contrast-repair.css?v=2026-05-11-bedcolors01" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="./patient-icon-repair.css?v=2026-05-11-riskposition02" media="print" onload="this.media='all'" />
-    <noscript>
-      <link rel="stylesheet" href="./epivida-opd-2026-05-20.css?v=2026-05-20-followup01" />
-      <link rel="stylesheet" href="./preventive-round-hotfix.css?v=2026-05-08-preventive07" />
-      <link rel="stylesheet" href="./preventive-hide-cultures.css?v=2026-05-08-placecultures02" />
-      <link rel="stylesheet" href="./import-census-repair.css?v=2026-05-11-import01" />
-      <link rel="stylesheet" href="./contrast-repair.css?v=2026-05-11-bedcolors01" />
-      <link rel="stylesheet" href="./patient-icon-repair.css?v=2026-05-11-riskposition02" />
-    </noscript>
   </head>
   <body>
     <noscript>
@@ -56,6 +42,7 @@
       window.EPIVIDA_DATA_PROVIDER = "google_sheets";
       window.EPIVIDA_FIRESTORE_SYNC = false;
       window.EPIVIDA_PERFORMANCE_MODE = "aggressive";
+      document.documentElement.classList.add("epivida-perf-aggressive");
       window.EPIVIDA_SHEETS_CONFIG = {
         enabled: true,
         spreadsheetId: "1hJ3wDKRgbaOc5s-P8Vg_A3loAMMYtGvfYZDja937STM",
@@ -92,6 +79,7 @@
       })();
     </script>
     <script>
+      const loadedEpividaStyles = new Set();
       const loadedEpividaScripts = new Set();
       const epividaCoreScripts = ["./epivida-date-guard.js?v=2026-05-08-date01", "./data/censo-data.js"];
       if (location.hostname === "localhost") {
@@ -99,8 +87,36 @@
       }
       epividaCoreScripts.push("./iaas-urgencias-aisp-system-preloader-2026-06-01.js?v=2026-06-01-aisp02");
       epividaCoreScripts.push("./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01");
-      epividaCoreScripts.push("./iaas-system.js?v=2026-06-04-perf03");
+      epividaCoreScripts.push("./iaas-system.js?v=2026-06-04-perf04");
       epividaCoreScripts.push("./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01");
+
+      const epividaRouteStyles = {
+        "ronda": [
+          "./preventive-round-hotfix.css?v=2026-05-08-preventive07",
+          "./preventive-hide-cultures.css?v=2026-05-08-placecultures02",
+          "./contrast-repair.css?v=2026-05-11-bedcolors01",
+          "./patient-icon-repair.css?v=2026-05-11-riskposition02"
+        ],
+        "seguimiento-iaas": [
+          "./epivida-opd-2026-05-20.css?v=2026-05-20-followup01",
+          "./contrast-repair.css?v=2026-05-11-bedcolors01",
+          "./patient-icon-repair.css?v=2026-05-11-riskposition02"
+        ],
+        "pacientes": [
+          "./epivida-opd-2026-05-20.css?v=2026-05-20-followup01",
+          "./patient-icon-repair.css?v=2026-05-11-riskposition02"
+        ],
+        "importar-censo": [
+          "./import-census-repair.css?v=2026-05-11-import01"
+        ],
+        "monitoreo-epidemiologico": [
+          "./patient-icon-repair.css?v=2026-05-11-riskposition02",
+          "./contrast-repair.css?v=2026-05-11-bedcolors01"
+        ],
+        "censo-hospitalario": [
+          "./patient-icon-repair.css?v=2026-05-11-riskposition02"
+        ]
+      };
 
       const epividaRouteBundles = {
         "ronda": [
@@ -149,6 +165,23 @@
         return (location.hash || "#/dashboard").replace(/^#\/?/, "").split(/[/?#]/)[0] || "dashboard";
       }
 
+      function loadEpividaStyle(src) {
+        if (loadedEpividaStyles.has(src)) return Promise.resolve();
+        loadedEpividaStyles.add(src);
+        return new Promise(resolve => {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = src;
+          link.onload = resolve;
+          link.onerror = resolve;
+          document.head.append(link);
+        });
+      }
+
+      async function loadEpividaStyles(styles) {
+        await Promise.all(styles.map(loadEpividaStyle));
+      }
+
       function loadEpividaScript(src) {
         if (loadedEpividaScripts.has(src)) return Promise.resolve();
         loadedEpividaScripts.add(src);
@@ -175,7 +208,9 @@
       }
 
       async function loadCurrentRouteBundle() {
-        await loadEpividaScripts(epividaRouteBundles[epividaRouteName()] || []);
+        const route = epividaRouteName();
+        await loadEpividaStyles(epividaRouteStyles[route] || []);
+        await loadEpividaScripts(epividaRouteBundles[route] || []);
       }
 
       (async () => {
