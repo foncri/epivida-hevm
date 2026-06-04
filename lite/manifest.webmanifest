@@ -1,0 +1,9 @@
+{
+  "name": "EPIVIDA",
+  "short_name": "EPIVIDA",
+  "start_url": "./index.html#/inicio",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111827",
+  "description": "EPIVIDA Lite para operacion epidemiologica hospitalaria modular."
+}

@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasUser() {
+      return signedIn() && exists(userPath());
+    }
+
+    function userData() {
+      return get(userPath()).data;
+    }
+
+    function activeUser() {
+      return hasUser() && userData().active == true;
+    }
+
+    function role() {
+      return activeUser() ? userData().role : "none";
+    }
+
+    function admin() {
+      return role() == "admin_epidemiologia";
+    }
+
+    function epidemiologia() {
+      return role() in ["admin_epidemiologia", "epidemiologia"];
+    }
+
+    function nursing() {
+      return role() in ["admin_epidemiologia", "epidemiologia", "enfermeria"];
+    }
+
+    function reader() {
+      return role() in ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectura"];
+    }
+
+    function reportReader() {
+      return role() in ["admin_epidemiologia", "epidemiologia", "lectura"];
+    }
+
+    function changedOnlyAllowed(fields) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(fields);
+    }
+
+    match /users/{uid} {
+      allow read: if activeUser() && (admin() || request.auth.uid == uid);
+      allow create: if admin();
+      allow update: if admin()
+        || (
+          activeUser()
+          && request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).changedKeys().hasAny(["role", "active", "allowedModules"])
+        );
+      allow delete: if false;
+    }
+
+    match /patients_active/{patientId} {
+      allow read: if reader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /patients_archive/{patientId} {
+      allow read: if reportReader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /census_days/{date} {
+      allow read: if reader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+
+      match /patients/{patientId} {
+        allow read: if reader();
+        allow create, update: if epidemiologia();
+        allow delete: if false;
+      }
+    }
+
+    match /nursing_rounds/{roundId} {
+      allow read: if nursing();
+      allow create, update: if nursing();
+      allow delete: if false;
+    }
+
+    match /devices_active/{episodeId} {
+      allow read: if nursing();
+      allow create, update: if nursing();
+      allow delete: if false;
+    }
+
+    match /devices_archive/{episodeId} {
+      allow read: if reportReader();
+      allow create, update: if nursing();
+      allow delete: if false;
+    }
+
+    match /iaas_active/{iaasId} {
+      allow read: if epidemiologia();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /iaas_archive/{iaasId} {
+      allow read: if epidemiologia();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /daily_snapshots/{date} {
+      allow read: if reportReader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if epidemiologia();
+      allow create: if activeUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdAt is string;
+      allow update, delete: if false;
+    }
+
+    match /catalogs/{catalogId} {
+      allow read: if reader();
+      allow create, update: if admin();
+      allow delete: if false;
+    }
+
+    match /sync_queue/{id} {
+      allow read: if activeUser() && resource.data.userId == request.auth.uid;
+      allow create: if activeUser() && request.resource.data.userId == request.auth.uid;
+      allow update: if activeUser()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /exports_log/{id} {
+      allow read: if reportReader();
+      allow create: if reportReader()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.createdAt is string;
+      allow update, delete: if false;
+    }
+  }
+}

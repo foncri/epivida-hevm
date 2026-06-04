@@ -376,13 +376,28 @@ Si se migra a history routing, agregar `_redirects`:
 
 ### Fase 1: base nueva minima
 
-- Crear app Vite/TypeScript o ES modules estaticos si se decide no usar build.
-- Crear `index.html` minimo.
-- Crear router lazy.
-- Crear CSS base minimo blanco/gris/negro.
-- Crear Firebase Auth modular.
-- Crear servicio de usuarios y roles.
-- No importar el runtime legacy.
+Estado: iniciada en `lite/`.
+
+Implementado:
+
+- App ES modules estatica sin build obligatorio.
+- `lite/index.html` minimo.
+- Router hash con `import()` por ruta.
+- CSS base unico blanco/gris/negro.
+- Firebase Auth modular por CDN.
+- Servicios separados para usuarios, pacientes, censo, rondas, dispositivos, IAAS, snapshots, catalogos, auditoria y exportacion CSV.
+- PWA/service worker minimo.
+- Reglas e indices Firestore iniciales en `lite/firebase/`.
+- Sin import de `iaas-system`, `FULL_SCRIPTS`, `FULL_STYLES`, Google Sheets, XLSX, `innerHTML` ni `localStorage` en `lite/src`.
+
+Prueba local realizada:
+
+- `#/monitoreo-epidemiologico`: carga solo `src/modules/monitoreo/index.js`, sin legacy.
+- `#/ronda-paquetes`: carga solo `src/modules/ronda-paquetes/index.js`, sin legacy.
+- `#/reportes`: carga solo `src/modules/reportes/index.js`, sin legacy.
+- 1 hoja CSS: `src/styles/base.css`.
+- 1 script HTML inicial: `src/main.js`.
+- Sin respuestas 404/500 despues de agregar `favicon.svg`.
 
 ### Fase 2: modelo Firestore
 
@@ -474,4 +489,3 @@ Si se migra a history routing, agregar `_redirects`:
 - No hay pacientes reales en repo.
 - La app funciona desde celular con carga rapida.
 - La version nueva se puede revertir sin perder la version actual.
-
