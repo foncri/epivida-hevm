@@ -1,2 +1,9 @@
 data/*.private.js
 .codex-*-profile*/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
