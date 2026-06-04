@@ -91,6 +91,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /round_sessions/{sessionId} {
+      allow read: if nursing();
+      allow create, update: if nursing();
+      allow delete: if false;
+    }
+
     match /devices_active/{episodeId} {
       allow read: if nursing();
       allow create, update: if nursing();

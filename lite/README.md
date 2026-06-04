@@ -114,6 +114,8 @@ Reglas e indices iniciales:
 - `lite/firebase/firestore.rules`
 - `lite/firebase/firestore.indexes.json`
 
+La ronda preventiva usa `round_sessions` para iniciar/cerrar ronda y `nursing_rounds` para cada cama revisada; ambas colecciones deben desplegarse junto con las reglas antes de operar en produccion.
+
 Colecciones objetivo:
 
 - `users`

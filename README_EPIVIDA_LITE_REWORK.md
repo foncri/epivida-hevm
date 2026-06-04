@@ -167,7 +167,7 @@ Limitaciones para EPIVIDA Lite:
 
 - Roles y bootstrap por email deben evolucionar a `users/{uid}` robusto o custom claims.
 - Colecciones actuales no coinciden con el modelo objetivo.
-- Reglas no cubren todavia `patients_active`, `patients_archive`, `devices_active`, `iaas_active`, `daily_snapshots`, `catalogs`, `sync_queue`, `exports_log`.
+- Las reglas legacy no cubrian el modelo objetivo; Lite agrega reglas dedicadas para pacientes, dispositivos, IAAS, rondas, sesiones de ronda, auditoria, catalogos, cola y exportaciones.
 - La UI actual llama Firestore desde el runtime monolitico.
 
 ### Riesgos tecnicos principales
@@ -310,6 +310,7 @@ Colecciones principales:
 - `patients_archive`
 - `census_days`
 - `nursing_rounds`
+- `round_sessions`
 - `devices_active`
 - `devices_archive`
 - `iaas_active`

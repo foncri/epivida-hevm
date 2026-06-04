@@ -73,6 +73,22 @@
       ]
     },
     {
+      "collectionGroup": "round_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "round_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "updatedBy", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "audit_logs",
       "queryScope": "COLLECTION",
       "fields": [
