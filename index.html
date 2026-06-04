@@ -92,7 +92,7 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-03-syncperf02").catch(error => {
+          navigator.serviceWorker.register("./epivida-service-worker.js?v=2026-06-04-sheets40301").catch(error => {
             console.warn("No se pudo registrar modo offline EpiVida.", error);
           });
         });
@@ -112,7 +112,7 @@
       epividaScripts.push("./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-03-notes01");
       epividaScripts.push("./preventive-packages-enhancement-2026-06-01.js?v=2026-06-01-preventive02");
       epividaScripts.push("./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01");
-      epividaScripts.push("./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-03-syncperf02");
+      epividaScripts.push("./iaas-system-cedulas-loader-2026-05-21.js?v=2026-06-04-sheets40301");
       epividaScripts.push("./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01");
       epividaScripts.push("./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06");
       epividaScripts.push("./preventive-native-save-guard-2026-05-12.js?v=2026-05-12-iaassave01");

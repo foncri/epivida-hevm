@@ -10,6 +10,7 @@
   const PRO_ASSET = "./assets/epivida-pro";
   const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
   const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+  const SHEETS_READONLY_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
   const OAUTH_POPUP_TIMEOUT_MS = Number(window.EPIVIDA_OAUTH_POPUP_TIMEOUT_MS || 90000);
   const SHEETS_CONFIG = {
     enabled: false,
@@ -8495,6 +8496,7 @@
       ui.sheets.connected = false;
       ui.sheets.accessToken = "";
       ui.sheets.status = "disconnected";
+      forgetSheetsSession();
     }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -8502,6 +8504,28 @@
     }
     if (response.status === 204) return {};
     return response.json();
+  }
+
+  async function validateSheetsAccessToken() {
+    try {
+      await sheetsRequest("?fields=spreadsheetId,properties(title)", { method: "GET" });
+      return true;
+    } catch (error) {
+      if (isSheetsAuthorizationError(error)) {
+        ui.sheets.connected = false;
+        ui.sheets.accessToken = "";
+        ui.sheets.status = "error";
+        ui.sheets.error = friendlyError(error);
+        ui.sheets.errorDetail = detailedError(error);
+        forgetSheetsSession();
+      }
+      throw error;
+    }
+  }
+
+  function isSheetsAuthorizationError(error) {
+    const text = detailedError(error);
+    return /HTTP\s*(401|403)|PERMISSION_DENIED|insufficient authentication scopes|caller does not have permission|Request had insufficient authentication scopes/i.test(text);
   }
 
   async function printEpidemiologicalCensusFromSheets() {
@@ -9872,6 +9896,9 @@
 
   async function connectSheets() {
     if (!firebaseRuntime || !ui.firebase.user || !ui.sheets.enabled) return;
+    forgetSheetsSession();
+    ui.sheets.connected = false;
+    ui.sheets.accessToken = "";
     const attemptId = ui.sheets.connectAttemptId + 1;
     ui.sheets.connectAttemptId = attemptId;
     ui.sheets.autoReconnectAttempted = true;
@@ -9881,7 +9908,7 @@
     try {
       let tokenResponse;
       try {
-        const resultPromise = requestSheetsAccessToken();
+        const resultPromise = requestSheetsAccessToken({ forceConsent: true });
         renderIaas();
         tokenResponse = await resultPromise;
       } catch (error) {
@@ -9898,6 +9925,7 @@
       ui.sheets.status = "error";
       ui.sheets.error = friendlyError(error);
       ui.sheets.errorDetail = detailedError(error);
+      if (isSheetsAuthorizationError(error)) forgetSheetsSession();
       flashIaas(`No se pudo conectar Sheets: ${ui.sheets.error}`);
       renderIaas();
     }
@@ -9945,7 +9973,7 @@
           client_id: GOOGLE_OAUTH_CLIENT_ID,
           scope: SHEETS_SCOPE,
           hint: email || undefined,
-          include_granted_scopes: true,
+          include_granted_scopes: !options.forceConsent,
           callback: response => {
             if (response?.error) {
               reject(new Error(response.error_description || response.error));
@@ -9955,17 +9983,26 @@
               reject(new Error("Google no devolvio token de Sheets."));
               return;
             }
+            if (response.scope && !tokenResponseHasSheetsScope(response)) {
+              reject(new Error("Google devolvio un token sin permiso de Sheets. Reintenta y acepta el acceso a hojas de calculo."));
+              return;
+            }
             resolve(response);
           },
           error_callback: error => {
             reject(new Error(error?.message || error?.type || "No se pudo abrir la autorizacion de Google Sheets."));
           }
         });
-        tokenClient.requestAccessToken({ prompt });
+        tokenClient.requestAccessToken({ prompt: options.forceConsent ? "consent" : prompt });
       } catch (error) {
         reject(error);
       }
     }), options.timeoutMessage || "La autorizacion directa de Google Sheets no respondio a tiempo. Revisa si la ventana de Google quedo abierta, bloqueada o en segundo plano; cierra esa ventana y presiona Reintentar.", timeoutMs);
+  }
+
+  function tokenResponseHasSheetsScope(response = {}) {
+    const scopes = String(response.scope || "").split(/\s+/).filter(Boolean);
+    return scopes.includes(SHEETS_SCOPE) || scopes.includes(SHEETS_READONLY_SCOPE);
   }
 
   async function loadGoogleIdentityServices() {
@@ -10029,9 +10066,11 @@
   async function finishSheetsConnection(accessToken, options = {}) {
     ui.sheets.accessToken = accessToken;
     ui.sheets.connected = true;
-    ui.sheets.status = "connected";
+    ui.sheets.status = "sync_pending";
     ui.sheets.error = "";
     ui.sheets.errorDetail = "";
+    await validateSheetsAccessToken();
+    ui.sheets.status = "connected";
     rememberSheetsSession(options.tokenResponse);
     const hadPendingWrites = pendingQueue().length > 0;
     if (hadPendingWrites) {
@@ -10070,13 +10109,16 @@
       if (attemptId !== ui.sheets.connectAttemptId) return;
       await finishSheetsConnection(tokenResponse.access_token, { tokenResponse, silent: true });
       flashIaas("Google Sheets reconectado.");
-    } catch {
+    } catch (error) {
       if (attemptId !== ui.sheets.connectAttemptId) return;
       ui.sheets.connected = false;
       ui.sheets.accessToken = "";
       ui.sheets.status = "disconnected";
-      ui.sheets.error = "";
+      ui.sheets.error = isSheetsAuthorizationError(error)
+        ? "Sheets requiere autorizacion nueva. Presiona Conectar Sheets y acepta el permiso de hojas de calculo."
+        : "";
       ui.sheets.errorDetail = "";
+      if (isSheetsAuthorizationError(error)) forgetSheetsSession();
       renderIaas();
     }
   }
@@ -11690,14 +11732,14 @@
 
   function friendlyError(error) {
     const text = error?.message || String(error);
-    if (/insufficient authentication scopes/i.test(text)) {
-      return "Google no concedio el permiso de Sheets. Reintenta y acepta el acceso a hojas de calculo.";
+    if (/caller does not have permission|The caller does not have permission/i.test(text)) {
+      return "La cuenta autenticada no tiene acceso a esta hoja. Abre la hoja y compartela con esta cuenta, o entra con la cuenta propietaria.";
+    }
+    if (/PERMISSION_DENIED|insufficient authentication scopes|Request had insufficient authentication scopes/i.test(text)) {
+      return "Google no concedio permiso efectivo de Sheets. Presiona Conectar Sheets y acepta el acceso a hojas de calculo.";
     }
     if (/Google Sheets API has not been used|disabled/i.test(text)) {
       return "La API de Google Sheets no esta habilitada en el proyecto de Google Cloud/Firebase.";
-    }
-    if (/caller does not have permission|The caller does not have permission/i.test(text)) {
-      return "La cuenta autenticada no tiene permiso para leer esta hoja de Google Sheets.";
     }
     if (/access.*denied|popup-closed-by-user|cancelled-popup-request/i.test(text)) {
       return "La autorizacion de Google fue cancelada o bloqueada.";
