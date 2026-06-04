@@ -24,7 +24,7 @@ import {
   YES_NO_NA
 } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
-import { listTodayRounds, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
+import { listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -35,22 +35,26 @@ export async function render({ app, route }) {
 async function renderRoundPage(app, parsed) {
   const local = roundState(app);
   const date = parsed.date;
-  const [patients, devices, rounds, pending] = await Promise.all([
+  const [patients, devices, rounds, pending, initialSession] = await Promise.all([
     listActivePatients(),
     listActiveDevices(),
     listTodayRounds(date),
-    listPendingWrites().catch(() => [])
+    listPendingWrites().catch(() => []),
+    roundSessionForDate(date)
   ]);
   const deviceMap = devicesByPatient(devices);
   const roundMap = new Map(rounds.map(row => [row.patientId, row]));
+  let roundSession = initialSession || null;
   const page = el("div", { class: "round-page stack" });
   let message = "";
 
   function redraw() {
     const visible = filterAndSortRoundPatients(patients, local.filters);
-    const roundStats = computeRoundStats(patients, visible, devices, roundMap, pending);
+    const roundStats = computeRoundStats(patients, visible, devices, roundMap, pending, roundSession);
     page.replaceChildren(
-      renderRoundHeader(app, date, roundStats, text => {
+      renderRoundHeader(app, date, roundStats, savedSession => {
+        roundSession = savedSession || roundSession;
+      }, text => {
         message = text;
         redraw();
       }),
@@ -77,8 +81,11 @@ async function renderRoundPage(app, parsed) {
   return page;
 }
 
-function renderRoundHeader(app, date, roundStats, onMessage) {
+function renderRoundHeader(app, date, roundStats, onSessionSaved, onMessage) {
   const canEdit = canWrite("ronda-paquetes", app.state.auth.profile?.role);
+  const isClosed = roundStats.sessionStatus === "closed";
+  const actionLabel = isClosed ? "Reabrir ronda" : roundStats.started ? "Ronda en curso" : "Iniciar ronda";
+  const sessionTone = isClosed ? "neutral" : roundStats.sessionStatus === "in_progress" ? "ok" : "warn";
   return el("section", { class: "iaas-panel round-header" }, [
     el("div", {}, [
       el("h1", {}, ["Paquetes Preventivos"]),
@@ -92,16 +99,19 @@ function renderRoundHeader(app, date, roundStats, onMessage) {
           location.hash = `#/ronda/${nextDate}`;
         }
       })),
-      button(roundStats.started ? "Ronda en curso" : "Iniciar ronda", async () => {
+      roundStats.sessionLabel ? badge(roundStats.sessionLabel, sessionTone) : "",
+      button(actionLabel, async () => {
         if (!canEdit) return onMessage("Tu perfil no puede iniciar la ronda.");
-        const saved = await saveRoundSession(app, { date, status: "in_progress", startedAt: new Date().toISOString() });
+        const saved = await saveRoundSession(app, { date, status: "in_progress", startedAt: roundStats.startedAt || new Date().toISOString(), reopenedAt: isClosed ? new Date().toISOString() : "" });
+        onSessionSaved(saved);
         onMessage(saved.syncStatus === "local_pending" ? "Ronda iniciada localmente; queda pendiente de sincronizar." : "Ronda iniciada.");
       }, { class: "primary" }),
       button("Cerrar ronda", async () => {
         if (!canEdit) return onMessage("Tu perfil no puede cerrar la ronda.");
         const saved = await saveRoundSession(app, { date, status: "closed", closedAt: new Date().toISOString(), reviewedPatients: roundStats.reviewedPatients });
+        onSessionSaved(saved);
         onMessage(saved.syncStatus === "local_pending" ? "Cierre guardado localmente; queda pendiente de sincronizar." : "Ronda cerrada.");
-      }, { class: "ghost" })
+      }, { class: "ghost", disabled: isClosed })
     ])
   ]);
 }
@@ -683,12 +693,16 @@ function filterAndSortRoundPatients(patients, filters) {
   return filterPatients(patients, filters).sort(sortByServiceBed);
 }
 
-function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending) {
+function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending, roundSession = null) {
   const reviewedPatients = allPatients.filter(patient => ["reviewed", "revisado", "alerta"].includes(roundMap.get(patient.patientId)?.status)).length;
   const incompletePatients = allPatients.filter(patient => roundMap.get(patient.patientId)?.status === "incompleto").length;
   const activeAlerts = allPatients.filter(patient => roundMap.get(patient.patientId)?.status === "alerta").length;
+  const sessionStatus = roundSession?.status || "";
   return {
-    started: reviewedPatients > 0,
+    started: ["in_progress", "closed"].includes(sessionStatus) || reviewedPatients > 0,
+    sessionStatus,
+    sessionLabel: sessionStatus === "closed" ? "Ronda cerrada" : sessionStatus === "in_progress" ? "Ronda en curso" : "Ronda no iniciada",
+    startedAt: roundSession?.startedAt || "",
     totalPatients: allPatients.length,
     reviewedPatients,
     pendingPatients: Math.max(0, allPatients.length - reviewedPatients - incompletePatients),

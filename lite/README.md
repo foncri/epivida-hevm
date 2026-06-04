@@ -170,6 +170,7 @@ Colecciones objetivo:
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.
+- Chrome local: iniciar/cerrar ronda persiste en `round_sessions`; al recargar se conserva `Ronda en curso` o `Ronda cerrada` desde Firestore/cola offline.
 - Chrome local: `#/ronda/2026-06-04/paciente/p_uci_02` permite agregar `NAVM` y muestra criterios SI/NO/NA, French, higiene oral, cumplimiento, pendientes y navegacion por cama.
 - Chrome local: guardar como incompleto deja `nursing_rounds` y `audit_logs` en cola offline cuando Firestore no esta configurado.
 - Mobile 390 px: ronda de camas sin desbordamiento horizontal.

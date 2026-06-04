@@ -1,5 +1,5 @@
 import { todayIso, nowIso } from "../lib/date.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { getDocData, listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 
@@ -16,6 +16,21 @@ export async function listTodayRounds(date = todayIso()) {
     return (await mergePending(rows)).filter(row => row.date === date);
   } catch {
     return (await mergePending([])).filter(row => row.date === date);
+  }
+}
+
+export async function roundSessionForDate(date = todayIso()) {
+  const sessionId = date;
+  const pending = await pendingPayloadsForCollection("round_sessions");
+  const pendingSession = pending.find(row => (row.sessionId || row.id) === sessionId || row.date === date);
+  try {
+    const saved = await getDocData(`round_sessions/${sessionId}`);
+    return {
+      ...(saved || {}),
+      ...(pendingSession || {})
+    };
+  } catch {
+    return pendingSession || null;
   }
 }
 
