@@ -36,7 +36,7 @@ export async function listActivePatients() {
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return mergePending(cached?.value || []);
+    return (await mergePending(cached?.value || [])).filter(row => row.active !== false);
   }
 }
 
@@ -106,11 +106,26 @@ export async function archivePatient(app, patient, reason = "") {
     updatedAt: nowIso(),
     updatedBy: app.state.auth.user?.uid || ""
   });
-  const saved = await setDocMergeOrQueue(app, `patients_active/${patient.patientId}`, payload, {
+  const activeSaved = await setDocMergeOrQueue(app, `patients_active/${patient.patientId}`, payload, {
     module: "censo",
     entityType: "patient",
     entityId: patient.patientId
   });
+  const archiveSaved = await setDocMergeOrQueue(app, `patients_archive/${patient.patientId}`, {
+    ...payload,
+    archivedAt: payload.dischargedAt,
+    archivedBy: app.state.auth.user?.uid || "",
+    archiveReason: payload.dischargeReason
+  }, {
+    module: "censo",
+    entityType: "patient_archive",
+    entityId: patient.patientId
+  });
+  const saved = {
+    ...activeSaved,
+    archiveSyncStatus: archiveSaved.syncStatus,
+    syncStatus: activeSaved.syncStatus === "server_synced" && archiveSaved.syncStatus === "server_synced" ? "server_synced" : "local_pending"
+  };
   await writeAudit(app, {
     actionType: "patient_archive",
     module: "censo",

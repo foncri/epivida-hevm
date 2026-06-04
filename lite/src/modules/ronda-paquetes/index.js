@@ -3,7 +3,7 @@ import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
 import { devicesByPatient, listActiveDevices, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
-import { listActivePatients } from "../../services/patientService.js";
+import { archivePatient, listActivePatients, savePatient } from "../../services/patientService.js";
 import {
   defaultPreventiveDevice,
   deviceDisplayName,
@@ -69,6 +69,11 @@ const KNOWN_SERVICE_BEDS = {
   ]
 };
 
+const DISCHARGE_TYPES = ["MEJORIA", "TRASLADO", "MAXIMO BENEFICIO", "VOLUNTARIA", "DEFUNCION", "SIN DATO"];
+const DISCHARGE_SHIFTS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "JORNADA ESPECIAL", "SIN TURNO"];
+const PROBABLE_DISCHARGE_MESSAGE = "Revisar alta del paciente y su probable causa.";
+const REPORTED_DISCHARGE_MESSAGE = "Verificar alta hospitalaria reportada.";
+
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
   if (parsed.patientId) return renderPatientRound(app, parsed);
@@ -78,13 +83,14 @@ export async function render({ app, route }) {
 async function renderRoundPage(app, parsed) {
   const local = roundState(app);
   const date = parsed.date;
-  const [patients, devices, rounds, pending, initialSession] = await Promise.all([
+  const [initialPatients, devices, rounds, pending, initialSession] = await Promise.all([
     listActivePatients(),
     listActiveDevices(),
     listTodayRounds(date),
     listPendingWrites().catch(() => []),
     roundSessionForDate(date)
   ]);
+  let patients = initialPatients;
   const deviceMap = devicesByPatient(devices);
   const roundMap = new Map(rounds.map(row => [row.patientId, row]));
   let roundSession = initialSession || null;
@@ -114,6 +120,11 @@ async function renderRoundPage(app, parsed) {
         [String(roundStats.syncPending), "Sync pendiente"]
       ]),
       renderRoundWorklistSummary(patients, visible, roundStats, local.filters.service),
+      renderDischargeReviewPanel(app, local, date, patients, (saved, text) => {
+        patients = upsertOrRemovePatient(patients, saved);
+        message = text;
+        redraw();
+      }),
       visible.length
         ? el("section", { class: "round-list" }, visible.map(patient => renderRoundCard(patient, deviceMap.get(patient.patientId) || [], roundMap.get(patient.patientId), date)))
         : renderEmptyBeds()
@@ -283,6 +294,78 @@ function renderRoundWorklistSummary(allPatients, visible, roundStats, selectedSe
       el("small", {}, [`${visible.length} de ${allPatients.length} cama(s) visibles - ${roundStats.reviewedPatients} revisada(s) - ${roundStats.totalDevices} invasivo(s)`])
     ]),
     el("div", { class: "round-worklist-progress" }, [el("i", { style: { width: `${progress}%` } })])
+  ]);
+}
+
+function renderDischargeReviewPanel(app, local, date, patients, onResolved) {
+  const rows = patients.filter(isDischargeReviewPatient).sort(sortByServiceBed);
+  if (!rows.length) return "";
+  const canEdit = canWrite("censo", app.state.auth.profile?.role);
+  return el("section", { class: "iaas-panel discharge-review-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Altas por verificar"]),
+        el("p", {}, ["Pacientes ausentes, reportados con alta o encontrados en otro servicio."])
+      ]),
+      badge(`${rows.length} pendiente(s)`, "warn")
+    ]),
+    !canEdit ? notice("Solo epidemiologia puede confirmar alta o marcar que sigue hospitalizado.", "warn") : "",
+    el("div", { class: "discharge-review-list" }, rows.map(patient =>
+      renderDischargeReviewCard(app, local, date, patient, canEdit, onResolved)
+    ))
+  ]);
+}
+
+function renderDischargeReviewCard(app, local, date, patient, canEdit, onResolved) {
+  const draft = dischargeDraft(local, date, patient);
+  return el("article", { class: "discharge-review-card" }, [
+    el("div", { class: "discharge-review-main" }, [
+      el("strong", {}, [patientLabel(patient).toUpperCase()]),
+      el("span", {}, [`${patientService(patient)} - cama ${patientBed(patient)}`]),
+      el("small", {}, [dischargeReviewReason(patient)])
+    ]),
+    el("div", { class: "discharge-review-fields" }, [
+      field("Tipo de alta", selectInput(DISCHARGE_TYPES, {
+        value: draft.type,
+        disabled: !canEdit,
+        onchange: event => { draft.type = event.target.value; }
+      })),
+      field("Fecha de alta", dateInput({
+        value: draft.date,
+        disabled: !canEdit,
+        onchange: event => { draft.date = event.target.value; }
+      })),
+      field("Turno", selectInput(DISCHARGE_SHIFTS, {
+        value: draft.shift,
+        disabled: !canEdit,
+        onchange: event => { draft.shift = event.target.value; }
+      }))
+    ]),
+    el("div", { class: "discharge-review-actions" }, [
+      link(`#/pacientes/${patient.patientId}/expediente`, "Expediente", { class: "button ghost" }),
+      link(roundPatientHref(date, patient.patientId), "Revisar ronda", { class: "button ghost" }),
+      button("Confirmar alta", async () => {
+        if (!canEdit) return;
+        const saved = await archivePatient(app, {
+          ...patient,
+          hospitalizationStatus: "egresado",
+          dischargeDate: draft.date || date,
+          dischargeType: draft.type || "SIN DATO",
+          dischargeShift: draft.shift || "SIN TURNO",
+          dischargeReviewRequired: false,
+          probableDischarge: false,
+          dischargeReported: false
+        }, draft.type || "alta_verificada");
+        delete local.dischargeDrafts[patient.patientId];
+        onResolved(saved, saved.syncStatus === "local_pending" ? "Alta confirmada localmente; queda pendiente de sincronizar." : "Alta confirmada.");
+      }, { class: "primary", disabled: !canEdit }),
+      button("Sigue hospitalizado", async () => {
+        if (!canEdit) return;
+        const saved = await savePatient(app, patientStillHospitalizedPayload(patient));
+        delete local.dischargeDrafts[patient.patientId];
+        onResolved(saved, saved.syncStatus === "local_pending" ? "Conciliacion guardada localmente; queda pendiente de sincronizar." : "Paciente marcado como hospitalizado.");
+      }, { class: "ghost", disabled: !canEdit })
+    ])
   ]);
 }
 
@@ -697,10 +780,12 @@ function validateDraft(draft, activeDevices, requestedStatus) {
 function roundState(app) {
   app.state.moduleState.rondaPaquetes ||= {
     filters: { service: "Todos", query: "" },
-    drafts: {}
+    drafts: {},
+    dischargeDrafts: {}
   };
   app.state.moduleState.rondaPaquetes.filters ||= { service: "Todos", query: "" };
   app.state.moduleState.rondaPaquetes.drafts ||= {};
+  app.state.moduleState.rondaPaquetes.dischargeDrafts ||= {};
   return app.state.moduleState.rondaPaquetes;
 }
 
@@ -887,6 +972,64 @@ function syncLabel(syncStatus = "") {
   return "Sincronizado";
 }
 
+function dischargeDraft(local, date, patient) {
+  const key = patient.patientId;
+  local.dischargeDrafts[key] ||= {
+    type: patient.dischargeType || patient.dischargeReason || DISCHARGE_TYPES[0],
+    date: normalizeDate(patient.dischargeDate || patient.dischargedAt) || date,
+    shift: patient.dischargeShift || DISCHARGE_SHIFTS.at(-1)
+  };
+  return local.dischargeDrafts[key];
+}
+
+function isDischargeReviewPatient(patient = {}) {
+  const status = normalizeStatusKey(patient.hospitalizationStatus || patient.statusReason || "");
+  const issues = normalizeRoundText((patient.activePendingIssues || []).join(" "));
+  return Boolean(
+    patient.dischargeReviewRequired
+    || patient.probableDischarge
+    || patient.dischargeReported
+    || ["ALTA PROBABLE", "ALTA REPORTADA", "REQUIERE CONCILIACION"].includes(status)
+    || issues.includes("ALTA")
+    || issues.includes("MOVIDO")
+  );
+}
+
+function dischargeReviewReason(patient = {}) {
+  if (patient.dischargeReported || normalizeStatusKey(patient.hospitalizationStatus) === "ALTA REPORTADA") return REPORTED_DISCHARGE_MESSAGE;
+  if (patient.probableDischarge || normalizeStatusKey(patient.hospitalizationStatus) === "ALTA PROBABLE") return PROBABLE_DISCHARGE_MESSAGE;
+  const issues = (patient.activePendingIssues || []).filter(Boolean).join(" | ");
+  return issues || "Investigar fecha, causa y turno de alta hospitalaria.";
+}
+
+function patientStillHospitalizedPayload(patient = {}) {
+  const activePendingIssues = (patient.activePendingIssues || []).filter(issue => !isDischargeIssue(issue));
+  return {
+    ...patient,
+    active: true,
+    hospitalizationStatus: "hospitalizado",
+    dischargeReviewRequired: false,
+    probableDischarge: false,
+    dischargeReported: false,
+    dischargeDate: "",
+    dischargeType: "",
+    dischargeShift: "",
+    dischargeReason: "",
+    activePendingIssues
+  };
+}
+
+function isDischargeIssue(value = "") {
+  const text = normalizeRoundText(value);
+  return text.includes("ALTA") || text.includes("MOVIDO") || text.includes("CONCILIACION");
+}
+
+function upsertOrRemovePatient(patients, saved) {
+  const next = patients.filter(patient => patient.patientId !== saved.patientId);
+  if (saved.active === false) return next;
+  return [saved, ...next].sort(sortByServiceBed);
+}
+
 function packageSignalsForPatient(patient, devices) {
   const signals = devices.map(devicePackageSignal).filter(signal => signal.label && signal.tone !== "neutral");
   if (isSurgicalSignal(patient)) signals.push({ label: "ISQ", tone: "isq" });
@@ -978,6 +1121,10 @@ function normalizeServiceKey(value) {
   if (text.includes("URGENCIA") || text === "URG") return "URGENCIAS";
   if (text.includes("AMBULATOR")) return "AMBULATORIO";
   return text;
+}
+
+function normalizeStatusKey(value) {
+  return normalizeRoundText(value).replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 }
 
 function range(start, end) {

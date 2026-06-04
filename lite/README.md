@@ -20,7 +20,9 @@ Fase 4 inicial: remake fiel de Paquetes Preventivos sobre la base modular.
 - Ronda `#/ronda/fecha` compatible con la URL legacy.
 - Paquetes Preventivos con mapa de camas, filtros por servicio, tarjetas por cama y captura por paciente.
 - Catalogo liviano de camas conocidas por servicio para conservar camas vacias/bloqueadas del tablero legacy.
+- Panel `Altas por verificar` en ronda para conciliar altas probables/reportadas antes de limpiar pacientes.
 - Guardado de ronda, paquetes, dispositivos creados/retiros, sesiones y auditoria.
+- Archivo de pacientes confirmados en `patients_archive` para no perder trazabilidad al egresar.
 - Cola offline explicita en IndexedDB para escrituras pendientes.
 - Admin muestra y reintenta sincronizacion pendiente.
 - Reportes exporta CSV bajo demanda, incluida la cola pendiente.

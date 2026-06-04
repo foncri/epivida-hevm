@@ -325,6 +325,45 @@ tr:last-child td { border-bottom: 0; }
 }
 .round-worklist-progress i { display: block; height: 100%; background: #111827; border-radius: inherit; }
 
+.discharge-review-list {
+  display: grid;
+  gap: .55rem;
+}
+.discharge-review-card {
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  background: #fff7ed;
+  padding: .7rem;
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(320px, 1.1fr) auto;
+  gap: .65rem;
+  align-items: end;
+}
+.discharge-review-main {
+  min-width: 0;
+  display: grid;
+  gap: .18rem;
+}
+.discharge-review-main strong,
+.discharge-review-main span,
+.discharge-review-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.discharge-review-main span,
+.discharge-review-main small { color: var(--muted); }
+.discharge-review-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: .45rem;
+}
+.discharge-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .35rem;
+}
+
 .round-list { display: grid; gap: .55rem; }
 .round-card {
   border: 1px solid var(--line);
@@ -572,6 +611,9 @@ tr:last-child td { border-bottom: 0; }
   .round-card-tags, .round-card-packages, .round-card-actions { justify-content: flex-start; }
   .round-card-actions .button { flex: 1 1 130px; }
   .round-worklist-progress { width: 100%; }
+  .discharge-review-card, .discharge-review-fields { grid-template-columns: 1fr; }
+  .discharge-review-actions { justify-content: stretch; }
+  .discharge-review-actions .button, .discharge-review-actions button { width: 100%; }
   .active-device-card { grid-template-columns: 1fr; }
   .patient-sticky-summary { top: 0; }
   .round-save-bar { display: grid; }

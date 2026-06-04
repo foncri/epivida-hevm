@@ -21,12 +21,13 @@ La ruta legacy `#/ronda/2026-06-04` se conserva como entrada compatible y ahora 
 - Mapa de camas preventivas con estados disponible, vacia, vista y pendiente.
 - Catalogo de camas conocidas por servicio, incluyendo camas vacias/bloqueadas aunque el censo activo tenga huecos.
 - Selector "Ir a cama preventiva".
+- Panel `Altas por verificar` para pacientes ausentes, reportados con alta o pendientes de conciliacion.
 - Resumen de paquetes CVC, cateter urinario, ventilacion mecanica e ISQ.
 - Tarjetas por cama con estado, sincronizacion, invasivos y paquetes detectados.
 - Vista por paciente/cama con invasivos activos, alta de paquete preventivo, criterios SI/NO/NA, porcentaje de cumplimiento, pendientes, observaciones y navegacion anterior/siguiente cama.
 - Guardado en `nursing_rounds`, dispositivos en `devices_active`, sesiones en `round_sessions`, auditoria y cola offline.
 
-Los pacientes reales pueden limpiarse o migrarse despues; lo que no debe perderse es la tecnologia clinico-operativa de camas, paquetes preventivos, dispositivos y ronda.
+Los pacientes reales pueden limpiarse o migrarse despues; lo que no debe perderse es la tecnologia clinico-operativa de camas, paquetes preventivos, dispositivos, ronda y archivo de egresos.
 
 Tambien se conservan alias de navegacion para enlaces antiguos:
 
