@@ -1,0 +1,40 @@
+.package-draft.its-cc{background:#fff1f4;border-color:#f7c9d3}
+.package-draft.itu-cu{background:#fffbe6;border-color:#eadf9a}
+.package-draft.navm{background:#eef9ff;border-color:#bde8fb}
+.package-draft.isq{background:#effbf2;border-color:#bde8c7}
+.package-draft.p-e-y-p-b-m-t{background:#f7f7f8;border-color:#d1d5db}
+.package-draft.especial{background:#f7f0ff;border-color:#dbc8ff}
+.preventive-bulk-actions{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;padding:.65rem;margin:.65rem 0;border:1px solid rgba(15,23,42,.12);border-radius:8px;background:rgba(255,255,255,.72)}
+.preventive-bulk-actions span{font-weight:800;color:#334155;margin-right:.35rem}
+.preventive-bottom-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.85rem;align-items:stretch}
+.preventive-action-card{border:1px solid rgba(100,116,139,.24);border-radius:8px;background:#fff;padding:.9rem;display:flex;flex-direction:column;gap:.65rem}
+.preventive-action-card h3{margin:0;font-size:1rem}
+.preventive-action-card .field{margin:0}
+.pe-summary-zone{margin-top:1rem;border-top:1px dashed rgba(100,116,139,.35);padding-top:1rem}
+.pe-summary-zone h3{margin:0 0 .65rem;color:#334155}
+.pe-summary-card{background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:.8rem;display:grid;gap:.35rem;color:#0f172a}
+.pe-summary-card strong{color:#111827}
+.pe-summary-card small{color:#475569}
+.device-list.compact-device-grid .pe-summary-card,
+.iaas-invasive-list.summary-grid .pe-summary-card{background:#fff;border:1px solid #d1d5db;border-radius:8px;color:#0f172a}
+.device-list.compact-device-grid .pe-summary-card strong,
+.iaas-invasive-list.summary-grid .pe-summary-card strong{color:#0f172a}
+.device-list.compact-device-grid .pe-summary-card small,
+.iaas-invasive-list.summary-grid .pe-summary-card small{color:#475569}
+.preventive-history-days{display:grid;gap:.75rem}
+.preventive-history-day{border:1px solid rgba(100,116,139,.25);border-radius:8px;background:#fff;overflow:hidden}
+.preventive-history-day summary{cursor:pointer;padding:.85rem;font-weight:800;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+.preventive-history-day summary small{color:#64748b;font-weight:700}
+.preventive-history-content{padding:0 .85rem .85rem;display:grid;gap:.65rem}
+.preventive-history-card{border:1px solid rgba(100,116,139,.2);border-radius:8px;padding:.75rem;background:#f8fafc;display:grid;gap:.35rem}
+.preventive-history-card ul{margin:.25rem 0 0;padding-left:1.1rem}
+.preventive-history-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.35rem}
+.patient-round .round-save-bar .preventive-final-actions{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:flex-end;width:100%}
+.patient-round .round-save-bar .preventive-final-actions .iaas-button{min-width:132px}
+.patient-round .round-save-bar .preventive-pending-button{background:#f59e0b;border-color:#d97706;color:#111827;font-weight:900}
+.bed-board.preventive .bed-tile.reviewed,
+.round-nav-board.preventive .bed-tile.reviewed{background:#dcfce7;border-color:#22c55e;color:#064e3b}
+.bed-board.preventive .bed-tile.overdue,
+.round-nav-board.preventive .bed-tile.overdue{background:#ffedd5;border-color:#f97316;color:#7c2d12}
+.bed-board.preventive .bed-tile.overdue span,
+.round-nav-board.preventive .bed-tile.overdue span{color:#9a3412}

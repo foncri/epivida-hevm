@@ -3,10 +3,11 @@
 
   const FIREBASE_VERSION = "10.12.4";
   const LOGO_SRC = "./assets/epivida/logos/epivida-logo-gradient.svg";
-  const APP_VERSION = "2026-06-04-authgate07";
+  const APP_VERSION = "2026-06-04-authgate08";
   const FULL_STYLES = [
     "./styles/epivida-assets.css",
     "./iaas-system.css?v=2026-06-03-syncperf02",
+    "./epivida-runtime-patch-styles.css?v=2026-06-04-runtime01",
     "./epivida-opd-2026-05-20.css?v=2026-05-20-followup01",
     "./preventive-round-hotfix.css?v=2026-05-08-preventive07",
     "./preventive-hide-cultures.css?v=2026-05-08-placecultures02",
@@ -24,9 +25,6 @@
     "./preventive-bed-prerender-2026-05-12.js?v=2026-06-01-aisp01",
     "./iaas-emergency-label-guard-2026-05-12.js?v=2026-05-12-urgencias01",
     "./hospital-bed-service-normalizer-2026-06-02.js?v=2026-06-04-registry01",
-    "./preventive-pe-summary-visibility-2026-06-01.js?v=2026-06-04-registry01",
-    "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-04-registry01",
-    "./preventive-packages-enhancement-2026-06-01.js?v=2026-06-04-registry01",
     "./iaas-system-runtime-2026-06-04.js?v=2026-06-04-runtime01",
     "./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01",
     "./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06",
