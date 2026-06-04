@@ -260,7 +260,7 @@ function renderRoundCard(patient, devices, round, date) {
     )),
     el("div", { class: "round-card-actions" }, [
       link(roundPatientHref(date, patient.patientId), "Revisar", { class: "button primary" }),
-      link("#/dispositivos", "Dispositivos", { class: "button ghost" })
+      link(`#/pacientes/${patient.patientId}/expediente`, "Expediente", { class: "button ghost" })
     ])
   ]);
 }

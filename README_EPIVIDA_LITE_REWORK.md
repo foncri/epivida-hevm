@@ -34,7 +34,7 @@ Tambien se conservan alias de navegacion para enlaces antiguos:
 - `#/seguimiento-iaas` -> `#/epi-iaas`
 - `#/reporte-diario` -> `#/reportes`
 - `#/importar-censo` -> `#/admin`
-- `#/pacientes/:patientId/expediente` -> `#/censo`
+- `#/pacientes/:patientId/expediente` -> expediente ligero de paciente
 
 Prioridades:
 

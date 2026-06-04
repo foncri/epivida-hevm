@@ -2,6 +2,7 @@ const ROUTE_ROLES = {
   login: ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectura"],
   inicio: ["admin_epidemiologia", "epidemiologia", "lectura"],
   censo: ["admin_epidemiologia", "epidemiologia", "lectura"],
+  expediente: ["admin_epidemiologia", "epidemiologia", "enfermeria"],
   "monitoreo-epidemiologico": ["admin_epidemiologia", "epidemiologia", "lectura"],
   "ronda-paquetes": ["admin_epidemiologia", "epidemiologia", "enfermeria"],
   "epi-iaas": ["admin_epidemiologia", "epidemiologia"],
@@ -21,7 +22,7 @@ const ROUTE_ALIASES = {
   dashboard: "inicio",
   "censo-hospitalario": "censo",
   "importar-censo": "admin",
-  pacientes: "censo",
+  pacientes: "expediente",
   ronda: "ronda-paquetes",
   "reporte-diario": "reportes",
   "seguimiento-iaas": "epi-iaas"

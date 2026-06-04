@@ -19,6 +19,20 @@ export async function listTodayRounds(date = todayIso()) {
   }
 }
 
+export async function listRoundsForPatient(patientId) {
+  if (!patientId) return [];
+  try {
+    const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]]);
+    return (await mergePending(rows))
+      .filter(row => row.patientId === patientId)
+      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+  } catch {
+    return (await mergePending([]))
+      .filter(row => row.patientId === patientId)
+      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+  }
+}
+
 export async function roundSessionForDate(date = todayIso()) {
   const sessionId = date;
   const pending = await pendingPayloadsForCollection("round_sessions");

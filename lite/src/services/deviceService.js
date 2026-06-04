@@ -40,6 +40,17 @@ export async function listActiveDevices() {
   }
 }
 
+export async function listDevicesForPatient(patientId) {
+  if (!patientId) return [];
+  try {
+    const rows = await listCollectionWhere("devices_active", [["patientId", "==", patientId]]);
+    return (await mergePending(rows)).filter(row => row.patientId === patientId);
+  } catch {
+    const cached = await cacheGet(CACHE_KEY);
+    return (await mergePending(cached?.value || [])).filter(row => row.patientId === patientId);
+  }
+}
+
 export function devicesByPatient(devices = []) {
   return devices.reduce((map, device) => {
     const key = device.patientId || "";
