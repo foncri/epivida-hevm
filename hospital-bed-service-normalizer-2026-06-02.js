@@ -5,6 +5,7 @@
   window.__epividaHospitalBedServiceNormalizer20260602 = true;
 
   const nativeEval = window.eval;
+  const LEGACY_PATCH_DEBUG = window.EPIVIDA_LEGACY_PATCH_DEBUG === true;
 
   function injectStyle() {
     if (document.getElementById("epivida-import-remove-patients-style")) return;
@@ -30,7 +31,7 @@
 
   function replaceOnce(source, pattern, replacement, label) {
     const next = source.replace(pattern, replacement);
-    if (next === source) console.warn("No se pudo aplicar normalizador de camas:", label);
+    if (next === source && LEGACY_PATCH_DEBUG) console.warn("No se pudo aplicar normalizador de camas:", label);
     return next;
   }
 

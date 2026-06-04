@@ -3,6 +3,7 @@
   if (window.__epividaPreventivePackagesEnhancement20260601) return;
   window.__epividaPreventivePackagesEnhancement20260601 = true;
   const nativeEval = window.eval;
+  const LEGACY_PATCH_DEBUG = window.EPIVIDA_LEGACY_PATCH_DEBUG === true;
 
   function style() {
     if (document.getElementById("epivida-preventive-packages-enhancement-style")) return;
@@ -20,7 +21,7 @@
 
   function r(source, pattern, replacement, label) {
     const next = source.replace(pattern, replacement);
-    if (next === source) console.warn("No se pudo aplicar mejora preventiva:", label);
+    if (next === source && LEGACY_PATCH_DEBUG) console.warn("No se pudo aplicar mejora preventiva:", label);
     return next;
   }
 

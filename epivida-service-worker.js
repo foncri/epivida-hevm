@@ -1,10 +1,10 @@
-const CACHE_NAME = "epivida-hevm-offline-2026-06-04-authgate03";
+const CACHE_NAME = "epivida-hevm-offline-2026-06-04-authgate04";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./epivida-auth-gate.css?v=2026-06-04-authgate01",
-  "./epivida-auth-gate.js?v=2026-06-04-authgate03",
+  "./epivida-auth-gate.js?v=2026-06-04-authgate04",
   "./epivida-offline-storage-2026-06-03.js?v=2026-06-03-localapp01",
   "./iaas-system.css?v=2026-06-03-syncperf02",
   "./styles/epivida-assets.css",
@@ -18,10 +18,10 @@ const APP_SHELL = [
   "./preventive-bed-prerender-2026-05-12.js?v=2026-06-01-aisp01",
   "./iaas-emergency-label-guard-2026-05-12.js?v=2026-05-12-urgencias01",
   "./iaas-urgencias-aisp-system-preloader-2026-06-01.js?v=2026-06-01-aisp02",
-  "./hospital-bed-service-normalizer-2026-06-02.js?v=2026-06-03-censusflow01",
+  "./hospital-bed-service-normalizer-2026-06-02.js?v=2026-06-04-console01",
   "./preventive-pe-summary-visibility-2026-06-01.js?v=2026-06-01-pe02",
-  "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-03-notes01",
-  "./preventive-packages-enhancement-2026-06-01.js?v=2026-06-01-preventive02",
+  "./preventive-round-workflow-hotfix-2026-06-02.js?v=2026-06-04-console01",
+  "./preventive-packages-enhancement-2026-06-01.js?v=2026-06-04-console01",
   "./iaas-system-grid-resize-preloader-2026-05-22.js?v=2026-05-22-grid01",
   "./epivida-interface-stability-hotfix-2026-05-18.js?v=2026-05-18-fix01",
   "./iaas-round-nav-toggle-fix.js?v=2026-05-07-iaas-navtoggle06",
