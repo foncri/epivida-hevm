@@ -27,6 +27,15 @@ La ruta legacy `#/ronda/2026-06-04` se conserva como entrada compatible y ahora 
 
 Los pacientes reales pueden limpiarse o migrarse despues; lo que no debe perderse es la tecnologia clinico-operativa de camas, paquetes preventivos, dispositivos y ronda.
 
+Tambien se conservan alias de navegacion para enlaces antiguos:
+
+- `#/dashboard` -> `#/inicio`
+- `#/censo-hospitalario` -> `#/censo`
+- `#/seguimiento-iaas` -> `#/epi-iaas`
+- `#/reporte-diario` -> `#/reportes`
+- `#/importar-censo` -> `#/admin`
+- `#/pacientes/:patientId/expediente` -> `#/censo`
+
 Prioridades:
 
 1. Velocidad.

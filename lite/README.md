@@ -86,6 +86,16 @@ Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa
 - `#/reportes`
 - `#/admin`
 
+Alias legacy conservados:
+
+- `#/dashboard` -> `#/inicio`
+- `#/censo-hospitalario` -> `#/censo`
+- `#/ronda/YYYY-MM-DD` -> `#/ronda-paquetes`
+- `#/seguimiento-iaas` -> `#/epi-iaas`
+- `#/reporte-diario` -> `#/reportes`
+- `#/importar-censo` -> `#/admin`
+- `#/pacientes/:patientId/expediente` -> `#/censo`
+
 ## Migracion legacy
 
 Herramienta de solo lectura:

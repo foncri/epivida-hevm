@@ -3,7 +3,6 @@ const ROUTES = {
   inicio: () => import("./modules/inicio/index.js"),
   censo: () => import("./modules/censo/index.js"),
   "monitoreo-epidemiologico": () => import("./modules/monitoreo/index.js"),
-  ronda: () => import("./modules/ronda-paquetes/index.js"),
   "ronda-paquetes": () => import("./modules/ronda-paquetes/index.js"),
   "epi-iaas": () => import("./modules/epi-iaas/index.js"),
   dispositivos: () => import("./modules/dispositivos/index.js"),
@@ -11,12 +10,21 @@ const ROUTES = {
   admin: () => import("./modules/admin/index.js")
 };
 
+const ROUTE_ALIASES = {
+  dashboard: "inicio",
+  "censo-hospitalario": "censo",
+  "importar-censo": "admin",
+  pacientes: "censo",
+  ronda: "ronda-paquetes",
+  "reporte-diario": "reportes",
+  "seguimiento-iaas": "epi-iaas"
+};
+
 const LABELS = {
   login: "Login",
   inicio: "Inicio",
   censo: "Censo",
   "monitoreo-epidemiologico": "Monitoreo Epidemiologico",
-  ronda: "Paquetes Preventivos",
   "ronda-paquetes": "Paquetes Preventivos",
   "epi-iaas": "EPI-IAAS",
   dispositivos: "Dispositivos",
@@ -30,12 +38,18 @@ async function perf() {
 
 export function parseRoute() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
-  const key = parts[0] && ROUTES[parts[0]] ? parts[0] : "inicio";
-  return { key, parts };
+  const legacyKey = parts[0] || "";
+  const canonicalKey = canonicalRouteKey(legacyKey);
+  const key = canonicalKey && ROUTES[canonicalKey] ? canonicalKey : "inicio";
+  return { key, parts, legacyKey, canonicalKey: key };
+}
+
+export function canonicalRouteKey(key) {
+  return ROUTE_ALIASES[key] || key;
 }
 
 export function routeLabel(key) {
-  return LABELS[key] || "EPIVIDA";
+  return LABELS[canonicalRouteKey(key)] || "EPIVIDA";
 }
 
 export function defaultRouteForRole(role) {

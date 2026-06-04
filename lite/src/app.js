@@ -1,4 +1,4 @@
-import { routeLabel, defaultRouteForRole } from "./router.js";
+import { canonicalRouteKey, routeLabel, defaultRouteForRole } from "./router.js";
 import { canAccessRoute } from "./lib/security.js";
 import { button, el, link, statusDot } from "./components/dom.js";
 
@@ -39,7 +39,7 @@ export function createApp(root) {
   function shell(children) {
     const user = state.auth.user;
     const role = state.auth.profile?.role || "";
-    const activeRoute = state.route.key === "ronda" ? "ronda-paquetes" : state.route.key;
+    const activeRoute = canonicalRouteKey(state.route.key);
     const allowedNav = NAV.filter(([route]) => canAccessRoute(route, role));
     return el("div", { class: "app-shell" }, [
       el("header", { class: "topbar" }, [
