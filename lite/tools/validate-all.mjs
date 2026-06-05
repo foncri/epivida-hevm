@@ -61,6 +61,7 @@ await runScript("validate-deploy-config", "lite/tools/validate-deploy-config.mjs
 await runScript("validate-security-config", "lite/tools/validate-security-config.mjs");
 await runScript("validate-offline-queue", "lite/tools/validate-offline-queue.mjs");
 await runScript("validate-round-helpers", "lite/tools/validate-round-helpers.mjs");
+await runScript("validate-patient-filters", "lite/tools/validate-patient-filters.mjs");
 
 const syntaxFiles = [
   ...walk(join(root, "src")).filter(file => extname(file) === ".js"),
@@ -73,6 +74,7 @@ const syntaxFiles = [
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-migration-package.mjs"),
   join(root, "tools/validate-offline-queue.mjs"),
+  join(root, "tools/validate-patient-filters.mjs"),
   join(root, "tools/validate-round-helpers.mjs"),
   join(root, "tools/validate-security-config.mjs")
 ];

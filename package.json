@@ -11,6 +11,7 @@
     "validate:security": "node lite/tools/validate-security-config.mjs",
     "validate:offline": "node lite/tools/validate-offline-queue.mjs",
     "validate:round": "node lite/tools/validate-round-helpers.mjs",
+    "validate:patients": "node lite/tools/validate-patient-filters.mjs",
     "prepare:user-seed": "node lite/tools/prepare-user-seed.mjs",
     "deploy:pages": "wrangler pages deploy lite --project-name epivida-lite",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"

@@ -203,6 +203,9 @@ const roundServiceSource = readFileSync(join(root, "src/services/roundService.js
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
   fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
 }
+if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceSource.includes("export function patientFilterText")) {
+  fail("patientService debe cachear texto de busqueda local para censo/monitoreo.");
+}
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !iaasServiceSource.includes("activeIaasPromise") || !roundServiceSource.includes("todayRoundsPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
 }
@@ -275,6 +278,7 @@ for (const file of [
   join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-offline-queue.mjs"),
+  join(root, "tools/validate-patient-filters.mjs"),
   join(root, "tools/validate-round-helpers.mjs"),
   join(root, "tools/validate-security-config.mjs"),
   join(root, "tools/validate-migration-package.mjs")
@@ -316,6 +320,9 @@ if (!packageSource.includes("validate:offline") || !packageSource.includes("vali
 }
 if (!packageSource.includes("validate:round") || !packageSource.includes("validate-round-helpers.mjs")) {
   fail("package.json debe exponer validate:round para filtros y mapa de camas de ronda.");
+}
+if (!packageSource.includes("validate:patients") || !packageSource.includes("validate-patient-filters.mjs")) {
+  fail("package.json debe exponer validate:patients para filtros de censo/monitoreo.");
 }
 
 const headers = readFileSync(join(root, "_headers"), "utf8");

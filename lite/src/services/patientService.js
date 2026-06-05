@@ -8,6 +8,7 @@ import { testActivePatients } from "./testDataService.js";
 
 const CACHE_KEY = "patients_active:last";
 let activePatientsPromise = null;
+const patientFilterTextCache = new WeakMap();
 
 function makePatientId() {
   if (globalThis.crypto?.randomUUID) return `patient_${globalThis.crypto.randomUUID()}`;
@@ -55,24 +56,32 @@ export function filterPatients(patients, filters = {}) {
   const status = cleanText(filters.status || "");
   const sex = cleanText(filters.sex || "");
   return patients.filter(patient => {
-    const haystack = [
-      patient.patientName,
-      patient.bed,
-      patient.currentBed,
-      patient.service,
-      patient.currentService,
-      patient.sector,
-      patient.epidemiologicalDiagnosis,
-      patient.currentEpidemiologicalDiagnosis,
-      patient.hospitalDiagnosis,
-      patient.currentDiagnosis
-    ].join(" ").toLowerCase();
-    if (query && !haystack.includes(query)) return false;
+    if (query && !patientFilterText(patient).includes(query)) return false;
     if (service && service !== "Todos" && (patient.service || patient.currentService) !== service) return false;
     if (status && status !== "Todos" && (patient.status || patient.currentState) !== status) return false;
     if (sex && sex !== "Todos" && patient.sex !== sex) return false;
     return true;
   });
+}
+
+export function patientFilterText(patient = {}) {
+  const signature = [
+    patient.patientName,
+    patient.bed,
+    patient.currentBed,
+    patient.service,
+    patient.currentService,
+    patient.sector,
+    patient.epidemiologicalDiagnosis,
+    patient.currentEpidemiologicalDiagnosis,
+    patient.hospitalDiagnosis,
+    patient.currentDiagnosis
+  ].join(" ");
+  const cached = patientFilterTextCache.get(patient);
+  if (cached?.signature === signature) return cached.text;
+  const text = signature.toLowerCase();
+  patientFilterTextCache.set(patient, { signature, text });
+  return text;
 }
 
 export async function savePatient(app, patient) {
