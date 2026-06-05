@@ -155,8 +155,16 @@ const offlineQueueSource = readFileSync(join(root, "src/services/offlineQueueSer
 if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueueSource.includes("sync_blocked")) {
   fail("offlineQueueService debe separar errores reintentables de errores bloqueados por reglas/permisos.");
 }
+if (!offlineQueueSource.includes("queueBlockedWrite")) {
+  fail("offlineQueueService debe registrar bloqueos iniciales como sync_blocked visibles en Admin.");
+}
 if (!offlineQueueSource.includes('item.status === "local_pending"')) {
   fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
+}
+
+const appSource = readFileSync(join(root, "src/app.js"), "utf8");
+if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeError")) {
+  fail("src/app.js debe mostrar errores async de acciones clinicas en el shell.");
 }
 
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {

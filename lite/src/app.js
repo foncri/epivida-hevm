@@ -1,6 +1,6 @@
 import { canonicalRouteKey, routeLabel, defaultRouteForRole } from "./router.js";
 import { canAccessRoute } from "./lib/security.js";
-import { button, el, link, statusDot } from "./components/dom.js";
+import { button, el, link, notice, statusDot } from "./components/dom.js";
 
 const NAV = [
   ["inicio", "Inicio"],
@@ -17,9 +17,18 @@ export function createApp(root) {
   const state = {
     route: { key: "inicio", parts: [] },
     auth: { status: "loading", user: null, profile: null, error: "" },
+    runtimeError: "",
     moduleState: {},
     catalogs: null
   };
+
+  if (!root.dataset.epividaUnhandled) {
+    root.dataset.epividaUnhandled = "1";
+    window.addEventListener("unhandledrejection", event => {
+      const message = event.reason?.message || String(event.reason || "No se pudo completar la accion.");
+      setState({ runtimeError: message });
+    });
+  }
 
   function setState(patch) {
     Object.assign(state, patch);
@@ -33,6 +42,7 @@ export function createApp(root) {
 
   function setRoute(route) {
     state.route = route;
+    state.runtimeError = "";
     render();
   }
 
@@ -53,7 +63,10 @@ export function createApp(root) {
           user ? button("Salir", () => import("./services/authService.js").then(mod => mod.signOut()), { class: "ghost small" }) : ""
         ])
       ]),
-      el("main", { class: "workspace" }, children)
+      el("main", { class: "workspace" }, [
+        state.runtimeError ? notice(state.runtimeError, "warn") : "",
+        children
+      ])
     ]);
   }
 

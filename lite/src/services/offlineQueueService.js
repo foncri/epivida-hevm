@@ -42,6 +42,14 @@ function retryableSyncError(error) {
   return true;
 }
 
+async function queueBlockedWrite(app, operation, error) {
+  return queueWrite(app, {
+    status: "sync_blocked",
+    error: error?.message || String(error || "No se pudo sincronizar."),
+    ...operation
+  });
+}
+
 export async function queueWrite(app, operation) {
   const user = app?.state?.auth?.user;
   const profile = app?.state?.auth?.profile;
@@ -99,7 +107,16 @@ export async function setDocMergeOrQueue(app, path, data, meta = {}) {
     await setDocMerge(path, data);
     return { ...data, syncStatus: "server_synced" };
   } catch (error) {
-    if (!retryableSyncError(error)) throw error;
+    if (!retryableSyncError(error)) {
+      await queueBlockedWrite(app, {
+        kind: "setDocMerge",
+        path,
+        data,
+        collection: path.split("/")[0],
+        ...meta
+      }, error);
+      throw error;
+    }
     await queueWrite(app, {
       kind: "setDocMerge",
       path,
@@ -117,7 +134,15 @@ export async function addDocOrQueue(app, collection, data, meta = {}) {
     const id = await addDocData(collection, data);
     return { id, syncStatus: "server_synced" };
   } catch (error) {
-    if (!retryableSyncError(error)) throw error;
+    if (!retryableSyncError(error)) {
+      await queueBlockedWrite(app, {
+        kind: "addDocData",
+        collection,
+        data,
+        ...meta
+      }, error);
+      throw error;
+    }
     const item = await queueWrite(app, {
       kind: "addDocData",
       collection,
