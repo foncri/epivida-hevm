@@ -6,6 +6,7 @@ import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueue
 import { writeAudit } from "./auditService.js";
 
 const CACHE_KEY = "iaas_active:last";
+let activeIaasPromise = null;
 
 function makeIaasId() {
   if (globalThis.crypto?.randomUUID) return `iaas_${globalThis.crypto.randomUUID()}`;
@@ -33,7 +34,7 @@ function activeIaas(row = {}) {
   return row.active !== false && !["closed", "cerrada", "archived"].includes(status);
 }
 
-export async function listActiveIaas() {
+async function loadActiveIaas() {
   try {
     const rows = await listCollectionWhere("iaas_active", [["active", "==", true]]);
     const active = (await mergePending(rows)).filter(activeIaas);
@@ -43,6 +44,13 @@ export async function listActiveIaas() {
     const cached = await cacheGet(CACHE_KEY);
     return (await mergePending(cached?.value || [])).filter(activeIaas);
   }
+}
+
+export async function listActiveIaas() {
+  activeIaasPromise ||= loadActiveIaas().finally(() => {
+    activeIaasPromise = null;
+  });
+  return activeIaasPromise;
 }
 
 export async function saveIaasCase(app, iaas) {
@@ -63,6 +71,7 @@ export async function saveIaasCase(app, iaas) {
     entityType: "iaas_case",
     entityId: iaasId
   });
+  activeIaasPromise = null;
   await writeAudit(app, {
     actionType: iaas.iaasId ? "iaas_update" : "iaas_create",
     module: "epi-iaas",
@@ -90,6 +99,7 @@ export async function closeIaasCase(app, iaas, closedReason = "") {
     entityType: "iaas_case",
     entityId: iaas.iaasId
   });
+  activeIaasPromise = null;
   await writeAudit(app, {
     actionType: "iaas_close",
     module: "epi-iaas",

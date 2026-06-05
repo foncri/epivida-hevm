@@ -4,6 +4,8 @@ import { writeAudit } from "./auditService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { testRounds, testRoundsForPatient } from "./testDataService.js";
 
+const todayRoundsPromises = new Map();
+
 async function mergePending(rows = []) {
   const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
   const pending = await pendingPayloadsForCollection("nursing_rounds");
@@ -11,13 +13,23 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
-export async function listTodayRounds(date = todayIso()) {
+async function loadTodayRounds(date = todayIso()) {
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["date", "==", date]]);
     return (await mergePending([...testRounds(date), ...rows])).filter(row => row.date === date);
   } catch {
     return (await mergePending(testRounds(date))).filter(row => row.date === date);
   }
+}
+
+export async function listTodayRounds(date = todayIso()) {
+  const key = date || todayIso();
+  if (!todayRoundsPromises.has(key)) {
+    todayRoundsPromises.set(key, loadTodayRounds(key).finally(() => {
+      todayRoundsPromises.delete(key);
+    }));
+  }
+  return todayRoundsPromises.get(key);
 }
 
 export async function listRoundsForPatient(patientId) {
@@ -64,6 +76,7 @@ export async function saveRoundReview(app, review) {
     entityType: "nursing_round",
     entityId: roundId
   });
+  todayRoundsPromises.delete(payload.date);
   await writeAudit(app, {
     actionType: "round_review",
     module: "ronda-paquetes",

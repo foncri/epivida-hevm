@@ -203,6 +203,9 @@ const roundServiceSource = readFileSync(join(root, "src/services/roundService.js
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
   fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
 }
+if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !iaasServiceSource.includes("activeIaasPromise") || !roundServiceSource.includes("todayRoundsPromises")) {
+  fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
+}
 
 const appSource = readFileSync(join(root, "src/app.js"), "utf8");
 if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeError")) {

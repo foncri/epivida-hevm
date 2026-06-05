@@ -7,6 +7,7 @@ import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueue
 import { testActivePatients } from "./testDataService.js";
 
 const CACHE_KEY = "patients_active:last";
+let activePatientsPromise = null;
 
 function makePatientId() {
   if (globalThis.crypto?.randomUUID) return `patient_${globalThis.crypto.randomUUID()}`;
@@ -29,7 +30,7 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
-export async function listActivePatients() {
+async function loadActivePatients() {
   try {
     const rows = await listCollectionWhere("patients_active", [["active", "==", true]]);
     const active = (await mergePending([...testActivePatients(), ...rows])).filter(row => row.active !== false);
@@ -39,6 +40,13 @@ export async function listActivePatients() {
     const cached = await cacheGet(CACHE_KEY);
     return (await mergePending([...testActivePatients(), ...(cached?.value || [])])).filter(row => row.active !== false);
   }
+}
+
+export async function listActivePatients() {
+  activePatientsPromise ||= loadActivePatients().finally(() => {
+    activePatientsPromise = null;
+  });
+  return activePatientsPromise;
 }
 
 export function filterPatients(patients, filters = {}) {
@@ -84,6 +92,7 @@ export async function savePatient(app, patient) {
     entityType: "patient",
     entityId: patientId
   });
+  activePatientsPromise = null;
   await writeAudit(app, {
     actionType: patient.patientId ? "patient_update" : "patient_create",
     module: "censo",
@@ -112,6 +121,7 @@ export async function archivePatient(app, patient, reason = "") {
     entityType: "patient",
     entityId: patient.patientId
   });
+  activePatientsPromise = null;
   const archiveSaved = await setDocMergeOrQueue(app, `patients_archive/${patient.patientId}`, {
     ...payload,
     archivedAt: payload.dischargedAt,

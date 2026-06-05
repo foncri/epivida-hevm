@@ -7,6 +7,7 @@ import { writeAudit } from "./auditService.js";
 import { testActiveDevices } from "./testDataService.js";
 
 const CACHE_KEY = "devices_active:last";
+let activeDevicesPromise = null;
 
 function makeEpisodeId() {
   if (globalThis.crypto?.randomUUID) return `device_${globalThis.crypto.randomUUID()}`;
@@ -33,7 +34,7 @@ function activeDevice(row = {}) {
   return row.active !== false && !row.removalDate && row.status !== "retirado";
 }
 
-export async function listActiveDevices() {
+async function loadActiveDevices() {
   try {
     const rows = await listCollectionWhere("devices_active", [["active", "==", true]]);
     const active = (await mergePending([...testActiveDevices(), ...rows])).filter(activeDevice);
@@ -43,6 +44,13 @@ export async function listActiveDevices() {
     const cached = await cacheGet(CACHE_KEY);
     return (await mergePending([...testActiveDevices(), ...(cached?.value || [])])).filter(activeDevice);
   }
+}
+
+export async function listActiveDevices() {
+  activeDevicesPromise ||= loadActiveDevices().finally(() => {
+    activeDevicesPromise = null;
+  });
+  return activeDevicesPromise;
 }
 
 export async function listDevicesForPatient(patientId) {
@@ -86,6 +94,7 @@ export async function saveDeviceEpisode(app, device) {
     entityType: "device",
     entityId: episodeId
   });
+  activeDevicesPromise = null;
   await writeAudit(app, {
     actionType: device.episodeId ? "device_update" : "device_create",
     module: "dispositivos",
@@ -112,6 +121,7 @@ export async function removeDeviceEpisode(app, device, removalDate) {
     entityType: "device",
     entityId: device.episodeId
   });
+  activeDevicesPromise = null;
   await writeAudit(app, {
     actionType: "device_remove",
     module: "dispositivos",
