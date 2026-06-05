@@ -208,6 +208,9 @@ if (!offlineQueueSource.includes("clearBlockedWrites") || !offlineQueueSource.in
 if (!offlineQueueSource.includes('item.status === "local_pending"')) {
   fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
 }
+if (!offlineQueueSource.includes("queueReadPromise") || !offlineQueueSource.includes("queueSnapshot") || !offlineQueueSource.includes("QUEUE_SNAPSHOT_TTL_MS") || !offlineQueueSource.includes("queueVersion += 1")) {
+  fail("offlineQueueService debe deduplicar lecturas IndexedDB de la cola offline y refrescar cache al escribir.");
+}
 
 const testDataSource = readFileSync(join(root, "src/services/testDataService.js"), "utf8");
 for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig().testMode"]) {

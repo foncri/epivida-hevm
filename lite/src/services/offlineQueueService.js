@@ -3,6 +3,11 @@ import { nowIso } from "../lib/date.js";
 import { addDocData, setDocMerge } from "./firestoreService.js";
 
 const QUEUE_KEY = "sync_queue:pending";
+const QUEUE_SNAPSHOT_TTL_MS = 1_000;
+let queueReadPromise = null;
+let queueSnapshot = null;
+let queueSnapshotAt = 0;
+let queueVersion = 0;
 const NON_RETRYABLE_CODES = new Set([
   "permission-denied",
   "unauthenticated",
@@ -25,11 +30,31 @@ function makeId(prefix = "sync") {
 }
 
 async function readQueue() {
-  const cached = await cacheGet(QUEUE_KEY);
-  return Array.isArray(cached?.value) ? cached.value : [];
+  if (queueSnapshot && Date.now() - queueSnapshotAt < QUEUE_SNAPSHOT_TTL_MS) return queueSnapshot;
+  if (!queueReadPromise) {
+    const version = queueVersion;
+    queueReadPromise = cacheGet(QUEUE_KEY)
+      .then(cached => {
+        const rows = Array.isArray(cached?.value) ? cached.value : [];
+        if (version === queueVersion) {
+          queueSnapshot = rows;
+          queueSnapshotAt = Date.now();
+        }
+        return rows;
+      })
+      .catch(() => [])
+      .finally(() => {
+        queueReadPromise = null;
+      });
+  }
+  return queueReadPromise;
 }
 
 async function writeQueue(rows) {
+  queueVersion += 1;
+  queueSnapshot = rows;
+  queueSnapshotAt = Date.now();
+  queueReadPromise = null;
   await cacheSet(QUEUE_KEY, rows);
   return rows;
 }
