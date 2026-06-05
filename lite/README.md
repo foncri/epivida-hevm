@@ -57,6 +57,12 @@ http://localhost:5199/lite/index.html?epividaTest=1#/ronda/2026-06-04
 
 Ese modo activa usuario y datos sinteticos de QA (`p_uci_02`, `p_history`, `p_discharge`) para verificar ronda, camas, paquetes preventivos e historial sin usar pacientes reales.
 
+Validar esos fixtures sin navegador:
+
+```powershell
+npm run validate:lite:qa
+```
+
 ## Configurar Firebase
 
 Antes de publicar en produccion, editar `epivida-lite-config.js`:

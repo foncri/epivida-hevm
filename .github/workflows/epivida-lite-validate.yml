@@ -37,6 +37,9 @@ jobs:
           EPIVIDA_STRICT_SYNTAX: "1"
         run: node lite/tools/validate-lite.mjs
 
+      - name: Validate local QA fixtures
+        run: node lite/tools/validate-local-qa.mjs
+
       - name: Check Lite JavaScript syntax
         shell: bash
         run: |
@@ -48,4 +51,5 @@ jobs:
           node --check lite/epivida-lite-sw.js
           node --check lite/tools/prepare-user-seed.mjs
           node --check lite/tools/validate-lite.mjs
+          node --check lite/tools/validate-local-qa.mjs
           node --check lite/tools/validate-migration-package.mjs
