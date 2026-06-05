@@ -281,6 +281,9 @@ if ((roundModuleSource.match(/activeDeviceById/g) || []).length < 2) {
 if (!deviceServiceSource.includes("export function activeDevice") || !roundModuleSource.includes("patientDevices.filter(activeDevice)") || !roundModuleSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
   fail("ronda-paquetes debe evitar lecturas globales de dispositivos al abrir la ronda individual de paciente.");
 }
+if (!roundModuleSource.includes("rows.map(row => ({ bed: patientBed(row), patient: row }))") || roundModuleSource.includes("const items = bedBoardItems(rows, service);")) {
+  fail("ronda-paquetes debe evitar renderizar camas vacias no navegables en la ronda individual de paciente.");
+}
 
 const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");
 if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromise) return dbPromise")) {

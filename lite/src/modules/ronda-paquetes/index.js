@@ -950,7 +950,7 @@ function renderRoundNavigationBoard(date, patient, patients, roundMap) {
   const service = patientService(patient);
   const serviceKey = normalizeServiceKey(service);
   const rows = patients.filter(row => normalizeServiceKey(patientService(row)) === serviceKey).sort(sortByServiceBed);
-  const items = bedBoardItems(rows, service);
+  const items = rows.map(row => ({ bed: patientBed(row), patient: row }));
   if (!items.length) return "";
   return el("div", { class: "round-nav-board preventive" }, [
     el("div", { class: "round-nav-head" }, [
