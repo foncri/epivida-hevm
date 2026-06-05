@@ -610,6 +610,7 @@ El validador `lite/tools/validate-lite.mjs` bloquea regresiones que vuelvan a co
 - Los servicios activos no pueden devolver dispositivos retirados ni IAAS cerradas desde cache/cola offline.
 - La cola offline no puede convertir errores de permisos/reglas en escrituras clinicas pendientes; deben quedar bloqueados y visibles en Admin.
 - Las acciones clinicas async deben mostrar errores en pantalla para evitar fallas silenciosas.
+- La limpieza de cola desde Admin solo puede descartar `sync_blocked`, no escrituras `local_pending`.
 
 ## Reglas de no regresion
 

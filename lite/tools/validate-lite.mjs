@@ -158,6 +158,9 @@ if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueue
 if (!offlineQueueSource.includes("queueBlockedWrite")) {
   fail("offlineQueueService debe registrar bloqueos iniciales como sync_blocked visibles en Admin.");
 }
+if (!offlineQueueSource.includes("clearBlockedWrites") || !offlineQueueSource.includes('item.status !== "sync_blocked"')) {
+  fail("offlineQueueService debe permitir limpiar solo sync_blocked sin descartar escrituras local_pending.");
+}
 if (!offlineQueueSource.includes('item.status === "local_pending"')) {
   fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
 }

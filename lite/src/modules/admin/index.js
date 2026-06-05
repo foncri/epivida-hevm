@@ -2,7 +2,7 @@ import { button, el, link, notice, table } from "../../components/dom.js";
 import { firebaseConfigStatus } from "../../lib/config.js";
 import { modulePage } from "../../components/moduleLayout.js";
 import { loadCatalogs } from "../../services/catalogService.js";
-import { flushPendingWrites, listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
+import { clearBlockedWrites, flushPendingWrites, listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
 
 export async function render() {
   const catalogs = await loadCatalogs();
@@ -33,7 +33,14 @@ export async function render() {
           pending = await listPendingWrites();
           message = `Intentos: ${result.attempted}. Sincronizadas: ${result.synced}. Pendientes: ${result.pending}. Bloqueadas: ${result.blocked}.`;
           redraw();
-        }, { class: "ghost", disabled: summary.pending === 0 })
+        }, { class: "ghost", disabled: summary.pending === 0 }),
+        button("Descartar bloqueadas revisadas", async () => {
+          if (!globalThis.confirm("Esto elimina solo errores bloqueados locales. Las escrituras pendientes reintentables se conservan. Continuar?")) return;
+          const result = await clearBlockedWrites();
+          pending = await listPendingWrites();
+          message = `Bloqueadas descartadas: ${result.removed}. Restantes: ${result.remaining}.`;
+          redraw();
+        }, { class: "ghost", disabled: summary.blocked === 0 })
       ]),
       el("section", { class: "row-card" }, [
         el("strong", {}, ["Migracion legacy"]),

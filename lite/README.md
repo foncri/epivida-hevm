@@ -208,6 +208,7 @@ Colecciones objetivo:
 - Las listas activas de dispositivos e IAAS filtran tambien cache y cola offline, para no reabrir invasivos retirados ni casos cerrados cuando no hay red.
 - La cola offline distingue escrituras reintentables de `sync_blocked`; errores de permisos/reglas no se mezclan como datos clinicos pendientes.
 - Los bloqueos iniciales se registran en Admin y los errores async de acciones clinicas se muestran en el shell.
+- Admin permite descartar solo bloqueos revisados; las escrituras `local_pending` no se eliminan con esa accion.
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.

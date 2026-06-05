@@ -89,6 +89,13 @@ export function syncQueueSummary(queue = []) {
   }, { total: 0, pending: 0, blocked: 0, other: 0 });
 }
 
+export async function clearBlockedWrites() {
+  const queue = await readQueue();
+  const next = queue.filter(item => item.status !== "sync_blocked");
+  await writeQueue(next);
+  return { removed: queue.length - next.length, remaining: next.length };
+}
+
 export async function pendingPayloadsForCollection(collection) {
   const queue = await readQueue();
   return queue
