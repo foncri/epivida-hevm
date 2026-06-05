@@ -8,6 +8,7 @@ import { testActiveDevices } from "./testDataService.js";
 
 const CACHE_KEY = "devices_active:last";
 let activeDevicesPromise = null;
+const devicePatientPromises = new Map();
 
 function makeEpisodeId() {
   if (globalThis.crypto?.randomUUID) return `device_${globalThis.crypto.randomUUID()}`;
@@ -53,8 +54,7 @@ export async function listActiveDevices() {
   return activeDevicesPromise;
 }
 
-export async function listDevicesForPatient(patientId) {
-  if (!patientId) return [];
+async function loadDevicesForPatient(patientId) {
   try {
     const rows = await listCollectionWhere("devices_active", [["patientId", "==", patientId]]);
     return (await mergePending([...testActiveDevices(), ...rows])).filter(row => row.patientId === patientId);
@@ -62,6 +62,16 @@ export async function listDevicesForPatient(patientId) {
     const cached = await cacheGet(CACHE_KEY);
     return (await mergePending([...testActiveDevices(), ...(cached?.value || [])])).filter(row => row.patientId === patientId);
   }
+}
+
+export async function listDevicesForPatient(patientId) {
+  if (!patientId) return [];
+  if (!devicePatientPromises.has(patientId)) {
+    devicePatientPromises.set(patientId, loadDevicesForPatient(patientId).finally(() => {
+      devicePatientPromises.delete(patientId);
+    }));
+  }
+  return devicePatientPromises.get(patientId);
 }
 
 export function devicesByPatient(devices = []) {
@@ -95,6 +105,7 @@ export async function saveDeviceEpisode(app, device) {
     entityId: episodeId
   });
   activeDevicesPromise = null;
+  if (payload.patientId) devicePatientPromises.delete(payload.patientId);
   await writeAudit(app, {
     actionType: device.episodeId ? "device_update" : "device_create",
     module: "dispositivos",
@@ -122,6 +133,7 @@ export async function removeDeviceEpisode(app, device, removalDate) {
     entityId: device.episodeId
   });
   activeDevicesPromise = null;
+  if (payload.patientId) devicePatientPromises.delete(payload.patientId);
   await writeAudit(app, {
     actionType: "device_remove",
     module: "dispositivos",

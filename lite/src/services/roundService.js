@@ -5,6 +5,8 @@ import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueue
 import { testRounds, testRoundsForPatient } from "./testDataService.js";
 
 const todayRoundsPromises = new Map();
+const patientRoundsPromises = new Map();
+const roundSessionPromises = new Map();
 
 async function mergePending(rows = []) {
   const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
@@ -32,8 +34,7 @@ export async function listTodayRounds(date = todayIso()) {
   return todayRoundsPromises.get(key);
 }
 
-export async function listRoundsForPatient(patientId) {
-  if (!patientId) return [];
+async function loadRoundsForPatient(patientId) {
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]]);
     return (await mergePending([...testRoundsForPatient(patientId), ...rows]))
@@ -46,7 +47,17 @@ export async function listRoundsForPatient(patientId) {
   }
 }
 
-export async function roundSessionForDate(date = todayIso()) {
+export async function listRoundsForPatient(patientId) {
+  if (!patientId) return [];
+  if (!patientRoundsPromises.has(patientId)) {
+    patientRoundsPromises.set(patientId, loadRoundsForPatient(patientId).finally(() => {
+      patientRoundsPromises.delete(patientId);
+    }));
+  }
+  return patientRoundsPromises.get(patientId);
+}
+
+async function loadRoundSessionForDate(date = todayIso()) {
   const sessionId = date;
   const pending = await pendingPayloadsForCollection("round_sessions");
   const pendingSession = pending.find(row => (row.sessionId || row.id) === sessionId || row.date === date);
@@ -59,6 +70,16 @@ export async function roundSessionForDate(date = todayIso()) {
   } catch {
     return pendingSession || null;
   }
+}
+
+export async function roundSessionForDate(date = todayIso()) {
+  const key = date || todayIso();
+  if (!roundSessionPromises.has(key)) {
+    roundSessionPromises.set(key, loadRoundSessionForDate(key).finally(() => {
+      roundSessionPromises.delete(key);
+    }));
+  }
+  return roundSessionPromises.get(key);
 }
 
 export async function saveRoundReview(app, review) {
@@ -77,6 +98,7 @@ export async function saveRoundReview(app, review) {
     entityId: roundId
   });
   todayRoundsPromises.delete(payload.date);
+  if (payload.patientId) patientRoundsPromises.delete(payload.patientId);
   await writeAudit(app, {
     actionType: "round_review",
     module: "ronda-paquetes",
@@ -104,6 +126,7 @@ export async function saveRoundSession(app, session) {
     entityType: "round_session",
     entityId: sessionId
   });
+  roundSessionPromises.delete(date);
   await writeAudit(app, {
     actionType: "round_session_update",
     module: "ronda-paquetes",
