@@ -181,6 +181,7 @@ Colecciones objetivo:
 - Sintaxis de todos los `.js`: OK con Node incluido en Codex.
 - Sin `iaas-system`, Sheets, XLSX, `innerHTML` ni `localStorage` en `lite/src`.
 - `npm run validate:lite` verifica archivos obligatorios, JSON de Firebase, headers de seguridad y patrones legacy prohibidos.
+- `npm run validate:lite` bloquea regresiones de peso inicial: `index.html` pequeno, un solo CSS inicial, solo `epivida-lite-config.js` + `src/main.js` como scripts iniciales y sin referencias legacy en el shell.
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.

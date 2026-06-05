@@ -593,6 +593,17 @@ Estado: iniciado.
 - Eliminar assets decorativos iniciales.
 - Mantener legacy aislado solo como respaldo hasta validacion.
 
+## Guardas automaticas de rendimiento Lite
+
+El validador `lite/tools/validate-lite.mjs` bloquea regresiones que vuelvan a convertir EPIVIDA Lite en una carga pesada:
+
+- `lite/index.html` debe mantenerse pequeno.
+- Solo se permite un CSS inicial: `./src/styles/base.css`.
+- Solo se permiten dos scripts iniciales: `./epivida-lite-config.js` y `./src/main.js`.
+- `./src/main.js` debe cargarse como `type="module"`.
+- El JS inicial y el CSS inicial tienen presupuesto de bytes.
+- El shell no puede referenciar `iaas-system`, `FULL_SCRIPTS`, `FULL_STYLES`, Sheets, XLSX, `innerHTML` ni `localStorage`.
+
 ## Reglas de no regresion
 
 - No trabajar directo sobre `main`.
