@@ -170,6 +170,11 @@ if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeErr
   fail("src/app.js debe mostrar errores async de acciones clinicas en el shell.");
 }
 
+const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");
+if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromise) return dbPromise")) {
+  fail("src/lib/cache.js debe reutilizar la conexion IndexedDB para evitar aperturas repetidas.");
+}
+
 const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
 if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".round-list > .round-card")) {
   fail("src/styles/base.css debe proteger listas clinicas largas con content-visibility.");
