@@ -170,6 +170,11 @@ if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeErr
   fail("src/app.js debe mostrar errores async de acciones clinicas en el shell.");
 }
 
+const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
+if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".round-list > .round-card")) {
+  fail("src/styles/base.css debe proteger listas clinicas largas con content-visibility.");
+}
+
 const exportServiceSource = readFileSync(join(root, "src/services/exportService.js"), "utf8");
 if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.includes("JSON.stringify(value)") || !exportServiceSource.includes("\\uFEFF")) {
   fail("exportService debe proteger CSV contra formulas, objetos anidados y compatibilidad UTF-8.");

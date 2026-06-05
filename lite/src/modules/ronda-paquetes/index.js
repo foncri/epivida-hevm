@@ -204,8 +204,15 @@ function renderServiceFilters(patients, local, redraw) {
 
 function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
   const items = bedBoardItems(patients, serviceFilter);
-  const pending = items.filter(item => item.patient && bedTileState(item.patient, roundMap).status === "overdue").length;
-  const reviewed = items.filter(item => item.patient && bedTileState(item.patient, roundMap).status === "reviewed").length;
+  let pending = 0;
+  let reviewed = 0;
+  const boardItems = items.map(item => {
+    if (!item.patient) return item;
+    const state = bedTileState(item.patient, roundMap);
+    if (state.status === "overdue") pending += 1;
+    if (state.status === "reviewed") reviewed += 1;
+    return { ...item, state };
+  });
   return el("section", { class: "bed-board preventive" }, [
     el("div", { class: "bed-board-head" }, [
       el("div", {}, [
@@ -213,7 +220,7 @@ function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
         el("p", {}, ["Toca una cama para abrir el paciente. Las vacias quedan bloqueadas y las pendientes aparecen en rojo."])
       ]),
       el("div", { class: "bed-board-totals" }, [
-        el("span", {}, [`${items.length} cama(s)`]),
+        el("span", {}, [`${boardItems.length} cama(s)`]),
         el("span", {}, [`${reviewed} vistas`]),
         pending ? el("strong", {}, [`${pending} pendientes`]) : ""
       ])
@@ -224,13 +231,13 @@ function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
       el("span", { class: "legend reviewed" }, ["Vista"]),
       el("span", { class: "legend overdue" }, ["Pendiente"])
     ]),
-    renderBedBoardPicker(items, date, roundMap),
-    el("div", { class: "bed-board-grid" }, items.map(item => renderBedTile(item, date, roundMap)))
+    renderBedBoardPicker(boardItems, date),
+    el("div", { class: "bed-board-grid" }, boardItems.map(item => renderBedTile(item, date, roundMap)))
   ]);
 }
 
-function renderBedBoardPicker(items, date, roundMap) {
-  const selectable = items.filter(item => item.patient && !bedTileState(item.patient, roundMap).disabled);
+function renderBedBoardPicker(items, date) {
+  const selectable = items.filter(item => item.patient && !item.state?.disabled);
   if (!selectable.length) return "";
   return field("Ir a cama preventiva", selectInput([
     ["", "Seleccionar cama disponible"],
@@ -251,7 +258,7 @@ function renderBedTile(item, date, roundMap) {
       el("small", {}, ["Sin paciente"])
     ]);
   }
-  const state = bedTileState(item.patient, roundMap);
+  const state = item.state || bedTileState(item.patient, roundMap);
   return el("a", { class: `bed-tile ${state.status}`, href: roundPatientHref(date, item.patient.patientId), title: state.title, "aria-label": `${bed}: ${state.title}` }, [
     el("strong", {}, [bed]),
     el("span", {}, [state.label]),
@@ -1297,11 +1304,11 @@ function parseRoundRoute(parts = []) {
 function filterAndSortRoundPatients(patients, filters) {
   const serviceKey = normalizeServiceKey(filters.service || "Todos");
   const query = normalizeRoundText(filters.query || "");
-  return patients
-    .filter(patient => patient.active !== false)
-    .filter(patient => serviceKey === "TODOS" || normalizeServiceKey(patientService(patient)) === serviceKey)
-    .filter(patient => {
-      if (!query) return true;
+  const rows = [];
+  for (const patient of patients) {
+    if (patient.active === false) continue;
+    if (serviceKey !== "TODOS" && normalizeServiceKey(patientService(patient)) !== serviceKey) continue;
+    if (query) {
       const haystack = normalizeRoundText([
         patientLabel(patient),
         patientBed(patient),
@@ -1311,15 +1318,31 @@ function filterAndSortRoundPatients(patients, filters) {
         patient.status || patient.currentState,
         patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis
       ].join(" "));
-      return haystack.includes(query);
-    })
-    .sort(sortByServiceBed);
+      if (!haystack.includes(query)) continue;
+    }
+    rows.push(patient);
+  }
+  return rows.sort(sortByServiceBed);
 }
 
 function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending, roundSession = null) {
-  const reviewedPatients = allPatients.filter(patient => ["reviewed", "revisado", "alerta"].includes(roundMap.get(patient.patientId)?.status)).length;
-  const incompletePatients = allPatients.filter(patient => roundMap.get(patient.patientId)?.status === "incompleto").length;
-  const activeAlerts = allPatients.filter(patient => roundMap.get(patient.patientId)?.status === "alerta").length;
+  let reviewedPatients = 0;
+  let incompletePatients = 0;
+  let activeAlerts = 0;
+  for (const patient of allPatients) {
+    const status = roundMap.get(patient.patientId)?.status;
+    if (status === "alerta") activeAlerts += 1;
+    if (["reviewed", "revisado", "alerta"].includes(status)) reviewedPatients += 1;
+    else if (status === "incompleto") incompletePatients += 1;
+  }
+  let cvcCount = 0;
+  let foleyCount = 0;
+  let navCount = 0;
+  for (const device of devices) {
+    if (isCvcDevice(device)) cvcCount += 1;
+    if (isFoleyDevice(device)) foleyCount += 1;
+    if (isNavDevice(device)) navCount += 1;
+  }
   const sessionStatus = roundSession?.status || "";
   return {
     started: ["in_progress", "closed"].includes(sessionStatus) || reviewedPatients > 0,
@@ -1333,9 +1356,9 @@ function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pend
     activeAlerts,
     syncPending: pending.filter(item => item.collection === "nursing_rounds" || item.collection === "devices_active" || item.collection === "round_sessions").length,
     totalDevices: devices.length,
-    cvcCount: devices.filter(isCvcDevice).length,
-    foleyCount: devices.filter(isFoleyDevice).length,
-    navCount: devices.filter(isNavDevice).length,
+    cvcCount,
+    foleyCount,
+    navCount,
     isqCount: visiblePatients.filter(isSurgicalSignal).length
   };
 }

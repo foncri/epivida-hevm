@@ -445,6 +445,14 @@ tr:last-child td { border-bottom: 0; }
   gap: .65rem;
   align-items: center;
 }
+.round-list > .round-card,
+.discharge-review-card,
+.active-device-card,
+.patient-action-card,
+.preventive-history-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
+}
 .round-card-main { display: grid; grid-template-columns: auto 1fr; gap: .65rem; min-width: 0; }
 .bed-badge {
   min-width: 48px;
