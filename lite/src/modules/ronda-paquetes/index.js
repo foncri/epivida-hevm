@@ -77,6 +77,7 @@ const REPORTED_DISCHARGE_MESSAGE = "Verificar alta hospitalaria reportada.";
 const NORMALIZE_CACHE_LIMIT = 1500;
 const roundTextCache = new Map();
 const serviceKeyCache = new Map();
+const patientSearchCache = new WeakMap();
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -1313,20 +1314,28 @@ function filterAndSortRoundPatients(patients, filters) {
     if (patient.active === false) continue;
     if (serviceKey !== "TODOS" && normalizeServiceKey(patientService(patient)) !== serviceKey) continue;
     if (query) {
-      const haystack = normalizeRoundText([
-        patientLabel(patient),
-        patientBed(patient),
-        patientService(patient),
-        patientDiagnosis(patient),
-        patient.sector,
-        patient.status || patient.currentState,
-        patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis
-      ].join(" "));
-      if (!haystack.includes(query)) continue;
+      if (!roundPatientSearchText(patient).includes(query)) continue;
     }
     rows.push(patient);
   }
   return rows.sort(sortByServiceBed);
+}
+
+function roundPatientSearchText(patient = {}) {
+  const signature = [
+    patientLabel(patient),
+    patientBed(patient),
+    patientService(patient),
+    patientDiagnosis(patient),
+    patient.sector,
+    patient.status || patient.currentState,
+    patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis
+  ].join(" ");
+  const cached = patientSearchCache.get(patient);
+  if (cached?.signature === signature) return cached.text;
+  const text = normalizeRoundText(signature);
+  patientSearchCache.set(patient, { signature, text });
+  return text;
 }
 
 function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending, roundSession = null) {
