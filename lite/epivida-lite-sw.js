@@ -1,5 +1,6 @@
-const CACHE_NAME = "epivida-lite-shell-2026-06-04-phase3";
-const CORE = ["./index.html", "./epivida-lite-config.js", "./src/styles/base.css", "./src/main.js"];
+const CACHE_NAME = "epivida-lite-shell-2026-06-05-cache01";
+const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
+const NEVER_CACHE = new Set(["/lite/epivida-lite-config.js", "/epivida-lite-config.js"]);
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).catch(() => undefined));
@@ -18,6 +19,7 @@ self.addEventListener("fetch", event => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (NEVER_CACHE.has(url.pathname)) return;
   event.respondWith(
     fetch(request)
       .then(response => {

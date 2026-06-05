@@ -81,6 +81,7 @@ Configuracion recomendada para esta fase estatica:
 `lite/_headers` ya incluye headers de cache para HTML, JS, CSS, assets y manifest.
 Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa filenames con hash; esto evita que Cloudflare o el navegador conserven modulos viejos despues de un despliegue.
 `epivida-lite-config.js` tambien queda `no-cache` para permitir cambios de configuracion entre despliegues.
+El service worker no precachea ni guarda `epivida-lite-config.js`; siempre debe venir de red para evitar configuracion Firebase vieja.
 
 ## Rutas
 
@@ -210,6 +211,7 @@ Colecciones objetivo:
 - Los bloqueos iniciales se registran en Admin y los errores async de acciones clinicas se muestran en el shell.
 - Admin permite descartar solo bloqueos revisados; las escrituras `local_pending` no se eliminan con esa accion.
 - Los CSV bajo demanda serializan objetos anidados y neutralizan valores tipo formula antes de descargarse.
+- El service worker excluye `epivida-lite-config.js` de precache y cache runtime.
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.

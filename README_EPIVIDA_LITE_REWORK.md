@@ -612,6 +612,7 @@ El validador `lite/tools/validate-lite.mjs` bloquea regresiones que vuelvan a co
 - Las acciones clinicas async deben mostrar errores en pantalla para evitar fallas silenciosas.
 - La limpieza de cola desde Admin solo puede descartar `sync_blocked`, no escrituras `local_pending`.
 - Los CSV bajo demanda deben neutralizar formulas y conservar objetos anidados como JSON sin cargar librerias pesadas.
+- El service worker no puede precachear ni guardar `epivida-lite-config.js`; la configuracion Firebase debe quedar network-first.
 
 ## Reglas de no regresion
 

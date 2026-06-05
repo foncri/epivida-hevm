@@ -175,6 +175,15 @@ if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.
   fail("exportService debe proteger CSV contra formulas, objetos anidados y compatibilidad UTF-8.");
 }
 
+const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");
+const coreMatch = serviceWorkerSource.match(/const CORE = \[(.*?)\];/s);
+if (!coreMatch || coreMatch[1].includes("epivida-lite-config.js")) {
+  fail("epivida-lite-sw.js no debe precachear epivida-lite-config.js.");
+}
+if (!serviceWorkerSource.includes("NEVER_CACHE") || !serviceWorkerSource.includes("/epivida-lite-config.js")) {
+  fail("epivida-lite-sw.js debe excluir epivida-lite-config.js de cache runtime.");
+}
+
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
   checkSyntax(file);
 }
