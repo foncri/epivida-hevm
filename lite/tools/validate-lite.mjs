@@ -246,6 +246,9 @@ if (!coreMatch || coreMatch[1].includes("epivida-lite-config.js")) {
 if (!serviceWorkerSource.includes("NEVER_CACHE") || !serviceWorkerSource.includes("/epivida-lite-config.js")) {
   fail("epivida-lite-sw.js debe excluir epivida-lite-config.js de cache runtime.");
 }
+if (!serviceWorkerSource.includes("cacheFirstWithRefresh") || !serviceWorkerSource.includes("shouldRuntimeCache") || !serviceWorkerSource.includes("RUNTIME_DESTINATIONS")) {
+  fail("epivida-lite-sw.js debe cachear modulos dinamicos de ruta en runtime para acelerar navegacion movil/offline.");
+}
 
 const workflowFile = join(repoRoot, ".github/workflows/epivida-lite-validate.yml");
 if (!existsSync(workflowFile)) {

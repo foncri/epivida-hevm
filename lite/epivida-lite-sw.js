@@ -1,6 +1,7 @@
-const CACHE_NAME = "epivida-lite-shell-2026-06-05-cache01";
+const CACHE_NAME = "epivida-lite-shell-2026-06-05-cache02";
 const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
 const NEVER_CACHE = new Set(["/lite/epivida-lite-config.js", "/epivida-lite-config.js"]);
+const RUNTIME_DESTINATIONS = new Set(["script", "style", "worker", "manifest", "image"]);
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).catch(() => undefined));
@@ -20,6 +21,10 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (NEVER_CACHE.has(url.pathname)) return;
+  if (shouldRuntimeCache(request, url)) {
+    event.respondWith(cacheFirstWithRefresh(request, event));
+    return;
+  }
   event.respondWith(
     fetch(request)
       .then(response => {
@@ -36,3 +41,24 @@ self.addEventListener("fetch", event => {
       }))
   );
 });
+
+function shouldRuntimeCache(request, url) {
+  if (NEVER_CACHE.has(url.pathname)) return false;
+  return RUNTIME_DESTINATIONS.has(request.destination) || url.pathname.includes("/src/");
+}
+
+async function cacheFirstWithRefresh(request, event) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  const refresh = fetch(request)
+    .then(response => {
+      if (response && response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
+  if (cached) {
+    event.waitUntil(refresh);
+    return cached;
+  }
+  return cached || await refresh || Response.error();
+}
