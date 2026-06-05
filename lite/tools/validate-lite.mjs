@@ -246,17 +246,8 @@ if (!existsSync(workflowFile)) {
   fail("Falta workflow GitHub Actions para validar EPIVIDA Lite.");
 } else {
   const workflowSource = readFileSync(workflowFile, "utf8");
-  if (!workflowSource.includes("EPIVIDA_STRICT_SYNTAX") || !workflowSource.includes("node lite/tools/validate-lite.mjs")) {
-    fail("El workflow de EPIVIDA Lite debe ejecutar validate-lite en modo estricto.");
-  }
-  if (!workflowSource.includes("node lite/tools/validate-local-qa.mjs")) {
-    fail("El workflow de EPIVIDA Lite debe validar fixtures locales QA de ronda.");
-  }
-  if (!workflowSource.includes("node lite/tools/validate-deploy-config.mjs")) {
-    fail("El workflow de EPIVIDA Lite debe validar configuracion de despliegue Cloudflare/Firebase.");
-  }
-  if (!workflowSource.includes("node lite/tools/validate-security-config.mjs")) {
-    fail("El workflow de EPIVIDA Lite debe validar configuracion de seguridad.");
+  if (!workflowSource.includes("EPIVIDA_STRICT_SYNTAX") || !workflowSource.includes("node lite/tools/validate-all.mjs")) {
+    fail("El workflow de EPIVIDA Lite debe ejecutar validate-all en modo estricto.");
   }
 }
 
@@ -268,6 +259,7 @@ for (const file of [
   join(root, "epivida-lite-config.js"),
   join(root, "epivida-lite-sw.js"),
   join(root, "tools/prepare-user-seed.mjs"),
+  join(root, "tools/validate-all.mjs"),
   join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-security-config.mjs"),
@@ -293,6 +285,9 @@ for (const file of [join(root, "firebase/firestore.indexes.json"), join(root, "f
 }
 
 const packageSource = readFileSync(join(repoRoot, "package.json"), "utf8");
+if (!packageSource.includes('"validate"') || !packageSource.includes("validate-all.mjs")) {
+  fail("package.json debe exponer validate para el preflight completo.");
+}
 if (!packageSource.includes("validate:lite:qa") || !packageSource.includes("validate-local-qa.mjs")) {
   fail("package.json debe exponer validate:lite:qa para fixtures locales de ronda.");
 }

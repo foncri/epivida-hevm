@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "validate": "node lite/tools/validate-all.mjs",
     "validate:lite": "node lite/tools/validate-lite.mjs",
     "validate:lite:qa": "node lite/tools/validate-local-qa.mjs",
     "validate:deploy": "node lite/tools/validate-deploy-config.mjs",

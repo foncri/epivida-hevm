@@ -377,7 +377,8 @@ Configuracion actual para la fase estatica en `lite/`:
 - Output directory: `lite`.
 - Configuracion versionada: `wrangler.toml`.
 - Deploy manual reproducible: `npm run deploy:pages`.
-- Validacion previa: `npm run validate:lite`.
+- Validacion previa completa: `npm run validate`.
+- Validacion base: `npm run validate:lite`.
 - Validacion automatica: `.github/workflows/epivida-lite-validate.yml`.
 - Rutas hash inicialmente para evitar redirects complejos.
 
