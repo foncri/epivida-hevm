@@ -184,6 +184,9 @@ if (!authServiceSource.includes("firebaseAuthRuntime") || authServiceSource.incl
 if (!firestoreServiceSource.includes("firebaseFirestoreRuntime")) {
   fail("firestoreService debe usar firebaseFirestoreRuntime para cargar Firestore solo cuando se consulta datos.");
 }
+if (!firestoreServiceSource.includes("readPromises") || !firestoreServiceSource.includes("readOnce") || !firestoreServiceSource.includes("readPromises.delete(key)")) {
+  fail("firestoreService debe deduplicar lecturas Firestore concurrentes sin cache persistente de datos clinicos.");
+}
 
 const deviceServiceSource = readFileSync(join(root, "src/services/deviceService.js"), "utf8");
 if (!deviceServiceSource.includes("function activeDevice") || !deviceServiceSource.includes("filter(activeDevice)")) {
