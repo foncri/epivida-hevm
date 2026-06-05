@@ -1,3 +1,5 @@
+import { canAccessRoute } from "./lib/security.js";
+
 const ROUTES = {
   login: () => import("./modules/login/index.js"),
   inicio: () => import("./modules/inicio/index.js"),
@@ -70,6 +72,7 @@ export function initRouter(app) {
     if (route.key === "login" || !app.state.auth.user) return;
     const token = ++loadingToken;
     try {
+      if (app.state.auth.status !== "ready" || !canAccessRoute(route.key, app.state.auth.profile?.role)) return;
       const perfMod = await perf();
       perfMod.mark(`route:${route.key}`);
       const mod = await ROUTES[route.key]();

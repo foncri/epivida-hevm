@@ -136,6 +136,11 @@ const initialJsBytes = ["epivida-lite-config.js", "src/main.js"]
 assertBudget("JS inicial de EPIVIDA Lite", initialJsBytes, budgets.initialJsBytes);
 assertBudget("CSS inicial de EPIVIDA Lite", statSync(join(root, "src/styles/base.css")).size, budgets.initialCssBytes);
 
+const routerSource = readFileSync(join(root, "src/router.js"), "utf8");
+if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource.includes("canAccessRoute(route.key")) {
+  fail("src/router.js debe validar auth ready y rol antes de importar modulos clinicos.");
+}
+
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
   checkSyntax(file);
 }

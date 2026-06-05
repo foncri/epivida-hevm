@@ -67,6 +67,17 @@ export function createApp(root) {
     ]);
   }
 
+  function renderDenied() {
+    return shell([
+      el("section", { class: "empty-state" }, [
+        el("h1", {}, ["Acceso pendiente"]),
+        el("p", {}, [state.auth.error || "Tu usuario inicio sesion, pero todavia no tiene un perfil activo en EPIVIDA."]),
+        el("p", { class: "muted" }, [`Usuario: ${state.auth.user?.email || state.auth.user?.uid || "sin correo"}`]),
+        button("Salir", () => import("./services/authService.js").then(mod => mod.signOut()), { class: "ghost" })
+      ])
+    ]);
+  }
+
   function renderLoading() {
     return shell([
       el("section", { class: "empty-state" }, [
@@ -96,6 +107,10 @@ export function createApp(root) {
     }
     if (state.route.key === "login" || !state.auth.user) {
       root.append(renderLoginGate());
+      return;
+    }
+    if (state.auth.status === "denied" || state.auth.status === "error") {
+      root.append(renderDenied());
       return;
     }
     if (!canAccessRoute(state.route.key, state.auth.profile?.role)) {
