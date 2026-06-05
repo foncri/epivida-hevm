@@ -272,7 +272,7 @@ if (
 ) {
   fail("ronda-paquetes debe evitar pasadas repetidas para conteos de filtros y senales ISQ.");
 }
-if (!roundModuleSource.includes("createdEpisodeTasks") || !roundModuleSource.includes("removalTasks") || !roundModuleSource.includes("await Promise.all(createdEpisodeTasks)") || !roundModuleSource.includes("activeDeviceById")) {
+if (!roundModuleSource.includes("createdEpisodeTasks") || !roundModuleSource.includes("removalTasks") || !roundModuleSource.includes("patientActionTask") || !roundModuleSource.includes("Promise.all(createdEpisodeTasks)") || !roundModuleSource.includes("activeDeviceById")) {
   fail("ronda-paquetes debe paralelizar escrituras independientes de dispositivos durante el guardado de ronda.");
 }
 

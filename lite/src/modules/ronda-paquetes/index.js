@@ -1013,8 +1013,6 @@ async function savePatientRound(app, date, patient, patients, activeDevices, dra
       source: "nursing_round"
     }));
   }
-  const createdEpisodes = await Promise.all(createdEpisodeTasks);
-
   const activeDeviceById = new Map(activeDevices.map(device => [device.episodeId, device]));
   const removalTasks = [];
   for (const [episodeId, removalDate] of Object.entries(draft.removals || {})) {
@@ -1022,9 +1020,13 @@ async function savePatientRound(app, date, patient, patients, activeDevices, dra
     const device = activeDeviceById.get(episodeId);
     if (device) removalTasks.push(removeDeviceEpisode(app, device, removalDate));
   }
-  await Promise.all(removalTasks);
 
-  const patientForRound = await applyPreventivePatientActions(app, date, patient, draft);
+  const patientActionTask = applyPreventivePatientActions(app, date, patient, draft);
+  const [createdEpisodes, patientForRound] = await Promise.all([
+    Promise.all(createdEpisodeTasks),
+    patientActionTask,
+    Promise.all(removalTasks)
+  ]);
   const patientMovement = patientMovementPayload(patient, draft);
   const quickDischarge = quickDischargePayload(draft);
   const hasNoCheck = packageReviews.some(review => Object.values(review.preventiveChecks || {}).some(value => normalizeRoundText(value) === "NO"));
