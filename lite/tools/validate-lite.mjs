@@ -256,6 +256,13 @@ if (
 ) {
   fail("ronda-paquetes debe calcular navegacion por cama desde datos cargados, sin consultar DOM renderizado.");
 }
+if (
+  !roundModuleSource.includes("const { counts, activeCount } = serviceCounts(patients)") ||
+  roundModuleSource.includes("function activePatientCount") ||
+  roundModuleSource.includes("visiblePatients.filter(isSurgicalSignal)")
+) {
+  fail("ronda-paquetes debe evitar pasadas repetidas para conteos de filtros y senales ISQ.");
+}
 
 const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");
 if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromise) return dbPromise")) {

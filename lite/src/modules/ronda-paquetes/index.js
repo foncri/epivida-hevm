@@ -145,7 +145,7 @@ function renderRoundHeader(app, date, roundStats, onSessionSaved, onMessage) {
 }
 
 function renderServiceFilters(patients, local, redraw, scheduleRedraw = redraw) {
-  const counts = serviceCounts(patients);
+  const { counts, activeCount } = serviceCounts(patients);
   const knownKeys = new Set(ROUND_SERVICE_FILTERS.map(filter => normalizeServiceKey(filter.value)));
   const extraFilters = [...counts.keys()]
     .filter(key => !knownKeys.has(key))
@@ -155,7 +155,7 @@ function renderServiceFilters(patients, local, redraw, scheduleRedraw = redraw) 
     ...filters.map(filter => {
       const key = normalizeServiceKey(filter.value);
       const active = normalizeServiceKey(local.filters.service) === key;
-      const count = filter.value === "Todos" ? activePatientCount(patients) : counts.get(key)?.count || 0;
+      const count = filter.value === "Todos" ? activeCount : counts.get(key)?.count || 0;
       return button(`${filter.label} ${count}`, () => {
         local.filters.service = filter.value;
         redraw();
@@ -1278,11 +1278,15 @@ function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pend
   let reviewedPatients = 0;
   let incompletePatients = 0;
   let activeAlerts = 0;
+  let isqCount = 0;
   for (const patient of allPatients) {
     const status = roundMap.get(patient.patientId)?.status;
     if (status === "alerta") activeAlerts += 1;
     if (["reviewed", "revisado", "alerta"].includes(status)) reviewedPatients += 1;
     else if (status === "incompleto") incompletePatients += 1;
+  }
+  for (const patient of visiblePatients) {
+    if (isSurgicalSignal(patient)) isqCount += 1;
   }
   let cvcCount = 0;
   let foleyCount = 0;
@@ -1308,24 +1312,26 @@ function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pend
     cvcCount,
     foleyCount,
     navCount,
-    isqCount: visiblePatients.filter(isSurgicalSignal).length
+    isqCount
   };
 }
 
 function serviceCounts(patients) {
-  const map = new Map();
-  patients.filter(patient => patient.active !== false).forEach(patient => {
+  const counts = new Map();
+  let activeCount = 0;
+  for (const patient of patients) {
+    if (patient.active === false) continue;
+    activeCount += 1;
     const service = patientService(patient);
-    if (!service) return;
+    if (!service) continue;
     const key = normalizeServiceKey(service);
-    const current = map.get(key) || { label: service, count: 0 };
-    map.set(key, { label: current.label, count: current.count + 1 });
-  });
-  return new Map([...map.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label, "es")));
-}
-
-function activePatientCount(patients) {
-  return patients.filter(patient => patient.active !== false).length;
+    const current = counts.get(key) || { label: service, count: 0 };
+    counts.set(key, { label: current.label, count: current.count + 1 });
+  }
+  return {
+    counts: new Map([...counts.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label, "es"))),
+    activeCount
+  };
 }
 
 function bedTileState(patient, roundMap) {
