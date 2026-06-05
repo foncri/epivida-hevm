@@ -982,7 +982,7 @@ function renderRoundNavTile(item, date, roundMap, currentPatientId) {
 async function savePatientRound(app, date, patient, patients, activeDevices, draft, requestedStatus, direction) {
   const errors = validateDraft(draft, activeDevices, requestedStatus);
   if (errors.length) return errors.join(" ");
-  const createdEpisodes = [];
+  const createdEpisodeTasks = [];
   const packageReviews = [];
 
   for (const device of draft.deviceDrafts) {
@@ -994,7 +994,7 @@ async function savePatientRound(app, date, patient, patients, activeDevices, dra
       savedEpisodeId: device.savedEpisodeId || device.episodeId || ""
     });
     if (!packageCreatesDevice(device) || !device.installationDate) continue;
-    const saved = await saveDeviceEpisode(app, {
+    createdEpisodeTasks.push(saveDeviceEpisode(app, {
       patientId: patient.patientId,
       deviceType: device.deviceType,
       deviceSubtype: device.deviceSubtype || "",
@@ -1011,15 +1011,18 @@ async function savePatientRound(app, date, patient, patients, activeDevices, dra
       roundDate: date,
       createdDuringRoundDate: date,
       source: "nursing_round"
-    });
-    createdEpisodes.push(saved);
+    }));
   }
+  const createdEpisodes = await Promise.all(createdEpisodeTasks);
 
+  const activeDeviceById = new Map(activeDevices.map(device => [device.episodeId, device]));
+  const removalTasks = [];
   for (const [episodeId, removalDate] of Object.entries(draft.removals || {})) {
     if (!removalDate) continue;
-    const device = activeDevices.find(item => item.episodeId === episodeId);
-    if (device) await removeDeviceEpisode(app, device, removalDate);
+    const device = activeDeviceById.get(episodeId);
+    if (device) removalTasks.push(removeDeviceEpisode(app, device, removalDate));
   }
+  await Promise.all(removalTasks);
 
   const patientForRound = await applyPreventivePatientActions(app, date, patient, draft);
   const patientMovement = patientMovementPayload(patient, draft);
