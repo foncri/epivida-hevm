@@ -2,7 +2,7 @@ import { badge, button, dateInput, el, field, link, notice, selectInput, textInp
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
-import { devicesByPatient, listActiveDevices, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
+import { devicesByPatient, listActiveDevices, listDevicesForPatient, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
 import { archivePatient, listActivePatients, savePatient } from "../../services/patientService.js";
 import {
   defaultPreventiveDevice,
@@ -25,7 +25,7 @@ import {
   YES_NO_NA
 } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
-import { listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
+import { listRoundsForPatient, listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
 
 const ROUND_SERVICE_FILTERS = [
   { value: "Todos", label: "Todos" },
@@ -400,7 +400,13 @@ function renderRoundCard(patient, devices, round, date) {
 async function renderPatientRound(app, parsed) {
   const local = roundState(app);
   const date = parsed.date;
-  const [patients, devices, rounds] = await Promise.all([listActivePatients(), listActiveDevices(), listTodayRounds(date)]);
+  const [patients, devices, rounds, patientRounds, patientDevices] = await Promise.all([
+    listActivePatients(),
+    listActiveDevices(),
+    listTodayRounds(date),
+    listRoundsForPatient(parsed.patientId),
+    listDevicesForPatient(parsed.patientId)
+  ]);
   const patient = patients.find(row => row.patientId === parsed.patientId);
   if (!patient) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo. La ronda y el mapa de camas siguen disponibles.");
@@ -411,6 +417,7 @@ async function renderPatientRound(app, parsed) {
   const activeDevices = devices.filter(device => device.patientId === patient.patientId);
   const existingRound = roundMap.get(patient.patientId);
   let currentRound = existingRound;
+  let currentPatientRounds = upsertRoundById(patientRounds, existingRound);
   const draft = reviewDraft(local, date, patient.patientId, existingRound);
   const page = el("div", { class: "patient-round stack" });
   let message = "";
@@ -421,7 +428,8 @@ async function renderPatientRound(app, parsed) {
       message ? notice(message, message.includes("pendiente") || message.includes("falta") ? "warn" : "ok") : "",
       renderSavedRoundPanel(currentRound, draft, redraw),
       renderActiveDevicesPanel(activeDevices, draft, redraw),
-      renderPeSummaryPanel(patient.patientId, date, rounds, draft),
+      renderPeSummaryPanel(patient.patientId, date, currentPatientRounds, draft),
+      renderDailyPreventiveHistoryPanel(date, patient.patientId, currentPatientRounds, patientDevices),
       renderAddPackagePanel(date, patient.patientId, draft, redraw),
       renderPreventiveActionsPanel(app, date, currentPatient, draft, redraw),
       renderRoundSaveBar(app, date, currentPatient, currentPatients, roundMap, draft, async (status, direction) => {
@@ -433,6 +441,7 @@ async function renderPatientRound(app, parsed) {
         }
         if (result.savedRound) {
           currentRound = result.savedRound;
+          currentPatientRounds = upsertRoundById(currentPatientRounds, result.savedRound);
           roundMap.set(currentPatient.patientId, result.savedRound);
         }
         if (!direction) redraw();
@@ -533,6 +542,54 @@ function renderPeSummaryPanel(patientId, date, rounds, draft) {
         item.observations ? el("small", {}, [item.observations]) : ""
       ])
     ))
+  ]);
+}
+
+function renderDailyPreventiveHistoryPanel(activeDateValue, patientId, rounds = [], devices = []) {
+  const rows = preventiveHistoryRounds(rounds);
+  if (!rows.length) return "";
+  return el("section", { class: "iaas-panel daily-preventive-history-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Historial preventivo por dia"]),
+        el("p", {}, ["Paquetes e invasivos registrados para esta cama/paciente, ordenados del mas reciente al mas antiguo."])
+      ]),
+      badge(`${rows.length} dia(s)`, "neutral")
+    ]),
+    el("div", { class: "preventive-history-days" }, rows.map(round => renderPreventiveHistoryDay(activeDateValue, patientId, round, devices)))
+  ]);
+}
+
+function renderPreventiveHistoryDay(activeDateValue, patientId, round, devices = []) {
+  const date = roundReviewDate(round);
+  const reviews = round.packageReviews || [];
+  const dayDevices = devices.filter(device => deviceActiveOnDate(device, date));
+  const actionLines = savedRoundActionLines(round);
+  return el("details", { class: "preventive-history-day", open: date === activeDateValue }, [
+    el("summary", {}, [
+      el("span", {}, [date || "Sin fecha"]),
+      el("small", {}, [`${reviews.length} paquete(s), ${dayDevices.length} invasivo(s)`])
+    ]),
+    el("div", { class: "preventive-history-content" }, [
+      reviews.length
+        ? el("div", { class: "preventive-history-grid" }, reviews.map(review => renderPreventiveReviewCard(review, date)))
+        : el("p", { class: "muted" }, ["Sin paquetes capturados ese dia."]),
+      actionLines.length ? el("div", { class: "saved-action-list" }, actionLines.map(line => el("span", {}, [line]))) : "",
+      dayDevices.length ? el("div", { class: "preventive-history-grid" }, dayDevices.map(renderPreventiveDeviceHistoryCard)) : "",
+      el("div", { class: "preventive-history-actions" }, [
+        link(roundPatientHref(date || activeDateValue, patientId), "Editar registro completo", { class: "button ghost small" })
+      ])
+    ])
+  ]);
+}
+
+function renderPreventiveDeviceHistoryCard(device = {}) {
+  return el("article", { class: "preventive-history-card preventive-device-history-card" }, [
+    el("strong", {}, [deviceDisplayName(device)]),
+    el("span", {}, [`French: ${device.french || device.deviceFrench || "S/D"}`]),
+    el("span", {}, [`Instalacion: ${normalizeDate(device.installationDate) || "S/D"}`]),
+    el("span", {}, [`Retiro: ${normalizeDate(device.removalDate) || "Activo"}`]),
+    device.preventivePackage ? badge(device.preventivePackage, "device") : ""
   ]);
 }
 
@@ -971,6 +1028,8 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
       installationDate: device.installationDate,
       removalDate: device.removalDate || "",
       notes: [device.notes, device.observations].filter(Boolean).join(" | "),
+      roundDate: date,
+      createdDuringRoundDate: date,
       source: "nursing_round"
     });
     createdEpisodes.push(saved);
@@ -1477,6 +1536,41 @@ function peSummaryItems(patientId, date, rounds = [], draft = null) {
     }, "draft", date));
   return [...byKey.values()]
     .sort((a, b) => String(b.reviewDate || "").localeCompare(String(a.reviewDate || "")));
+}
+
+function upsertRoundById(rows = [], round = null) {
+  const map = new Map();
+  [...(rows || []), round].filter(Boolean).forEach(item => {
+    map.set(roundRowKey(item), item);
+  });
+  return [...map.values()].sort((a, b) => String(roundReviewDate(b)).localeCompare(String(roundReviewDate(a))));
+}
+
+function preventiveHistoryRounds(rounds = []) {
+  return upsertRoundById(rounds)
+    .filter(round => roundReviewDate(round)
+      || round.packageReviews?.length
+      || savedRoundActionLines(round).length
+      || round.notes
+      || round.pendingIssuesAdded?.length);
+}
+
+function roundRowKey(round = {}) {
+  return round.roundId || round.id || `${roundReviewDate(round)}_${round.patientId || ""}`;
+}
+
+function roundReviewDate(round = {}) {
+  return normalizeDate(round.date || round.roundDate || round.reviewDate) || round.date || round.roundDate || round.reviewDate || "";
+}
+
+function deviceActiveOnDate(device = {}, value = "") {
+  const date = normalizeDate(value);
+  if (!date) return false;
+  if (normalizeDate(device.createdDuringRoundDate) === date || normalizeDate(device.roundDate) === date) return true;
+  const start = normalizeDate(device.installationDate || device.createdAt);
+  const end = normalizeDate(device.removalDate);
+  if (!start) return false;
+  return start <= date && (!end || end >= date);
 }
 
 function isPePackageType(type = "") {

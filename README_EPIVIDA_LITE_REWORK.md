@@ -27,6 +27,7 @@ La ruta legacy `#/ronda/2026-06-04` se conserva como entrada compatible y ahora 
 - Vista por paciente/cama con invasivos activos, alta de paquete preventivo, criterios SI/NO/NA, porcentaje de cumplimiento, pendientes, observaciones y navegacion anterior/siguiente cama.
 - Carga de revisiones guardadas del dia para editar paquetes existentes, incluyendo resumen de `P.E. Y P.B.M.T.`.
 - Panel operativo por paciente/cama para movimientos de servicio/cama, observaciones generales y alta rapida con archivo en `patients_archive`.
+- Historial preventivo por dia dentro de la cama, con paquetes previos, invasivos relacionados y acceso a editar el registro completo de otra fecha.
 - Guardado en `nursing_rounds`, dispositivos en `devices_active`, sesiones en `round_sessions`, auditoria y cola offline.
 
 Los pacientes reales pueden limpiarse o migrarse despues; lo que no debe perderse es la tecnologia clinico-operativa de camas, paquetes preventivos, dispositivos, ronda y archivo de egresos.

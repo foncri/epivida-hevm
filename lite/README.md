@@ -24,6 +24,7 @@ Fase 4 inicial: remake fiel de Paquetes Preventivos sobre la base modular.
 - La vista por cama carga revisiones guardadas del dia para editar paquetes sin recapturar desde cero.
 - Resumen rapido de `P.E. Y P.B.M.T.` para conservar continuidad de precauciones.
 - Panel operativo por cama para mover servicio/cama, agregar observaciones generales y confirmar alta rapida sin salir de la ronda.
+- Historial preventivo por dia en la vista por cama, con paquetes previos, invasivos relacionados y liga para editar una fecha anterior.
 - Guardado de ronda, paquetes, dispositivos creados/retiros, sesiones y auditoria.
 - Archivo de pacientes confirmados en `patients_archive` para no perder trazabilidad al egresar.
 - Cola offline explicita en IndexedDB para escrituras pendientes.
@@ -182,4 +183,5 @@ Colecciones objetivo:
 - Chrome local: guardar como incompleto deja `nursing_rounds` y `audit_logs` en cola offline cuando Firestore no esta configurado.
 - Chrome local: panel por cama guarda movimiento UCIA -> Urgencias/CHOQUE, actualiza encabezado sin recargar, registra observacion general y deja `patients_active` + `nursing_rounds` en cola offline.
 - Chrome local: alta rapida desde ronda marca paciente inactivo, crea `patients_archive` y conserva `quickDischarge` en `nursing_rounds`.
+- Chrome local: historial preventivo por dia muestra rondas de 2026-06-04 y 2026-06-03, paquete `P.E. Y P.B.M.T.`, invasivo historico CVC y liga a `#/ronda/2026-06-03/paciente/p_history`.
 - Mobile 390 px: ronda de camas sin desbordamiento horizontal.
