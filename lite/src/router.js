@@ -36,6 +36,8 @@ const LABELS = {
   admin: "Admin"
 };
 
+const routePreloads = new Map();
+
 async function perf() {
   return import("./lib/performance.js");
 }
@@ -54,6 +56,18 @@ export function canonicalRouteKey(key) {
 
 export function routeLabel(key) {
   return LABELS[canonicalRouteKey(key)] || "EPIVIDA";
+}
+
+export function preloadRoute(key) {
+  const canonicalKey = canonicalRouteKey(key);
+  if (!ROUTES[canonicalKey]) return Promise.resolve(null);
+  if (!routePreloads.has(canonicalKey)) {
+    routePreloads.set(canonicalKey, ROUTES[canonicalKey]().catch(error => {
+      routePreloads.delete(canonicalKey);
+      throw error;
+    }));
+  }
+  return routePreloads.get(canonicalKey);
 }
 
 export function defaultRouteForRole(role) {
@@ -75,7 +89,7 @@ export function initRouter(app) {
       if (app.state.auth.status !== "ready" || !canAccessRoute(route.key, app.state.auth.profile?.role)) return;
       const perfMod = await perf();
       perfMod.mark(`route:${route.key}`);
-      const mod = await ROUTES[route.key]();
+      const mod = await preloadRoute(route.key);
       if (token !== loadingToken) return;
       app.mountModule(await mod.render({ app, route }));
       perfMod.measure(`route:${route.key}`, `route:${route.key}`);

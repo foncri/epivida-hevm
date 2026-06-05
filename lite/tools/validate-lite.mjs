@@ -151,6 +151,9 @@ const routerSource = readFileSync(join(root, "src/router.js"), "utf8");
 if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource.includes("canAccessRoute(route.key")) {
   fail("src/router.js debe validar auth ready y rol antes de importar modulos clinicos.");
 }
+if (!routerSource.includes("export function preloadRoute") || !routerSource.includes("routePreloads")) {
+  fail("src/router.js debe precargar modulos de ruta con cache sin ejecutar datos clinicos.");
+}
 
 const firebaseSource = readFileSync(join(root, "src/lib/firebase.js"), "utf8");
 const authServiceSource = readFileSync(join(root, "src/services/authService.js"), "utf8");
@@ -204,6 +207,9 @@ if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.
 const appSource = readFileSync(join(root, "src/app.js"), "utf8");
 if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeError")) {
   fail("src/app.js debe mostrar errores async de acciones clinicas en el shell.");
+}
+if (!appSource.includes("preloadRoute") || !appSource.includes("onpointerenter") || !appSource.includes("onfocus")) {
+  fail("src/app.js debe precargar modulos permitidos en hover/focus de navegacion.");
 }
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");

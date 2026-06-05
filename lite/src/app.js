@@ -1,4 +1,4 @@
-import { canonicalRouteKey, routeLabel, defaultRouteForRole } from "./router.js";
+import { canonicalRouteKey, routeLabel, defaultRouteForRole, preloadRoute } from "./router.js";
 import { canAccessRoute } from "./lib/security.js";
 import { button, el, link, notice, statusDot } from "./components/dom.js";
 
@@ -51,11 +51,16 @@ export function createApp(root) {
     const role = state.auth.profile?.role || "";
     const activeRoute = canonicalRouteKey(state.route.key);
     const allowedNav = NAV.filter(([route]) => canAccessRoute(route, role));
+    const preloadAllowedRoute = route => {
+      if (state.auth.status === "ready" && canAccessRoute(route, role)) {
+        preloadRoute(route).catch(() => {});
+      }
+    };
     return el("div", { class: "app-shell" }, [
       el("header", { class: "topbar" }, [
-        link("#/inicio", "EPIVIDA", { class: "brand", "aria-label": "EPIVIDA inicio" }),
+        link("#/inicio", "EPIVIDA", { class: "brand", "aria-label": "EPIVIDA inicio", onpointerenter: () => preloadAllowedRoute("inicio"), onfocus: () => preloadAllowedRoute("inicio") }),
         el("nav", { class: "main-nav", "aria-label": "Modulos" }, allowedNav.map(([route, label]) =>
-          link(`#/${route}`, label, { class: route === activeRoute ? "active" : "" })
+          link(`#/${route}`, label, { class: route === activeRoute ? "active" : "", onpointerenter: () => preloadAllowedRoute(route), onfocus: () => preloadAllowedRoute(route) })
         )),
         el("div", { class: "session" }, [
           statusDot(state.auth.status === "ready" ? "ok" : state.auth.status === "denied" ? "bad" : "idle"),
