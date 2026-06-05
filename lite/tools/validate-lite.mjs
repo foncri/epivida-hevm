@@ -255,6 +255,9 @@ if (!existsSync(workflowFile)) {
   if (!workflowSource.includes("node lite/tools/validate-deploy-config.mjs")) {
     fail("El workflow de EPIVIDA Lite debe validar configuracion de despliegue Cloudflare/Firebase.");
   }
+  if (!workflowSource.includes("node lite/tools/validate-security-config.mjs")) {
+    fail("El workflow de EPIVIDA Lite debe validar configuracion de seguridad.");
+  }
 }
 
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
@@ -267,6 +270,7 @@ for (const file of [
   join(root, "tools/prepare-user-seed.mjs"),
   join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
+  join(root, "tools/validate-security-config.mjs"),
   join(root, "tools/validate-migration-package.mjs")
 ]) {
   if (!existsSync(file)) continue;
@@ -294,6 +298,9 @@ if (!packageSource.includes("validate:lite:qa") || !packageSource.includes("vali
 }
 if (!packageSource.includes("validate:deploy") || !packageSource.includes("validate-deploy-config.mjs")) {
   fail("package.json debe exponer validate:deploy para Cloudflare/Firebase.");
+}
+if (!packageSource.includes("validate:security") || !packageSource.includes("validate-security-config.mjs")) {
+  fail("package.json debe exponer validate:security para reglas y roles.");
 }
 
 const headers = readFileSync(join(root, "_headers"), "utf8");

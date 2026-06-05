@@ -43,6 +43,9 @@ jobs:
       - name: Validate deploy config
         run: node lite/tools/validate-deploy-config.mjs
 
+      - name: Validate security config
+        run: node lite/tools/validate-security-config.mjs
+
       - name: Check Lite JavaScript syntax
         shell: bash
         run: |
@@ -56,4 +59,5 @@ jobs:
           node --check lite/tools/validate-lite.mjs
           node --check lite/tools/validate-deploy-config.mjs
           node --check lite/tools/validate-local-qa.mjs
+          node --check lite/tools/validate-security-config.mjs
           node --check lite/tools/validate-migration-package.mjs
