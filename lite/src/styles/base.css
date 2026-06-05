@@ -492,6 +492,47 @@ tr:last-child td { border-bottom: 0; }
   color: #fff;
   border-color: #111827;
 }
+.preventive-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: .65rem;
+}
+.patient-action-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: .7rem;
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+}
+.patient-action-card strong { color: #111827; }
+.patient-action-card textarea { min-height: 86px; }
+.quick-discharge-fields, .pending-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: .6rem;
+}
+.quick-discharge-card .button-chip-row { align-items: center; }
+.pending-notes-grid {
+  border-top: 1px solid var(--line);
+  padding-top: .7rem;
+  margin-top: .2rem;
+}
+.saved-action-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.saved-action-list span {
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  background: #f0f9ff;
+  color: #0f172a;
+  padding: .35rem .5rem;
+  font-size: .84rem;
+  overflow-wrap: anywhere;
+}
 .preventive-check-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

@@ -405,24 +405,36 @@ async function renderPatientRound(app, parsed) {
   if (!patient) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo. La ronda y el mapa de camas siguen disponibles.");
   }
+  let currentPatient = patient;
+  let currentPatients = patients;
   const roundMap = new Map(rounds.map(row => [row.patientId, row]));
   const activeDevices = devices.filter(device => device.patientId === patient.patientId);
   const existingRound = roundMap.get(patient.patientId);
+  let currentRound = existingRound;
   const draft = reviewDraft(local, date, patient.patientId, existingRound);
   const page = el("div", { class: "patient-round stack" });
   let message = "";
 
   function redraw() {
     page.replaceChildren(
-      renderPatientRoundSummary(patient, date),
+      renderPatientRoundSummary(currentPatient, date),
       message ? notice(message, message.includes("pendiente") || message.includes("falta") ? "warn" : "ok") : "",
-      renderSavedRoundPanel(existingRound, draft, redraw),
+      renderSavedRoundPanel(currentRound, draft, redraw),
       renderActiveDevicesPanel(activeDevices, draft, redraw),
       renderPeSummaryPanel(patient.patientId, date, rounds, draft),
       renderAddPackagePanel(date, patient.patientId, draft, redraw),
-      renderPendingPanel(draft),
-      renderRoundSaveBar(app, date, patient, patients, roundMap, draft, async (status, direction) => {
-        message = await savePatientRound(app, date, patient, activeDevices, draft, status, direction);
+      renderPreventiveActionsPanel(app, date, currentPatient, draft, redraw),
+      renderRoundSaveBar(app, date, currentPatient, currentPatients, roundMap, draft, async (status, direction) => {
+        const result = await savePatientRound(app, date, currentPatient, activeDevices, draft, status, direction);
+        message = result.message || result;
+        if (result.patient) {
+          currentPatient = result.patient;
+          currentPatients = upsertOrRemovePatient(currentPatients, result.patient);
+        }
+        if (result.savedRound) {
+          currentRound = result.savedRound;
+          roundMap.set(currentPatient.patientId, result.savedRound);
+        }
         if (!direction) redraw();
       })
     );
@@ -448,7 +460,8 @@ function renderPatientRoundSummary(patient, date) {
 }
 
 function renderSavedRoundPanel(round, draft, redraw) {
-  if (!round?.packageReviews?.length && !round?.notes && !round?.pendingIssuesAdded?.length) return "";
+  const actionLines = savedRoundActionLines(round);
+  if (!round?.packageReviews?.length && !round?.notes && !round?.pendingIssuesAdded?.length && !actionLines.length) return "";
   const reviews = round.packageReviews || [];
   return el("section", { class: "iaas-panel saved-round-panel" }, [
     el("div", { class: "iaas-panel-head compact" }, [
@@ -459,6 +472,7 @@ function renderSavedRoundPanel(round, draft, redraw) {
       badge(statusLabel(round.status), round.status === "alerta" ? "bad" : round.status === "incompleto" ? "warn" : "ok")
     ]),
     reviews.length ? el("div", { class: "preventive-history-grid" }, reviews.map(review => renderPreventiveReviewCard(review, round.date || round.roundDate))) : "",
+    actionLines.length ? el("div", { class: "saved-action-list" }, actionLines.map(line => el("span", {}, [line]))) : "",
     round.pendingIssuesAdded?.length ? el("p", { class: "muted" }, [`Pendientes: ${round.pendingIssuesAdded.join(" | ")}`]) : "",
     round.notes ? el("p", { class: "muted" }, [`Notas: ${round.notes}`]) : "",
     el("div", { class: "toolbar" }, [
@@ -468,6 +482,20 @@ function renderSavedRoundPanel(round, draft, redraw) {
       }, { class: "ghost small" })
     ])
   ]);
+}
+
+function savedRoundActionLines(round = {}) {
+  const lines = [];
+  if (round.patientMovement?.toService || round.patientMovement?.toBed) {
+    lines.push(`Movimiento: ${round.patientMovement.fromService || "S/S"} / ${round.patientMovement.fromBed || "S/C"} -> ${round.patientMovement.toService || "S/S"} / ${round.patientMovement.toBed || "S/C"}`);
+  }
+  if (round.quickDischarge?.enabled) {
+    lines.push(`Alta: ${round.quickDischarge.date || "S/F"} - ${round.quickDischarge.type || "SIN DATO"} - ${round.quickDischarge.shift || "SIN TURNO"}`);
+  }
+  if (round.generalObservations) {
+    lines.push(`Observacion general: ${truncate(round.generalObservations, 120)}`);
+  }
+  return lines;
 }
 
 function renderPreventiveReviewCard(review = {}, date = "") {
@@ -691,32 +719,183 @@ function renderCheckSelector(label, value, onSelect) {
   ]);
 }
 
-function renderButtonGroup(label, values, value, onSelect) {
+function renderButtonGroup(label, values, value, onSelect, options = {}) {
+  const disabled = Boolean(options.disabled);
   return el("div", { class: "button-group-field" }, [
     el("span", {}, [label]),
     el("div", { class: "button-chip-row" }, values.map(item =>
-      button(item, () => onSelect(item), { class: normalizeRoundText(value) === normalizeRoundText(item) ? "selected" : "ghost" })
+      button(item, () => !disabled && onSelect(item), {
+        class: normalizeRoundText(value) === normalizeRoundText(item) ? "selected" : "ghost",
+        disabled,
+        "aria-pressed": normalizeRoundText(value) === normalizeRoundText(item) ? "true" : "false"
+      })
     ))
   ]);
 }
 
-function renderPendingPanel(draft) {
-  return el("section", { class: "iaas-panel" }, [
-    el("h2", {}, ["Pendientes y observaciones"]),
-    field("Agregar pendiente", textInput({
-      value: draft.pendingText || "",
-      placeholder: "Ej. confirmar retiro de CVC, revisar cultivo...",
-      oninput: event => {
-        draft.pendingText = event.target.value;
-      }
-    })),
-    field("Notas cortas", textareaInput({
-      value: draft.notes || "",
-      oninput: event => {
-        draft.notes = event.target.value;
-      }
-    }))
+function renderPreventiveActionsPanel(app, date, patient, draft, redraw) {
+  ensurePatientActionDraft(draft, patient, date);
+  const role = app.state.auth.profile?.role;
+  const canEditCensus = canWrite("censo", role);
+  const movement = draft.patientMovement;
+  const discharge = draft.quickDischarge;
+  const selectedService = movement.service || patientService(patient);
+  const currentMovement = patientMovementChanged(patient, movement);
+  const dischargeEnabled = Boolean(discharge.enabled);
+  const bedOptions = patientMovementBedOptions(selectedService, patient, movement);
+
+  return el("section", { class: "iaas-panel preventive-actions-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Pendientes, movimientos y alta"]),
+        el("p", {}, ["Control operativo de la cama durante la ronda preventiva."])
+      ]),
+      currentMovement ? badge("Movimiento preparado", "warn") : dischargeEnabled ? badge("Alta preparada", "warn") : badge("Sin cambios de censo", "neutral")
+    ]),
+    canEditCensus ? "" : notice("Tu perfil puede guardar la ronda, pero no modificar censo, cama o alta.", "warn"),
+    el("div", { class: "preventive-actions-grid" }, [
+      el("article", { class: "patient-action-card" }, [
+        el("strong", {}, ["Movimiento de cama"]),
+        el("div", { class: "form-grid compact" }, [
+          field("Servicio", selectInput(patientMovementServiceOptions(patient, movement), {
+            value: selectedService,
+            disabled: !canEditCensus,
+            onchange: event => {
+              const nextService = event.target.value;
+              const beds = patientMovementBedOptions(nextService, patient, {}, false);
+              movement.service = nextService;
+              movement.bed = beds[0]?.[0] || patientBed(patient);
+              movement._dirty = true;
+              redraw();
+            }
+          })),
+          field("Cama", selectInput(bedOptions, {
+            value: movement.bed || patientBed(patient),
+            disabled: !canEditCensus,
+            onchange: event => {
+              movement.bed = event.target.value;
+              movement._dirty = true;
+              redraw();
+            }
+          }))
+        ]),
+        currentMovement ? el("small", { class: "muted" }, [`Actual: ${patientService(patient)} / ${patientBed(patient)}`]) : ""
+      ]),
+      el("article", { class: "patient-action-card" }, [
+        el("strong", {}, ["Observaciones generales"]),
+        el("div", { class: "form-grid compact" }, [
+          field("Fecha", dateInput({
+            value: draft.generalObservationDate || date,
+            disabled: !canEditCensus,
+            onchange: event => {
+              draft.generalObservationDate = event.target.value;
+            }
+          }))
+        ]),
+        field("Observacion", textareaInput({
+          value: draft.generalObservations || "",
+          disabled: !canEditCensus,
+          placeholder: "Cambios clinicos, vigilancia o contexto de censo",
+          oninput: event => {
+            draft.generalObservations = event.target.value;
+          }
+        }))
+      ]),
+      el("article", { class: "patient-action-card quick-discharge-card" }, [
+        el("strong", {}, ["Alta rapida"]),
+        renderButtonGroup("Confirmar alta", ["NO", "SI"], dischargeEnabled ? "SI" : "NO", value => {
+          discharge.enabled = value === "SI";
+          discharge._dirty = true;
+          redraw();
+        }, { disabled: !canEditCensus }),
+        dischargeEnabled ? el("div", { class: "quick-discharge-fields" }, [
+          field("Fecha de alta", dateInput({
+            value: normalizeDate(discharge.date) || date,
+            disabled: !canEditCensus,
+            onchange: event => {
+              discharge.date = event.target.value;
+            }
+          })),
+          renderButtonGroup("Tipo", DISCHARGE_TYPES, discharge.type || DISCHARGE_TYPES[0], value => {
+            discharge.type = value;
+            discharge._dirty = true;
+            redraw();
+          }, { disabled: !canEditCensus }),
+          renderButtonGroup("Turno", DISCHARGE_SHIFTS, discharge.shift || DISCHARGE_SHIFTS[DISCHARGE_SHIFTS.length - 1], value => {
+            discharge.shift = value;
+            discharge._dirty = true;
+            redraw();
+          }, { disabled: !canEditCensus }),
+          normalizeRoundText(discharge.type) === "DEFUNCION" ? field("Folio certificado", textInput({
+            value: discharge.deathCertificateFolio || "",
+            disabled: !canEditCensus,
+            oninput: event => {
+              discharge.deathCertificateFolio = event.target.value;
+            }
+          })) : ""
+        ]) : el("small", { class: "muted" }, ["El paciente permanece activo en censo."])
+      ])
+    ]),
+    el("div", { class: "pending-notes-grid" }, [
+      field("Agregar pendiente", textInput({
+        value: draft.pendingText || "",
+        placeholder: "Ej. confirmar retiro de CVC, revisar cultivo...",
+        oninput: event => {
+          draft.pendingText = event.target.value;
+        }
+      })),
+      field("Notas cortas", textareaInput({
+        value: draft.notes || "",
+        oninput: event => {
+          draft.notes = event.target.value;
+        }
+      }))
+    ])
   ]);
+}
+
+function ensurePatientActionDraft(draft, patient, date) {
+  draft.patientMovement ||= {};
+  draft.patientMovement.service ||= patientService(patient);
+  draft.patientMovement.bed ||= patientBed(patient);
+  draft.quickDischarge ||= {};
+  if (draft.quickDischarge.enabled === undefined) draft.quickDischarge.enabled = false;
+  draft.quickDischarge.date ||= date;
+  draft.quickDischarge.type ||= DISCHARGE_TYPES[0];
+  draft.quickDischarge.shift ||= DISCHARGE_SHIFTS[DISCHARGE_SHIFTS.length - 1];
+  if (draft.generalObservationDate === undefined) draft.generalObservationDate = date;
+  if (draft.generalObservations === undefined) draft.generalObservations = "";
+  return draft;
+}
+
+function patientMovementServiceOptions(patient, movement = {}) {
+  const values = uniqueValues([
+    patientService(patient),
+    movement.service,
+    ...ROUND_SERVICE_FILTERS.filter(filter => filter.value !== "Todos").map(filter => filter.value)
+  ]);
+  return values.map(value => [value, serviceOptionLabel(value)]);
+}
+
+function serviceOptionLabel(value = "") {
+  const key = normalizeServiceKey(value);
+  return ROUND_SERVICE_FILTERS.find(filter => normalizeServiceKey(filter.value) === key)?.label || value || "SIN SERVICIO";
+}
+
+function patientMovementBedOptions(service, patient, movement = {}, includeCurrent = true) {
+  const serviceKey = normalizeServiceKey(service);
+  const values = [
+    movement.bed,
+    includeCurrent || normalizeServiceKey(patientService(patient)) === serviceKey ? patientBed(patient) : "",
+    ...(KNOWN_SERVICE_BEDS[serviceKey] || [])
+  ];
+  return uniqueValues(values).sort(compareBeds).map(value => [value, value]);
+}
+
+function patientMovementChanged(patient, movement = {}) {
+  if (!movement?._dirty) return false;
+  return normalizeServiceKey(movement.service) !== normalizeServiceKey(patientService(patient))
+    || normalizeRoundText(movement.bed) !== normalizeRoundText(patientBed(patient));
 }
 
 function renderRoundSaveBar(app, date, patient, patients, roundMap, draft, onSave) {
@@ -803,13 +982,16 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
     if (device) await removeDeviceEpisode(app, device, removalDate);
   }
 
+  const patientForRound = await applyPreventivePatientActions(app, date, patient, draft);
+  const patientMovement = patientMovementPayload(patient, draft);
+  const quickDischarge = quickDischargePayload(draft);
   const hasNoCheck = packageReviews.some(review => Object.values(review.preventiveChecks || {}).some(value => normalizeRoundText(value) === "NO"));
   const status = requestedStatus === "incompleto" ? "incompleto" : hasNoCheck ? "alerta" : requestedStatus;
   const saved = await saveRoundReview(app, {
     date,
     patientId: patient.patientId,
-    service: patientService(patient),
-    bed: patientBed(patient),
+    service: patientService(patientForRound),
+    bed: patientBed(patientForRound),
     status,
     hasDevices: activeDevices.length > 0 || createdEpisodes.length > 0,
     noInvasivesConfirmed: Boolean(draft.noInvasivesConfirmed) && !activeDevices.length && !createdEpisodes.length,
@@ -818,6 +1000,10 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
     pendingIssuesAdded: draft.pendingText ? [draft.pendingText.trim()] : [],
     alertsGenerated: hasNoCheck ? ["Criterio preventivo marcado como NO."] : [],
     notes: draft.notes || "",
+    patientMovement,
+    quickDischarge,
+    generalObservations: String(draft.generalObservations || "").trim(),
+    generalObservationDate: String(draft.generalObservations || "").trim() ? draft.generalObservationDate || date : "",
     activeRoundSection: "preventive"
   });
   resetDraft(draft);
@@ -826,9 +1012,97 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
   if (direction) {
     const target = navigationPatientId(date, patient, direction);
     location.hash = target ? roundPatientHref(date, target) : `#/ronda/${date}`;
-    return "Revision guardada.";
+    return { message: "Revision guardada.", patient: patientForRound, savedRound: saved };
   }
-  return saved.syncStatus === "local_pending" ? "Revision guardada localmente; queda pendiente de sincronizar." : "Revision sincronizada.";
+  return {
+    message: saved.syncStatus === "local_pending" ? "Revision guardada localmente; queda pendiente de sincronizar." : "Revision sincronizada.",
+    patient: patientForRound,
+    savedRound: saved
+  };
+}
+
+async function applyPreventivePatientActions(app, date, patient, draft) {
+  if (!canWrite("censo", app.state.auth.profile?.role)) return patient;
+  const movement = patientMovementPayload(patient, draft);
+  const discharge = quickDischargePayload(draft);
+  const observations = String(draft.generalObservations || "").trim();
+  let next = { ...patient };
+  let changed = false;
+
+  if (movement) {
+    next = {
+      ...next,
+      service: movement.toService,
+      currentService: movement.toService,
+      bed: movement.toBed,
+      currentBed: movement.toBed
+    };
+    changed = true;
+  }
+
+  if (observations) {
+    next = {
+      ...next,
+      observations: mergePatientObservation(next.observations || "", draft.generalObservationDate || date, observations)
+    };
+    changed = true;
+  }
+
+  if (discharge) {
+    const reason = quickDischargeReason(discharge);
+    return archivePatient(app, {
+      ...next,
+      hospitalizationStatus: "egresado",
+      dischargeDate: discharge.date,
+      dischargeType: discharge.type,
+      dischargeShift: discharge.shift,
+      dischargeReason: reason,
+      deathCertificateFolio: discharge.deathCertificateFolio || "",
+      dischargeReviewRequired: false,
+      probableDischarge: false,
+      dischargeReported: false,
+      activePendingIssues: (next.activePendingIssues || []).filter(issue => !isDischargeIssue(issue))
+    }, reason);
+  }
+
+  return changed ? savePatient(app, next) : patient;
+}
+
+function patientMovementPayload(patient, draft) {
+  const movement = draft.patientMovement || {};
+  if (!patientMovementChanged(patient, movement)) return null;
+  return {
+    fromService: patientService(patient),
+    fromBed: patientBed(patient),
+    toService: movement.service || patientService(patient),
+    toBed: movement.bed || patientBed(patient),
+    changedAt: new Date().toISOString()
+  };
+}
+
+function quickDischargePayload(draft) {
+  const discharge = draft.quickDischarge || {};
+  if (!discharge.enabled) return null;
+  return {
+    enabled: true,
+    date: normalizeDate(discharge.date) || "",
+    type: discharge.type || DISCHARGE_TYPES[0],
+    shift: discharge.shift || DISCHARGE_SHIFTS[DISCHARGE_SHIFTS.length - 1],
+    deathCertificateFolio: discharge.deathCertificateFolio || "",
+    confirmedAt: new Date().toISOString()
+  };
+}
+
+function quickDischargeReason(discharge = {}) {
+  return normalizeRoundText(discharge.type) === "DEFUNCION" ? "defuncion" : `alta_${normalizeRoundText(discharge.type || "egreso").toLowerCase().replace(/\s+/g, "_")}`;
+}
+
+function mergePatientObservation(existing, date, observations) {
+  const nextNote = `Ronda preventiva ${date}: ${String(observations || "").trim()}`;
+  const current = String(existing || "").trim();
+  if (!current) return nextNote;
+  if (normalizeRoundText(current).includes(normalizeRoundText(nextNote))) return current;
+  return `${current}\n${nextNote}`;
 }
 
 function validateDraft(draft, activeDevices, requestedStatus) {
@@ -845,6 +1119,10 @@ function validateDraft(draft, activeDevices, requestedStatus) {
     });
   }
   if (draft.noInvasivesConfirmed && activeDevices.length) errors.push("Hay invasivos activos. Registra retiro o guarda como incompleto.");
+  if (draft.quickDischarge?.enabled) {
+    if (!normalizeDate(draft.quickDischarge.date)) errors.push("Alta rapida: falta fecha de alta.");
+    if (!draft.quickDischarge.type) errors.push("Alta rapida: falta tipo de alta.");
+  }
   return errors;
 }
 
@@ -877,6 +1155,15 @@ function draftFromRound(round = null, date = "", patientId = "") {
     removals: {},
     pendingText: (round?.pendingIssuesAdded || []).join(" | "),
     notes: round?.notes || "",
+    patientMovement: round?.patientMovement ? {
+      ...round.patientMovement,
+      service: round.patientMovement.toService || round.patientMovement.service || "",
+      bed: round.patientMovement.toBed || round.patientMovement.bed || "",
+      _dirty: false
+    } : {},
+    quickDischarge: round?.quickDischarge ? { ...round.quickDischarge, _dirty: false } : { enabled: false },
+    generalObservations: round?.generalObservations || "",
+    generalObservationDate: normalizeDate(round?.generalObservationDate) || date,
     noInvasivesConfirmed: Boolean(round?.noInvasivesConfirmed),
     deviceDrafts: packageReviews.map((review, index) => ({
       ...defaultPreventiveDevice(review.packageType || "ESPECIAL"),
@@ -901,7 +1188,11 @@ function roundDraftKey(round = null) {
     round.status || "",
     JSON.stringify(round.packageReviews || []),
     JSON.stringify(round.pendingIssuesAdded || []),
-    round.notes || ""
+    round.notes || "",
+    JSON.stringify(round.patientMovement || {}),
+    JSON.stringify(round.quickDischarge || {}),
+    round.generalObservations || "",
+    round.generalObservationDate || ""
   ].join("|");
 }
 
@@ -911,6 +1202,9 @@ function draftTouched(draft = {}) {
     || Object.keys(draft.removals || {}).length
     || draft.pendingText
     || draft.notes
+    || draft.patientMovement?._dirty
+    || draft.quickDischarge?._dirty
+    || draft.generalObservations
     || draft.noInvasivesConfirmed
   );
 }
@@ -924,6 +1218,10 @@ function resetDraft(draft) {
   draft.removals = {};
   draft.pendingText = "";
   draft.notes = "";
+  draft.patientMovement = {};
+  draft.quickDischarge = { enabled: false };
+  draft.generalObservations = "";
+  draft.generalObservationDate = "";
   draft.noInvasivesConfirmed = false;
 }
 
