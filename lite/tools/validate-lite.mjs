@@ -284,6 +284,10 @@ const snapshotServiceSource = readFileSync(join(root, "src/services/snapshotServ
 if (!snapshotServiceSource.includes("snapshotPromises") || !snapshotServiceSource.includes("cacheSet(snapshotCacheKey(date)") || !snapshotServiceSource.includes("cacheGet(snapshotCacheKey(date)")) {
   fail("snapshotService debe cachear daily_snapshots por fecha y deduplicar lecturas en vuelo para Inicio.");
 }
+const catalogServiceSource = readFileSync(join(root, "src/services/catalogService.js"), "utf8");
+if (!catalogServiceSource.includes("catalogsPromise") || !catalogServiceSource.includes("cacheSet(CACHE_KEY, rows)") || !catalogServiceSource.includes("cacheGet(CACHE_KEY)")) {
+  fail("catalogService debe cachear catalogos y deduplicar lecturas en vuelo.");
+}
 
 const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
 if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".round-list > .round-card")) {
