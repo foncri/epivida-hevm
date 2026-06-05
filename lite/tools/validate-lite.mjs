@@ -263,6 +263,7 @@ for (const file of [
   join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-offline-queue.mjs"),
+  join(root, "tools/validate-round-helpers.mjs"),
   join(root, "tools/validate-security-config.mjs"),
   join(root, "tools/validate-migration-package.mjs")
 ]) {
@@ -300,6 +301,9 @@ if (!packageSource.includes("validate:security") || !packageSource.includes("val
 }
 if (!packageSource.includes("validate:offline") || !packageSource.includes("validate-offline-queue.mjs")) {
   fail("package.json debe exponer validate:offline para cola offline.");
+}
+if (!packageSource.includes("validate:round") || !packageSource.includes("validate-round-helpers.mjs")) {
+  fail("package.json debe exponer validate:round para filtros y mapa de camas de ronda.");
 }
 
 const headers = readFileSync(join(root, "_headers"), "utf8");

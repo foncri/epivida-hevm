@@ -1306,7 +1306,7 @@ function parseRoundRoute(parts = []) {
   return { date: first || todayIso(), patientId: parts[2] === "paciente" ? parts[3] : "" };
 }
 
-function filterAndSortRoundPatients(patients, filters) {
+export function filterAndSortRoundPatients(patients, filters) {
   const serviceKey = normalizeServiceKey(filters.service || "Todos");
   const query = normalizeRoundText(filters.query || "");
   const rows = [];
@@ -1321,7 +1321,7 @@ function filterAndSortRoundPatients(patients, filters) {
   return rows.sort(sortByServiceBed);
 }
 
-function roundPatientSearchText(patient = {}) {
+export function roundPatientSearchText(patient = {}) {
   const signature = [
     patientLabel(patient),
     patientBed(patient),
@@ -1392,7 +1392,7 @@ function activePatientCount(patients) {
   return patients.filter(patient => patient.active !== false).length;
 }
 
-function bedBoardItems(patients, serviceFilter = "Todos") {
+export function bedBoardItems(patients, serviceFilter = "Todos") {
   const sorted = dedupeBedRows(patients).sort(sortByServiceBed);
   const selectedServiceKey = normalizeServiceKey(serviceFilter === "Todos" ? "" : serviceFilter);
   const services = new Set(sorted.map(patient => normalizeServiceKey(patientService(patient))).filter(Boolean));
@@ -1683,14 +1683,14 @@ function rememberNormalized(cache, key, value) {
   return value;
 }
 
-function normalizeRoundText(value) {
+export function normalizeRoundText(value) {
   const key = String(value || "");
   const cached = roundTextCache.get(key);
   if (cached !== undefined) return cached;
   return rememberNormalized(roundTextCache, key, key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase());
 }
 
-function normalizeServiceKey(value) {
+export function normalizeServiceKey(value) {
   const key = String(value || "");
   const cached = serviceKeyCache.get(key);
   if (cached !== undefined) return cached;
