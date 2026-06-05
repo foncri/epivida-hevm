@@ -143,6 +143,7 @@ for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js
 for (const file of [
   join(root, "epivida-lite-config.js"),
   join(root, "epivida-lite-sw.js"),
+  join(root, "tools/prepare-user-seed.mjs"),
   join(root, "tools/validate-migration-package.mjs")
 ]) {
   if (!existsSync(file)) continue;
@@ -156,7 +157,7 @@ for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js
   }
 }
 
-for (const file of [join(root, "firebase/firestore.indexes.json"), join(repoRoot, "firebase.json")]) {
+for (const file of [join(root, "firebase/firestore.indexes.json"), join(root, "firebase/users.seed.example.json"), join(repoRoot, "firebase.json"), join(repoRoot, "package.json")]) {
   try {
     JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {

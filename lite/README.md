@@ -139,6 +139,28 @@ Reglas e indices iniciales:
 
 La ronda preventiva usa `round_sessions` para iniciar/cerrar ronda y `nursing_rounds` para cada cama revisada; ambas colecciones deben desplegarse junto con las reglas antes de operar en produccion.
 
+## Usuarios y roles
+
+Firestore exige un documento `users/{uid}` activo para cada persona que entra a EPIVIDA Lite. El UID debe venir de Firebase Auth.
+
+Preparacion local:
+
+```powershell
+Copy-Item lite/firebase/users.seed.example.json lite/firebase/users.seed.local.json
+node lite/tools/prepare-user-seed.mjs lite/firebase/users.seed.local.json --out lite/firebase/users.seed.output.local.json
+```
+
+Editar solo `users.seed.local.json` con UIDs reales de Firebase Auth y correos institucionales. No subir los archivos `*.local.json` al repositorio.
+
+Roles permitidos:
+
+- `admin_epidemiologia`
+- `epidemiologia`
+- `enfermeria`
+- `lectura`
+
+El paquete generado contiene documentos para `users/{uid}`; debe cargarse con una cuenta administrativa o herramienta segura del proyecto Firebase, nunca desde el cliente Lite.
+
 Colecciones objetivo:
 
 - `users`

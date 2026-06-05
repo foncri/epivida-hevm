@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "uid": "firebase-auth-uid-admin",
+      "email": "admin.epidemiologia@example.org",
+      "displayName": "Admin Epidemiologia",
+      "role": "admin_epidemiologia",
+      "active": true
+    },
+    {
+      "uid": "firebase-auth-uid-enfermeria",
+      "email": "enfermeria@example.org",
+      "displayName": "Enfermeria",
+      "role": "enfermeria",
+      "active": true
+    }
+  ]
+}

@@ -422,11 +422,14 @@ Configuracion actual:
 - `firebase.json` apunta a `lite/firebase/firestore.indexes.json`.
 - Deploy manual reproducible: `npm run deploy:firestore`.
 - La configuracion cliente de Firebase permanece en `lite/epivida-lite-config.js`.
+- `lite/tools/prepare-user-seed.mjs` genera un paquete local validado para documentos `users/{uid}`.
+- `lite/firebase/users.seed.example.json` documenta el formato sin datos reales.
 
 Antes de produccion:
 
 - Configurar dominios autorizados de Firebase Auth.
 - Publicar reglas e indices Firestore.
+- Crear usuarios en Firebase Auth y preparar `users/{uid}` con roles reales.
 - Validar que `#/admin` muestre Firebase configurado.
 - Confirmar usuarios/roles en `users/{uid}` antes de operar con pacientes reales.
 

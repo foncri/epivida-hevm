@@ -1,2 +1,3 @@
 data/*.private.js
 .codex-*-profile*/
+lite/firebase/*.local.json
