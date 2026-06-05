@@ -65,9 +65,10 @@ export async function queueWrite(app, operation) {
     ...operation
   };
   const queue = await readQueue();
+  const dedupeByPath = item.path && item.collection !== "audit_logs";
   const withoutDuplicate = queue.filter(row => {
     if (row.id === item.id) return false;
-    if (item.path && row.path === item.path) return false;
+    if (dedupeByPath && row.path === item.path) return false;
     return true;
   });
   await writeQueue([...withoutDuplicate, item]);
