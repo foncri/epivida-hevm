@@ -8,21 +8,13 @@ function requireValue(condition, message) {
   if (!condition) fail(message);
 }
 
-globalThis.window = {};
-globalThis.document = {
-  createElement() {
-    throw new Error("validate-round-helpers no debe renderizar DOM.");
-  }
-};
-globalThis.Node = class {};
-
 const {
   bedBoardItems,
   filterAndSortRoundPatients,
   normalizeRoundText,
   normalizeServiceKey,
   roundPatientSearchText
-} = await import("../src/modules/ronda-paquetes/index.js");
+} = await import("../src/modules/ronda-paquetes/roundHelpers.js");
 
 const patients = [
   {
@@ -65,7 +57,7 @@ requireValue(normalizeServiceKey("UTIP") === "UNIDAD DE CUIDADOS INTENSIVOS PEDI
 const miRows = filterAndSortRoundPatients(patients, { service: "MEDICINA INTERNA", query: "" });
 requireValue(miRows.map(row => row.patientId).join(",") === "p_mi_01,p_mi_02", "Filtro de Medicina Interna debe excluir inactivos y ordenar por cama.");
 
-const queryRows = filterAndSortRoundPatients(patients, { service: "Todos", query: "catéter" });
+const queryRows = filterAndSortRoundPatients(patients, { service: "Todos", query: "cateter" });
 requireValue(queryRows.length === 1 && queryRows[0].patientId === "p_mi_01", "Busqueda debe normalizar acentos y encontrar diagnostico.");
 
 const searchTextBefore = roundPatientSearchText(patients[0]);

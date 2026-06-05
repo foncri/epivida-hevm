@@ -26,58 +26,25 @@ import {
 } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
 import { listRoundsForPatient, listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
-
-const ROUND_SERVICE_FILTERS = [
-  { value: "Todos", label: "Todos" },
-  { value: "MEDICINA INTERNA", label: "Medicina Interna" },
-  { value: "CIRUGIA Y TRAUMATOLOGIA", label: "Cirugia y Traumatologia" },
-  { value: "PEDIATRIA", label: "Pediatria" },
-  { value: "CUNEROS", label: "Cuneros" },
-  { value: "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES", label: "UCIN" },
-  { value: "HEMODIALISIS", label: "Hemodialisis" },
-  { value: "GINECOLOGIA Y OBSTETRICIA", label: "Ginecologia y Obstetricia" },
-  { value: "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS", label: "UCIP" },
-  { value: "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS", label: "UCIA" },
-  { value: "URGENCIAS", label: "Urgencias" },
-  { value: "AMBULATORIO", label: "Ambulatorio" }
-];
-
-const KNOWN_SERVICE_BEDS = {
-  "MEDICINA INTERNA": [
-    ...range(1, 30),
-    "AIS 1 MI", "AIS 2 MI", "AIS 3 MI", "OBS 1 MI", "OBS 2 MI"
-  ],
-  "CIRUGIA Y TRAUMATOLOGIA": [
-    ...range(43, 66),
-    "AIS 1 CX", "AIS 2 CX", "AIS 3 CX", "OBS 1 CX", "OBS 2 CX"
-  ],
-  PEDIATRIA: [
-    ...range(67, 74),
-    "AIS 1 PED", "AIS 2 PED", "AIS 3 PED", "ESC 1", "ESC 2", "ESC 3"
-  ],
-  CUNEROS: ["CUN 1", "CUN 2", "CUN 3"],
-  "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES": ["UCIN 1", "UCIN 2"],
-  HEMODIALISIS: range(1, 100).map(number => `HEM ${number}`),
-  "GINECOLOGIA Y OBSTETRICIA": range(1, 5).map(number => `ALOJ ${number}`),
-  "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS": ["UTIP 1"],
-  "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS": ["UCIA 2", "UCIA 3", "UCIA AIS 4", "UCIA 5", "UCIA 6", "UCIA AIS 7", "UCIA 8"],
-  URGENCIAS: [
-    ...range(1, 4).map(number => `F${number}`),
-    ...range(1, 11).map(number => `UX ${number}`),
-    ...range(1, 5).map(number => `P${number}`),
-    "AIS P", "AISLADO 1", "AISLADO 2", "OBS 1 URG", "OBS 2 URG", "CHOQUE",
-    ...range(1, 14).map(number => `B${number}`)
-  ]
-};
+import {
+  bedBoardItems,
+  compareBeds,
+  filterAndSortRoundPatients,
+  normalizeRoundText,
+  normalizeServiceKey,
+  patientBed,
+  patientDiagnosis,
+  patientLabel,
+  patientService,
+  ROUND_SERVICE_FILTERS,
+  sortByServiceBed,
+  uniqueValues
+} from "./roundHelpers.js";
 
 const DISCHARGE_TYPES = ["MEJORIA", "TRASLADO", "MAXIMO BENEFICIO", "VOLUNTARIA", "DEFUNCION", "SIN DATO"];
 const DISCHARGE_SHIFTS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "JORNADA ESPECIAL", "SIN TURNO"];
 const PROBABLE_DISCHARGE_MESSAGE = "Revisar alta del paciente y su probable causa.";
 const REPORTED_DISCHARGE_MESSAGE = "Verificar alta hospitalaria reportada.";
-const NORMALIZE_CACHE_LIMIT = 1500;
-const roundTextCache = new Map();
-const serviceKeyCache = new Map();
-const patientSearchCache = new WeakMap();
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -1306,38 +1273,6 @@ function parseRoundRoute(parts = []) {
   return { date: first || todayIso(), patientId: parts[2] === "paciente" ? parts[3] : "" };
 }
 
-export function filterAndSortRoundPatients(patients, filters) {
-  const serviceKey = normalizeServiceKey(filters.service || "Todos");
-  const query = normalizeRoundText(filters.query || "");
-  const rows = [];
-  for (const patient of patients) {
-    if (patient.active === false) continue;
-    if (serviceKey !== "TODOS" && normalizeServiceKey(patientService(patient)) !== serviceKey) continue;
-    if (query) {
-      if (!roundPatientSearchText(patient).includes(query)) continue;
-    }
-    rows.push(patient);
-  }
-  return rows.sort(sortByServiceBed);
-}
-
-export function roundPatientSearchText(patient = {}) {
-  const signature = [
-    patientLabel(patient),
-    patientBed(patient),
-    patientService(patient),
-    patientDiagnosis(patient),
-    patient.sector,
-    patient.status || patient.currentState,
-    patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis
-  ].join(" ");
-  const cached = patientSearchCache.get(patient);
-  if (cached?.signature === signature) return cached.text;
-  const text = normalizeRoundText(signature);
-  patientSearchCache.set(patient, { signature, text });
-  return text;
-}
-
 function computeRoundStats(allPatients, visiblePatients, devices, roundMap, pending, roundSession = null) {
   let reviewedPatients = 0;
   let incompletePatients = 0;
@@ -1390,65 +1325,6 @@ function serviceCounts(patients) {
 
 function activePatientCount(patients) {
   return patients.filter(patient => patient.active !== false).length;
-}
-
-export function bedBoardItems(patients, serviceFilter = "Todos") {
-  const sorted = dedupeBedRows(patients).sort(sortByServiceBed);
-  const selectedServiceKey = normalizeServiceKey(serviceFilter === "Todos" ? "" : serviceFilter);
-  const services = new Set(sorted.map(patient => normalizeServiceKey(patientService(patient))).filter(Boolean));
-  const serviceKey = selectedServiceKey || (services.size === 1 ? [...services][0] : "");
-  if (!serviceKey) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
-  const knownBeds = knownBedsForService(serviceKey, sorted);
-  const numericRows = sorted
-    .map(patient => ({ patient, number: bedNumberToken(patientBed(patient)) }))
-    .filter(item => Number.isFinite(item.number));
-  const occupiedItems = sorted.map(patient => ({ bed: patientBed(patient), patient }));
-  if (numericRows.length < Math.max(3, Math.floor(sorted.length * 0.6))) return mergeKnownBedItems(occupiedItems, knownBeds);
-  const min = Math.min(...numericRows.map(item => item.number));
-  const max = Math.max(...numericRows.map(item => item.number));
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max - min > 80) return mergeKnownBedItems(occupiedItems, knownBeds);
-  const byNumber = new Map(numericRows.map(item => [item.number, item.patient]));
-  const inferred = [];
-  for (let number = min; number <= max; number += 1) {
-    const patient = byNumber.get(number) || null;
-    inferred.push({ bed: patient ? patientBed(patient) : String(number), patient });
-  }
-  return mergeKnownBedItems(inferred, knownBeds);
-}
-
-function dedupeBedRows(patients) {
-  const map = new Map();
-  patients.filter(patient => patient.active !== false).forEach(patient => {
-    const key = `${normalizeServiceKey(patientService(patient))}|${normalizeRoundText(patientBed(patient))}`;
-    if (!map.has(key)) map.set(key, patient);
-  });
-  return [...map.values()];
-}
-
-function knownBedsForService(service, patients = []) {
-  const serviceKey = normalizeServiceKey(service);
-  const knownBeds = KNOWN_SERVICE_BEDS[serviceKey] || [];
-  const occupiedBeds = patients.map(patientBed).filter(Boolean);
-  return uniqueValues([...knownBeds, ...occupiedBeds]).sort(compareBeds);
-}
-
-function mergeKnownBedItems(items, knownBeds = []) {
-  if (!knownBeds.length) return items;
-  const byBed = new Map(items.map(item => [normalizeRoundText(item.bed), item]));
-  knownBeds.forEach(bed => {
-    const key = normalizeRoundText(bed);
-    if (!byBed.has(key)) byBed.set(key, { bed, patient: null });
-  });
-  return [...byBed.values()].sort((a, b) => compareBeds(a.bed, b.bed));
-}
-
-function uniqueValues(values = []) {
-  const map = new Map();
-  values.filter(Boolean).forEach(value => {
-    const key = normalizeRoundText(value);
-    if (!map.has(key)) map.set(key, value);
-  });
-  return [...map.values()];
 }
 
 function bedTileState(patient, roundMap) {
@@ -1628,40 +1504,6 @@ function roundPatientHref(date, patientId) {
   return `#/ronda/${date}/paciente/${patientId}`;
 }
 
-function patientLabel(patient = {}) {
-  return patient.patientName || patient.name || patient.fullName || patient.patientId || "Paciente";
-}
-
-function patientService(patient = {}) {
-  return patient.service || patient.currentService || "SIN SERVICIO";
-}
-
-function patientBed(patient = {}) {
-  return patient.bed || patient.currentBed || "S/C";
-}
-
-function patientDiagnosis(patient = {}) {
-  return patient.currentDiagnosis || patient.hospitalDiagnosis || patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis || patient.diagnosis || "";
-}
-
-function sortByServiceBed(a, b) {
-  return patientService(a).localeCompare(patientService(b), "es")
-    || compareBeds(patientBed(a), patientBed(b))
-    || patientLabel(a).localeCompare(patientLabel(b), "es");
-}
-
-function compareBeds(a, b) {
-  const an = bedNumberToken(a);
-  const bn = bedNumberToken(b);
-  if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;
-  return String(a || "").localeCompare(String(b || ""), "es", { numeric: true });
-}
-
-function bedNumberToken(bed) {
-  const match = String(bed || "").match(/\d+/);
-  return match ? Number(match[0]) : null;
-}
-
 function daysBetween(start, end) {
   const startDate = normalizeDate(start);
   const endDate = normalizeDate(end);
@@ -1677,46 +1519,8 @@ function truncate(value, length) {
   return text.length > length ? `${text.slice(0, Math.max(0, length - 1))}...` : text;
 }
 
-function rememberNormalized(cache, key, value) {
-  if (!cache.has(key) && cache.size >= NORMALIZE_CACHE_LIMIT) cache.clear();
-  cache.set(key, value);
-  return value;
-}
-
-export function normalizeRoundText(value) {
-  const key = String(value || "");
-  const cached = roundTextCache.get(key);
-  if (cached !== undefined) return cached;
-  return rememberNormalized(roundTextCache, key, key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase());
-}
-
-export function normalizeServiceKey(value) {
-  const key = String(value || "");
-  const cached = serviceKeyCache.get(key);
-  if (cached !== undefined) return cached;
-  const text = normalizeRoundText(value).replace(/\s+/g, " ");
-  if (!text) return rememberNormalized(serviceKeyCache, key, "");
-  if (text === "TODOS") return rememberNormalized(serviceKeyCache, key, "TODOS");
-  if (text === "MI" || text.includes("MEDICINA INTERNA")) return rememberNormalized(serviceKeyCache, key, "MEDICINA INTERNA");
-  if (text.includes("CIRUG") || text.includes("TRAUMATO")) return rememberNormalized(serviceKeyCache, key, "CIRUGIA Y TRAUMATOLOGIA");
-  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text === "UCIN") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES");
-  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text === "UCIP" || text === "UTIP") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS");
-  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text === "UCIA") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS");
-  if (text.includes("PEDIATR")) return rememberNormalized(serviceKeyCache, key, "PEDIATRIA");
-  if (text.includes("CUNERO") || text === "CUN") return rememberNormalized(serviceKeyCache, key, "CUNEROS");
-  if (text.includes("HEMODI") || text === "HD") return rememberNormalized(serviceKeyCache, key, "HEMODIALISIS");
-  if (text.includes("GINECO") || text.includes("OBSTETRIC")) return rememberNormalized(serviceKeyCache, key, "GINECOLOGIA Y OBSTETRICIA");
-  if (text.includes("URGENCIA") || text === "URG") return rememberNormalized(serviceKeyCache, key, "URGENCIAS");
-  if (text.includes("AMBULATOR")) return rememberNormalized(serviceKeyCache, key, "AMBULATORIO");
-  return rememberNormalized(serviceKeyCache, key, text);
-}
-
 function normalizeStatusKey(value) {
   return normalizeRoundText(value).replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-}
-
-function range(start, end) {
-  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => String(start + index));
 }
 
 function isCvcDevice(device) {
