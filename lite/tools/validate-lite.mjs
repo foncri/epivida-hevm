@@ -138,6 +138,23 @@ const initialJsBytes = ["epivida-lite-config.js", "src/main.js"]
 assertBudget("JS inicial de EPIVIDA Lite", initialJsBytes, budgets.initialJsBytes);
 assertBudget("CSS inicial de EPIVIDA Lite", statSync(join(root, "src/styles/base.css")).size, budgets.initialCssBytes);
 
+const mainSource = readFileSync(join(root, "src/main.js"), "utf8");
+if (
+  mainSource.includes('from "./services/authService.js"') ||
+  mainSource.includes('from "./lib/pwa.js"') ||
+  mainSource.includes("import { initAuthState }") ||
+  mainSource.includes("import { registerLiteServiceWorker }")
+) {
+  fail("src/main.js debe diferir authService y PWA con imports dinamicos fuera del grafo inicial.");
+}
+if (
+  !mainSource.includes('import("./services/authService.js")') ||
+  !mainSource.includes('import("./lib/pwa.js")') ||
+  !mainSource.includes("requestAnimationFrame")
+) {
+  fail("src/main.js debe iniciar auth/PWA despues del primer frame para acelerar el pintado inicial.");
+}
+
 for (const file of walk(join(root, "src/modules")).filter(file => file.endsWith("index.js"))) {
   const relativeFile = relative(root, file).replaceAll("\\", "/");
   const size = statSync(file).size;
