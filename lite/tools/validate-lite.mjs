@@ -275,6 +275,9 @@ if (
 if (!roundModuleSource.includes("createdEpisodeTasks") || !roundModuleSource.includes("removalTasks") || !roundModuleSource.includes("patientActionTask") || !roundModuleSource.includes("Promise.all(createdEpisodeTasks)") || !roundModuleSource.includes("activeDeviceById")) {
   fail("ronda-paquetes debe paralelizar escrituras independientes de dispositivos durante el guardado de ronda.");
 }
+if ((roundModuleSource.match(/activeDeviceById/g) || []).length < 2) {
+  fail("ronda-paquetes debe reutilizar mapas por episodeId para validar y guardar retiros sin busquedas lineales repetidas.");
+}
 
 const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");
 if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromise) return dbPromise")) {

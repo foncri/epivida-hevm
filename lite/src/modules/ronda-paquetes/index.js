@@ -1155,8 +1155,9 @@ function validateDraft(draft, activeDevices, requestedStatus) {
     draft.deviceDrafts.filter(packageCreatesDevice).forEach(device => {
       if (!device.installationDate) errors.push(`${deviceDisplayName(device)}: falta fecha de instalacion.`);
     });
+    const activeDeviceById = new Map(activeDevices.map(device => [device.episodeId, device]));
     Object.entries(draft.removals || {}).forEach(([episodeId, removalDate]) => {
-      const device = activeDevices.find(item => item.episodeId === episodeId);
+      const device = activeDeviceById.get(episodeId);
       if (removalDate && device?.installationDate && removalDate < device.installationDate) {
         errors.push(`${deviceDisplayName(device)}: retiro antes de instalacion.`);
       }
