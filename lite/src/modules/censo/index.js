@@ -1,4 +1,4 @@
-import { badge, button, dateInput, el, field, notice, numberInput, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
+import { badge, button, dateInput, el, field, frameScheduler, notice, numberInput, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage } from "../../components/moduleLayout.js";
 import { currentCensus } from "../../services/censusService.js";
 import { archivePatient, filterPatients, savePatient } from "../../services/patientService.js";
@@ -22,7 +22,7 @@ export async function render({ app }) {
     const visible = filterPatients(patients, filters);
     body.replaceChildren(
       message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
-      toolbar(filters, patients, redraw),
+      toolbar(filters, patients, redraw, scheduleRedraw),
       editing ? patientForm(app, editing, async saved => {
         patients = upsertPatient(patients, saved);
         editing = null;
@@ -56,14 +56,15 @@ export async function render({ app }) {
     );
   }
 
+  const scheduleRedraw = frameScheduler(redraw);
   redraw();
   return modulePage("Censo", `Pacientes activos desde Firestore. Censo ${census.date}. Busqueda local sin consultar por cada tecla.`, [body], [
     writable ? button("Nuevo paciente", () => { editing = {}; redraw(); }, { class: "ghost" }) : ""
   ]);
 }
 
-function toolbar(filters, patients, redraw) {
-  const query = textInput({ placeholder: "Buscar nombre, cama, diagnostico", oninput: event => { filters.query = event.target.value; redraw(); } });
+function toolbar(filters, patients, redraw, scheduleRedraw) {
+  const query = textInput({ placeholder: "Buscar nombre, cama, diagnostico", oninput: event => { filters.query = event.target.value; scheduleRedraw(); } });
   const service = selectInput(patientValues(patients, row => row.service || row.currentService), { onchange: event => { filters.service = event.target.value; redraw(); } });
   const status = selectInput(patientValues(patients, row => row.status || row.currentState), { onchange: event => { filters.status = event.target.value; redraw(); } });
   return el("div", { class: "toolbar" }, [query, service, status]);

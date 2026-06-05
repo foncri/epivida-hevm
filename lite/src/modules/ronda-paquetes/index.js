@@ -1,4 +1,4 @@
-import { badge, button, dateInput, el, field, link, notice, selectInput, textInput, textareaInput } from "../../components/dom.js";
+import { badge, button, dateInput, el, field, frameScheduler, link, notice, selectInput, textInput, textareaInput } from "../../components/dom.js";
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
@@ -109,7 +109,7 @@ async function renderRoundPage(app, parsed) {
         redraw();
       }),
       message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
-      renderServiceFilters(patients, local, redraw),
+      renderServiceFilters(patients, local, redraw, scheduleRedraw),
       renderBedBoard(visible, roundMap, date, local.filters.service),
       renderPreventivePackagePanel(roundStats),
       stats([
@@ -132,6 +132,7 @@ async function renderRoundPage(app, parsed) {
     );
   }
 
+  const scheduleRedraw = frameScheduler(redraw);
   redraw();
   return page;
 }
@@ -171,7 +172,7 @@ function renderRoundHeader(app, date, roundStats, onSessionSaved, onMessage) {
   ]);
 }
 
-function renderServiceFilters(patients, local, redraw) {
+function renderServiceFilters(patients, local, redraw, scheduleRedraw = redraw) {
   const counts = serviceCounts(patients);
   const knownKeys = new Set(ROUND_SERVICE_FILTERS.map(filter => normalizeServiceKey(filter.value)));
   const extraFilters = [...counts.keys()]
@@ -196,7 +197,7 @@ function renderServiceFilters(patients, local, redraw) {
       placeholder: "Buscar cama, paciente o diagnostico",
       oninput: event => {
         local.filters.query = event.target.value;
-        redraw();
+        scheduleRedraw();
       }
     })
   ]);

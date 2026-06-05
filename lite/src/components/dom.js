@@ -22,6 +22,19 @@ export function append(node, children = []) {
   return node;
 }
 
+export function frameScheduler(callback) {
+  let queued = false;
+  return () => {
+    if (queued) return;
+    queued = true;
+    const schedule = globalThis.requestAnimationFrame || (fn => globalThis.setTimeout(fn, 16));
+    schedule(() => {
+      queued = false;
+      callback();
+    });
+  };
+}
+
 export function button(label, onClick, attrs = {}) {
   return el("button", { type: "button", onclick: onClick, ...attrs }, [label]);
 }
