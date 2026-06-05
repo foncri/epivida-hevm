@@ -371,15 +371,24 @@ No colocar en frontend:
 
 Hosting principal objetivo: Cloudflare Pages.
 
-Configuracion recomendada:
+Configuracion actual para la fase estatica en `lite/`:
 
-- Build command: `npm run build`.
-- Output directory: `dist`.
+- Build command: vacio o `npm run validate:lite`.
+- Output directory: `lite`.
+- Configuracion versionada: `wrangler.toml`.
+- Deploy manual reproducible: `npm run deploy:pages`.
+- Validacion previa: `npm run validate:lite`.
 - Rutas hash inicialmente para evitar redirects complejos.
 
-Archivo `_headers` propuesto:
+Archivo `_headers` actual:
 
 ```text
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-Frame-Options: DENY
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
@@ -404,6 +413,22 @@ Si se migra a history routing, agregar `_redirects`:
 ```text
 /* /index.html 200
 ```
+
+## Firebase/Firestore reproducible
+
+Configuracion actual:
+
+- `firebase.json` apunta a `lite/firebase/firestore.rules`.
+- `firebase.json` apunta a `lite/firebase/firestore.indexes.json`.
+- Deploy manual reproducible: `npm run deploy:firestore`.
+- La configuracion cliente de Firebase permanece en `lite/epivida-lite-config.js`.
+
+Antes de produccion:
+
+- Configurar dominios autorizados de Firebase Auth.
+- Publicar reglas e indices Firestore.
+- Validar que `#/admin` muestre Firebase configurado.
+- Confirmar usuarios/roles en `users/{uid}` antes de operar con pacientes reales.
 
 ## Plan por fases
 

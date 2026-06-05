@@ -1,0 +1,11 @@
+{
+  "name": "epivida-hevm",
+  "version": "0.0.0-lite-rework",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate:lite": "node lite/tools/validate-lite.mjs",
+    "deploy:pages": "wrangler pages deploy lite --project-name epivida-lite",
+    "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"
+  }
+}

@@ -73,6 +73,9 @@ Configuracion recomendada para esta fase estatica:
 
 - Build command: vacio.
 - Output directory: `lite`.
+- Archivo raiz: `wrangler.toml`.
+- Validacion previa: `npm run validate:lite`.
+- Deploy manual: `npm run deploy:pages`.
 - Variables: ninguna obligatoria si se inyecta la configuracion por script seguro. En una fase posterior con Vite, usar `VITE_FIREBASE_*`.
 
 `lite/_headers` ya incluye headers de cache para HTML, JS, CSS, assets y manifest.
@@ -131,6 +134,8 @@ Reglas e indices iniciales:
 
 - `lite/firebase/firestore.rules`
 - `lite/firebase/firestore.indexes.json`
+- `firebase.json` en la raiz apunta a estas reglas e indices.
+- Deploy manual: `npm run deploy:firestore`.
 
 La ronda preventiva usa `round_sessions` para iniciar/cerrar ronda y `nursing_rounds` para cada cama revisada; ambas colecciones deben desplegarse junto con las reglas antes de operar en produccion.
 
@@ -175,6 +180,7 @@ Colecciones objetivo:
 
 - Sintaxis de todos los `.js`: OK con Node incluido en Codex.
 - Sin `iaas-system`, Sheets, XLSX, `innerHTML` ni `localStorage` en `lite/src`.
+- `npm run validate:lite` verifica archivos obligatorios, JSON de Firebase, headers de seguridad y patrones legacy prohibidos.
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.
