@@ -141,6 +141,19 @@ if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource
   fail("src/router.js debe validar auth ready y rol antes de importar modulos clinicos.");
 }
 
+const firebaseSource = readFileSync(join(root, "src/lib/firebase.js"), "utf8");
+const authServiceSource = readFileSync(join(root, "src/services/authService.js"), "utf8");
+const firestoreServiceSource = readFileSync(join(root, "src/services/firestoreService.js"), "utf8");
+if (!firebaseSource.includes("firebaseAuthRuntime") || !firebaseSource.includes("firebaseFirestoreRuntime")) {
+  fail("src/lib/firebase.js debe separar runtime de Auth y Firestore para aligerar el arranque.");
+}
+if (!authServiceSource.includes("firebaseAuthRuntime") || authServiceSource.includes("firebaseRuntime")) {
+  fail("authService debe usar firebaseAuthRuntime sin cargar Firestore al iniciar sesion.");
+}
+if (!firestoreServiceSource.includes("firebaseFirestoreRuntime")) {
+  fail("firestoreService debe usar firebaseFirestoreRuntime para cargar Firestore solo cuando se consulta datos.");
+}
+
 const deviceServiceSource = readFileSync(join(root, "src/services/deviceService.js"), "utf8");
 if (!deviceServiceSource.includes("function activeDevice") || !deviceServiceSource.includes("filter(activeDevice)")) {
   fail("deviceService debe filtrar dispositivos activos tanto desde Firestore como desde cache/cola offline.");

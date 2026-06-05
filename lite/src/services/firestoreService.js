@@ -1,8 +1,8 @@
-import { firebaseRuntime } from "../lib/firebase.js";
+import { firebaseFirestoreRuntime } from "../lib/firebase.js";
 import { stripUndefined } from "../lib/validators.js";
 
 export async function dbRuntime() {
-  const runtime = await firebaseRuntime();
+  const runtime = await firebaseFirestoreRuntime();
   if (!runtime) throw new Error("Firestore no configurado.");
   return runtime;
 }

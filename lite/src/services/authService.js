@@ -1,5 +1,5 @@
 import { appConfig } from "../lib/config.js";
-import { firebaseRuntime } from "../lib/firebase.js";
+import { firebaseAuthRuntime } from "../lib/firebase.js";
 import { activeProfile, normalizeRole } from "../lib/security.js";
 import { getUserProfile, touchLastLogin } from "./userService.js";
 import { defaultRouteForRole, parseRoute } from "../router.js";
@@ -19,7 +19,7 @@ export function initAuthState(app) {
     app.loadCurrentRoute?.();
     return;
   }
-  firebaseRuntime().then(runtime => {
+  firebaseAuthRuntime().then(runtime => {
     if (!runtime) {
       app.setAuth({ status: "setup", error: "Falta configurar Firebase para EPIVIDA Lite." });
       return;
@@ -50,7 +50,7 @@ export function initAuthState(app) {
 }
 
 export async function signInWithGoogle() {
-  const runtime = await firebaseRuntime();
+  const runtime = await firebaseAuthRuntime();
   if (!runtime) {
     currentApp?.setAuth({ status: "setup", error: "Configura Firebase antes de iniciar sesion." });
     return;
@@ -60,6 +60,6 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
-  const runtime = await firebaseRuntime();
+  const runtime = await firebaseAuthRuntime();
   if (runtime) await runtime.authMod.signOut(runtime.auth);
 }

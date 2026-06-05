@@ -1,23 +1,60 @@
 import { FIREBASE_VERSION, firebaseConfig } from "./config.js";
 
-let runtimePromise = null;
+let baseRuntimePromise = null;
+let authRuntimePromise = null;
+let firestoreRuntimePromise = null;
 
-export async function firebaseRuntime() {
-  if (runtimePromise) return runtimePromise;
-  runtimePromise = loadRuntime();
-  return runtimePromise;
+export async function firebaseBaseRuntime() {
+  if (baseRuntimePromise) return baseRuntimePromise;
+  baseRuntimePromise = loadBaseRuntime();
+  return baseRuntimePromise;
 }
 
-async function loadRuntime() {
+async function loadBaseRuntime() {
   const config = firebaseConfig();
   if (!config) return null;
-  const [appMod, authMod, fsMod] = await Promise.all([
-    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
-    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-    import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
-  ]);
+  const appMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`);
   const app = appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(config);
-  const auth = authMod.getAuth(app);
-  const db = fsMod.getFirestore(app);
-  return { appMod, authMod, fsMod, app, auth, db };
+  return { appMod, app };
+}
+
+export async function firebaseAuthRuntime() {
+  if (authRuntimePromise) return authRuntimePromise;
+  authRuntimePromise = loadAuthRuntime();
+  return authRuntimePromise;
+}
+
+async function loadAuthRuntime() {
+  const base = await firebaseBaseRuntime();
+  if (!base) return null;
+  const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+  const auth = authMod.getAuth(base.app);
+  return { ...base, authMod, auth };
+}
+
+export async function firebaseFirestoreRuntime() {
+  if (firestoreRuntimePromise) return firestoreRuntimePromise;
+  firestoreRuntimePromise = loadFirestoreRuntime();
+  return firestoreRuntimePromise;
+}
+
+async function loadFirestoreRuntime() {
+  const base = await firebaseBaseRuntime();
+  if (!base) return null;
+  const fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`);
+  const db = fsMod.getFirestore(base.app);
+  return { ...base, fsMod, db };
+}
+
+export async function firebaseRuntime() {
+  const [authRuntime, firestoreRuntime] = await Promise.all([
+    firebaseAuthRuntime(),
+    firebaseFirestoreRuntime()
+  ]);
+  if (!authRuntime || !firestoreRuntime) return null;
+  return {
+    ...authRuntime,
+    fsMod: firestoreRuntime.fsMod,
+    db: firestoreRuntime.db
+  };
 }
