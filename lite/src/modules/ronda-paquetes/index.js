@@ -74,6 +74,9 @@ const DISCHARGE_TYPES = ["MEJORIA", "TRASLADO", "MAXIMO BENEFICIO", "VOLUNTARIA"
 const DISCHARGE_SHIFTS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "JORNADA ESPECIAL", "SIN TURNO"];
 const PROBABLE_DISCHARGE_MESSAGE = "Revisar alta del paciente y su probable causa.";
 const REPORTED_DISCHARGE_MESSAGE = "Verificar alta hospitalaria reportada.";
+const NORMALIZE_CACHE_LIMIT = 1500;
+const roundTextCache = new Map();
+const serviceKeyCache = new Map();
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -1665,26 +1668,38 @@ function truncate(value, length) {
   return text.length > length ? `${text.slice(0, Math.max(0, length - 1))}...` : text;
 }
 
+function rememberNormalized(cache, key, value) {
+  if (!cache.has(key) && cache.size >= NORMALIZE_CACHE_LIMIT) cache.clear();
+  cache.set(key, value);
+  return value;
+}
+
 function normalizeRoundText(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+  const key = String(value || "");
+  const cached = roundTextCache.get(key);
+  if (cached !== undefined) return cached;
+  return rememberNormalized(roundTextCache, key, key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase());
 }
 
 function normalizeServiceKey(value) {
+  const key = String(value || "");
+  const cached = serviceKeyCache.get(key);
+  if (cached !== undefined) return cached;
   const text = normalizeRoundText(value).replace(/\s+/g, " ");
-  if (!text) return "";
-  if (text === "TODOS") return "TODOS";
-  if (text === "MI" || text.includes("MEDICINA INTERNA")) return "MEDICINA INTERNA";
-  if (text.includes("CIRUG") || text.includes("TRAUMATO")) return "CIRUGIA Y TRAUMATOLOGIA";
-  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text === "UCIN") return "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES";
-  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text === "UCIP" || text === "UTIP") return "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS";
-  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text === "UCIA") return "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS";
-  if (text.includes("PEDIATR")) return "PEDIATRIA";
-  if (text.includes("CUNERO") || text === "CUN") return "CUNEROS";
-  if (text.includes("HEMODI") || text === "HD") return "HEMODIALISIS";
-  if (text.includes("GINECO") || text.includes("OBSTETRIC")) return "GINECOLOGIA Y OBSTETRICIA";
-  if (text.includes("URGENCIA") || text === "URG") return "URGENCIAS";
-  if (text.includes("AMBULATOR")) return "AMBULATORIO";
-  return text;
+  if (!text) return rememberNormalized(serviceKeyCache, key, "");
+  if (text === "TODOS") return rememberNormalized(serviceKeyCache, key, "TODOS");
+  if (text === "MI" || text.includes("MEDICINA INTERNA")) return rememberNormalized(serviceKeyCache, key, "MEDICINA INTERNA");
+  if (text.includes("CIRUG") || text.includes("TRAUMATO")) return rememberNormalized(serviceKeyCache, key, "CIRUGIA Y TRAUMATOLOGIA");
+  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text === "UCIN") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES");
+  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text === "UCIP" || text === "UTIP") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS");
+  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text === "UCIA") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS");
+  if (text.includes("PEDIATR")) return rememberNormalized(serviceKeyCache, key, "PEDIATRIA");
+  if (text.includes("CUNERO") || text === "CUN") return rememberNormalized(serviceKeyCache, key, "CUNEROS");
+  if (text.includes("HEMODI") || text === "HD") return rememberNormalized(serviceKeyCache, key, "HEMODIALISIS");
+  if (text.includes("GINECO") || text.includes("OBSTETRIC")) return rememberNormalized(serviceKeyCache, key, "GINECOLOGIA Y OBSTETRICIA");
+  if (text.includes("URGENCIA") || text === "URG") return rememberNormalized(serviceKeyCache, key, "URGENCIAS");
+  if (text.includes("AMBULATOR")) return rememberNormalized(serviceKeyCache, key, "AMBULATORIO");
+  return rememberNormalized(serviceKeyCache, key, text);
 }
 
 function normalizeStatusKey(value) {
