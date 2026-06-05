@@ -280,6 +280,10 @@ const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");
 if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromise) return dbPromise")) {
   fail("src/lib/cache.js debe reutilizar la conexion IndexedDB para evitar aperturas repetidas.");
 }
+const snapshotServiceSource = readFileSync(join(root, "src/services/snapshotService.js"), "utf8");
+if (!snapshotServiceSource.includes("snapshotPromises") || !snapshotServiceSource.includes("cacheSet(snapshotCacheKey(date)") || !snapshotServiceSource.includes("cacheGet(snapshotCacheKey(date)")) {
+  fail("snapshotService debe cachear daily_snapshots por fecha y deduplicar lecturas en vuelo para Inicio.");
+}
 
 const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
 if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".round-list > .round-card")) {
