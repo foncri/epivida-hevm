@@ -13,6 +13,14 @@ const NAV = [
   ["admin", "Admin"]
 ];
 
+const HEAVY_PRELOAD_ROUTES = new Set(["ronda-paquetes"]);
+const idlePreloads = new Set();
+
+function afterIdle(callback) {
+  const schedule = globalThis.requestIdleCallback || (fn => globalThis.setTimeout(fn, 120));
+  schedule(callback, { timeout: 700 });
+}
+
 export function createApp(root) {
   const state = {
     route: { key: "inicio", parts: [] },
@@ -52,9 +60,16 @@ export function createApp(root) {
     const activeRoute = canonicalRouteKey(state.route.key);
     const allowedNav = NAV.filter(([route]) => canAccessRoute(route, role));
     const preloadAllowedRoute = route => {
-      if (state.auth.status === "ready" && canAccessRoute(route, role)) {
+      if (state.auth.status !== "ready" || !canAccessRoute(route, role)) return;
+      if (!HEAVY_PRELOAD_ROUTES.has(canonicalRouteKey(route))) {
         preloadRoute(route).catch(() => {});
+        return;
       }
+      if (idlePreloads.has(route)) return;
+      idlePreloads.add(route);
+      afterIdle(() => preloadRoute(route).catch(() => {
+        idlePreloads.delete(route);
+      }));
     };
     return el("div", { class: "app-shell" }, [
       el("header", { class: "topbar" }, [

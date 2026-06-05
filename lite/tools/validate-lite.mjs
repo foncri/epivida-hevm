@@ -234,6 +234,9 @@ if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeErr
 if (!appSource.includes("preloadRoute") || !appSource.includes("onpointerenter") || !appSource.includes("onfocus")) {
   fail("src/app.js debe precargar modulos permitidos en hover/focus de navegacion.");
 }
+if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-paquetes"') || !appSource.includes("requestIdleCallback")) {
+  fail("src/app.js debe diferir la precarga de rutas pesadas como ronda-paquetes hasta idle.");
+}
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");
 if (!domSource.includes("frameScheduler") || !domSource.includes("requestAnimationFrame")) {
