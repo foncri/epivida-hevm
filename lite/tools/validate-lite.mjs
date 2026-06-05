@@ -151,6 +151,14 @@ if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.inc
   fail("iaasService debe filtrar IAAS activas tanto desde Firestore como desde cache/cola offline.");
 }
 
+const offlineQueueSource = readFileSync(join(root, "src/services/offlineQueueService.js"), "utf8");
+if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueueSource.includes("sync_blocked")) {
+  fail("offlineQueueService debe separar errores reintentables de errores bloqueados por reglas/permisos.");
+}
+if (!offlineQueueSource.includes('item.status === "local_pending"')) {
+  fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
+}
+
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
   checkSyntax(file);
 }

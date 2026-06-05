@@ -1,17 +1,19 @@
 import { el, link } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todaySnapshot } from "../../services/snapshotService.js";
-import { listPendingWrites } from "../../services/offlineQueueService.js";
+import { listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
 
 export async function render({ app }) {
   const [snapshot, pendingWrites] = await Promise.all([todaySnapshot(), listPendingWrites()]);
+  const syncSummary = syncQueueSummary(pendingWrites);
   const role = app.state.auth.profile?.role || "";
   return modulePage("Inicio", "Resumen operativo minimo desde daily_snapshots. No carga reportes ni historico.", [
     stats([
       [snapshot?.totalActivePatients ?? "0", "Pacientes activos"],
       [snapshot?.totalIAASActive ?? "0", "IAAS activas"],
       [snapshot?.totalDevicesActive ?? "0", "Dispositivos activos"],
-      [String(pendingWrites.length || snapshot?.totalPendingIssues || 0), "Pendientes sync"]
+      [String(syncSummary.pending || snapshot?.totalPendingIssues || 0), "Pendientes sync"],
+      [String(syncSummary.blocked), "Sync bloqueada"]
     ]),
     el("section", { class: "row-list" }, [
       quick("Monitoreo epidemiologico", "#/monitoreo-epidemiologico", "Tabla rapida de pacientes activos."),

@@ -3,6 +3,21 @@ import { nowIso } from "../lib/date.js";
 import { addDocData, setDocMerge } from "./firestoreService.js";
 
 const QUEUE_KEY = "sync_queue:pending";
+const NON_RETRYABLE_CODES = new Set([
+  "permission-denied",
+  "unauthenticated",
+  "invalid-argument",
+  "failed-precondition",
+  "not-found",
+  "already-exists"
+]);
+const NON_RETRYABLE_MESSAGES = [
+  "permission-denied",
+  "missing or insufficient permissions",
+  "usuario sin perfil",
+  "usuario inactivo",
+  "no autorizado"
+];
 
 function makeId(prefix = "sync") {
   if (globalThis.crypto?.randomUUID) return `${prefix}_${globalThis.crypto.randomUUID()}`;
@@ -17,6 +32,14 @@ async function readQueue() {
 async function writeQueue(rows) {
   await cacheSet(QUEUE_KEY, rows);
   return rows;
+}
+
+function retryableSyncError(error) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || error || "").toLowerCase();
+  if (NON_RETRYABLE_CODES.has(code)) return false;
+  if (NON_RETRYABLE_MESSAGES.some(pattern => message.includes(pattern))) return false;
+  return true;
 }
 
 export async function queueWrite(app, operation) {
@@ -47,10 +70,21 @@ export async function listPendingWrites() {
   return readQueue();
 }
 
+export function syncQueueSummary(queue = []) {
+  return queue.reduce((summary, item) => {
+    const status = item.status || "local_pending";
+    summary.total += 1;
+    if (status === "sync_blocked") summary.blocked += 1;
+    else if (status === "local_pending") summary.pending += 1;
+    else summary.other += 1;
+    return summary;
+  }, { total: 0, pending: 0, blocked: 0, other: 0 });
+}
+
 export async function pendingPayloadsForCollection(collection) {
   const queue = await readQueue();
   return queue
-    .filter(item => item.status !== "server_synced")
+    .filter(item => item.status === "local_pending")
     .filter(item => item.kind === "setDocMerge" && item.path?.startsWith(`${collection}/`))
     .map(item => ({
       id: item.path.split("/").at(-1),
@@ -65,6 +99,7 @@ export async function setDocMergeOrQueue(app, path, data, meta = {}) {
     await setDocMerge(path, data);
     return { ...data, syncStatus: "server_synced" };
   } catch (error) {
+    if (!retryableSyncError(error)) throw error;
     await queueWrite(app, {
       kind: "setDocMerge",
       path,
@@ -82,6 +117,7 @@ export async function addDocOrQueue(app, collection, data, meta = {}) {
     const id = await addDocData(collection, data);
     return { id, syncStatus: "server_synced" };
   } catch (error) {
+    if (!retryableSyncError(error)) throw error;
     const item = await queueWrite(app, {
       kind: "addDocData",
       collection,
@@ -95,29 +131,36 @@ export async function addDocOrQueue(app, collection, data, meta = {}) {
 
 export async function flushPendingWrites() {
   const queue = await readQueue();
-  if (!queue.length) return { attempted: 0, synced: 0, pending: 0, errors: 0 };
+  if (!queue.length) return { attempted: 0, synced: 0, pending: 0, blocked: 0, errors: 0 };
+  let attempted = 0;
   let synced = 0;
   let errors = 0;
   const next = [];
 
   for (const item of queue) {
+    if (item.status === "sync_blocked") {
+      next.push(item);
+      continue;
+    }
     try {
+      attempted += 1;
       if (item.kind === "setDocMerge") await setDocMerge(item.path, item.data);
       else if (item.kind === "addDocData") await addDocData(item.collection, item.data);
       else throw new Error("Operacion de sincronizacion desconocida.");
       synced += 1;
     } catch (error) {
       errors += 1;
+      const retryable = retryableSyncError(error);
       next.push({
         ...item,
         attempts: Number(item.attempts || 0) + 1,
         lastAttemptAt: nowIso(),
-        status: "local_pending",
+        status: retryable ? "local_pending" : "sync_blocked",
         error: error?.message || String(error || "No se pudo sincronizar.")
       });
     }
   }
 
   await writeQueue(next);
-  return { attempted: queue.length, synced, pending: next.length, errors };
+  return { attempted, synced, pending: next.filter(item => item.status === "local_pending").length, blocked: next.filter(item => item.status === "sync_blocked").length, errors };
 }

@@ -206,6 +206,7 @@ Colecciones objetivo:
 - `npm run validate:lite` bloquea regresiones de peso inicial: `index.html` pequeno, un solo CSS inicial, solo `epivida-lite-config.js` + `src/main.js` como scripts iniciales y sin referencias legacy en el shell.
 - El router solo importa modulos clinicos cuando Firebase/Auth esta en estado `ready` y el rol tiene acceso a la ruta.
 - Las listas activas de dispositivos e IAAS filtran tambien cache y cola offline, para no reabrir invasivos retirados ni casos cerrados cuando no hay red.
+- La cola offline distingue escrituras reintentables de `sync_blocked`; errores de permisos/reglas no se mezclan como datos clinicos pendientes.
 - URL legacy publica revisada: `https://foncri.github.io/epivida-hevm/index.html#/ronda/2026-06-04` muestra puerta de acceso protegida.
 - Codigo legacy auditado: `renderRoundPage`, `renderBedBoard`, `renderPatientRound`, `renderDeviceDraft` y guardado de ronda.
 - Chrome local con `?epividaTest=1`: `#/ronda/2026-06-04` renderiza tablero de camas, filtros, paquetes y tarjetas por cama sin errores de consola.
