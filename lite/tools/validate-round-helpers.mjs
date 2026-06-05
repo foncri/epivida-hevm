@@ -11,6 +11,7 @@ function requireValue(condition, message) {
 const {
   bedBoardItems,
   filterAndSortRoundPatients,
+  knownBedsForService,
   normalizeRoundText,
   normalizeServiceKey,
   roundPatientSearchText
@@ -53,6 +54,7 @@ const patients = [
 requireValue(normalizeRoundText("  cateter venoso central  ") === "CATETER VENOSO CENTRAL", "normalizeRoundText debe quitar espacios, acentos y normalizar mayusculas.");
 requireValue(normalizeServiceKey("MI") === "MEDICINA INTERNA", "MI debe mapearse a Medicina Interna.");
 requireValue(normalizeServiceKey("UTIP") === "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS", "UTIP debe mapearse a UCIP/UTIP legacy.");
+requireValue(knownBedsForService("MI").includes("30"), "Camas conocidas de MI deben estar disponibles para movimientos de cama.");
 
 const miRows = filterAndSortRoundPatients(patients, { service: "MEDICINA INTERNA", query: "" });
 requireValue(miRows.map(row => row.patientId).join(",") === "p_mi_01,p_mi_02", "Filtro de Medicina Interna debe excluir inactivos y ordenar por cama.");

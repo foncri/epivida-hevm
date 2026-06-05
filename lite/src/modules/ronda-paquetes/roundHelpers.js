@@ -111,7 +111,7 @@ function dedupeBedRows(patients) {
   return [...map.values()];
 }
 
-function knownBedsForService(service, patients = []) {
+export function knownBedsForService(service, patients = []) {
   const serviceKey = normalizeServiceKey(service);
   const knownBeds = KNOWN_SERVICE_BEDS[serviceKey] || [];
   const occupiedBeds = patients.map(patientBed).filter(Boolean);

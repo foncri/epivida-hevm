@@ -30,6 +30,7 @@ import {
   bedBoardItems,
   compareBeds,
   filterAndSortRoundPatients,
+  knownBedsForService,
   normalizeRoundText,
   normalizeServiceKey,
   patientBed,
@@ -923,7 +924,7 @@ function patientMovementBedOptions(service, patient, movement = {}, includeCurre
   const values = [
     movement.bed,
     includeCurrent || normalizeServiceKey(patientService(patient)) === serviceKey ? patientBed(patient) : "",
-    ...(KNOWN_SERVICE_BEDS[serviceKey] || [])
+    ...knownBedsForService(serviceKey)
   ];
   return uniqueValues(values).sort(compareBeds).map(value => [value, value]);
 }
