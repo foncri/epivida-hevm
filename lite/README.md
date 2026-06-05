@@ -89,6 +89,7 @@ Configuracion recomendada para esta fase estatica:
 - Output directory: `lite`.
 - Archivo raiz: `wrangler.toml`.
 - Validacion previa: `npm run validate:lite`.
+- Validacion de despliegue: `npm run validate:deploy`.
 - Deploy manual: `npm run deploy:pages`.
 - GitHub Actions: `.github/workflows/epivida-lite-validate.yml` ejecuta `validate-lite` estricto y revision de sintaxis en cada cambio Lite.
 - Variables: ninguna obligatoria si se inyecta la configuracion por script seguro. En una fase posterior con Vite, usar `VITE_FIREBASE_*`.
@@ -97,6 +98,8 @@ Configuracion recomendada para esta fase estatica:
 Los modulos `src/*` quedan con `Cache-Control: no-cache` porque esta fase no usa filenames con hash; esto evita que Cloudflare o el navegador conserven modulos viejos despues de un despliegue.
 `epivida-lite-config.js` tambien queda `no-cache` para permitir cambios de configuracion entre despliegues.
 El service worker no precachea ni guarda `epivida-lite-config.js`; siempre debe venir de red para evitar configuracion Firebase vieja.
+
+`npm run validate:deploy` revisa `wrangler.toml`, `firebase.json`, `lite/_headers`, reglas e indices Firestore y scripts de despliegue antes de publicar.
 
 ## Rutas
 

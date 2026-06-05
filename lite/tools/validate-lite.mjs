@@ -241,6 +241,9 @@ if (!existsSync(workflowFile)) {
   if (!workflowSource.includes("node lite/tools/validate-local-qa.mjs")) {
     fail("El workflow de EPIVIDA Lite debe validar fixtures locales QA de ronda.");
   }
+  if (!workflowSource.includes("node lite/tools/validate-deploy-config.mjs")) {
+    fail("El workflow de EPIVIDA Lite debe validar configuracion de despliegue Cloudflare/Firebase.");
+  }
 }
 
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
@@ -251,6 +254,7 @@ for (const file of [
   join(root, "epivida-lite-config.js"),
   join(root, "epivida-lite-sw.js"),
   join(root, "tools/prepare-user-seed.mjs"),
+  join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-migration-package.mjs")
 ]) {
@@ -276,6 +280,9 @@ for (const file of [join(root, "firebase/firestore.indexes.json"), join(root, "f
 const packageSource = readFileSync(join(repoRoot, "package.json"), "utf8");
 if (!packageSource.includes("validate:lite:qa") || !packageSource.includes("validate-local-qa.mjs")) {
   fail("package.json debe exponer validate:lite:qa para fixtures locales de ronda.");
+}
+if (!packageSource.includes("validate:deploy") || !packageSource.includes("validate-deploy-config.mjs")) {
+  fail("package.json debe exponer validate:deploy para Cloudflare/Firebase.");
 }
 
 const headers = readFileSync(join(root, "_headers"), "utf8");

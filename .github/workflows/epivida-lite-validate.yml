@@ -40,6 +40,9 @@ jobs:
       - name: Validate local QA fixtures
         run: node lite/tools/validate-local-qa.mjs
 
+      - name: Validate deploy config
+        run: node lite/tools/validate-deploy-config.mjs
+
       - name: Check Lite JavaScript syntax
         shell: bash
         run: |
@@ -51,5 +54,6 @@ jobs:
           node --check lite/epivida-lite-sw.js
           node --check lite/tools/prepare-user-seed.mjs
           node --check lite/tools/validate-lite.mjs
+          node --check lite/tools/validate-deploy-config.mjs
           node --check lite/tools/validate-local-qa.mjs
           node --check lite/tools/validate-migration-package.mjs
