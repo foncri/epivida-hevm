@@ -40,6 +40,14 @@ for (const role of ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectu
   }
 }
 
+const usersBlock = blockFor(rules, "users");
+if (!usersBlock.includes('changedOnlyAllowed(["lastLoginAt", "updatedAt"])')) {
+  fail("users self-update debe limitarse a lastLoginAt y updatedAt.");
+}
+if (usersBlock.includes("allowedModules")) {
+  fail("users self-update no debe depender de una lista negativa de campos administrativos.");
+}
+
 for (const collection of [
   "users",
   "patients_active",

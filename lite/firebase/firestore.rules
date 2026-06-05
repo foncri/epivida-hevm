@@ -56,7 +56,7 @@ service cloud.firestore {
         || (
           activeUser()
           && request.auth.uid == uid
-          && !request.resource.data.diff(resource.data).changedKeys().hasAny(["role", "active", "allowedModules"])
+          && changedOnlyAllowed(["lastLoginAt", "updatedAt"])
         );
       allow delete: if false;
     }
