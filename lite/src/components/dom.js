@@ -91,7 +91,8 @@ export function notice(message, tone = "") {
 }
 
 export function table(headers = [], rows = []) {
-  return el("div", { class: "table-wrap" }, [
+  const large = rows.length > 40;
+  return el("div", { class: `table-wrap${large ? " large-table" : ""}` }, [
     el("table", {}, [
       el("thead", {}, [el("tr", {}, headers.map(header => el("th", {}, [header])))]),
       el("tbody", {}, rows.length ? rows : [el("tr", {}, [el("td", { colspan: headers.length || 1, class: "muted" }, ["Sin registros."])])])

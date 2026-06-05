@@ -222,6 +222,9 @@ const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");
 if (!domSource.includes("frameScheduler") || !domSource.includes("requestAnimationFrame")) {
   fail("components/dom.js debe exponer frameScheduler para coalescer redibujos clinicos.");
 }
+if (!domSource.includes("large-table") || !domSource.includes("rows.length > 40")) {
+  fail("components/dom.js debe marcar tablas clinicas grandes para optimizar renderizado.");
+}
 for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.js", "src/modules/ronda-paquetes/index.js"]) {
   const source = readFileSync(join(root, file), "utf8");
   if (!source.includes("frameScheduler") || !source.includes("scheduleRedraw")) {
@@ -237,6 +240,9 @@ if (!cacheSource.includes("let dbPromise") || !cacheSource.includes("if (dbPromi
 const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
 if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".round-list > .round-card")) {
   fail("src/styles/base.css debe proteger listas clinicas largas con content-visibility.");
+}
+if (!cssSource.includes(".large-table tbody tr") || !cssSource.includes("contain-intrinsic-size: 44px")) {
+  fail("src/styles/base.css debe proteger filas de tablas clinicas grandes con contencion de render.");
 }
 
 const exportServiceSource = readFileSync(join(root, "src/services/exportService.js"), "utf8");

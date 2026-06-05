@@ -117,6 +117,10 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .stat strong { display: block; font-size: 1.35rem; }
 .stat span { color: var(--muted); font-size: .88rem; }
 .table-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: auto; background: #fff; }
+.large-table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: 44px;
+}
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 th, td { padding: .55rem .6rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { background: #f9fafb; color: #374151; font-size: .78rem; text-transform: uppercase; }
