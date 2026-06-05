@@ -184,7 +184,7 @@ if (!authServiceSource.includes("firebaseAuthRuntime") || authServiceSource.incl
 if (!firestoreServiceSource.includes("firebaseFirestoreRuntime")) {
   fail("firestoreService debe usar firebaseFirestoreRuntime para cargar Firestore solo cuando se consulta datos.");
 }
-if (!firestoreServiceSource.includes("readPromises") || !firestoreServiceSource.includes("readOnce") || !firestoreServiceSource.includes("readPromises.delete(key)")) {
+if (!firestoreServiceSource.includes("readPromises") || !firestoreServiceSource.includes("readOnce") || !firestoreServiceSource.includes("readPromises.delete(key)") || !firestoreServiceSource.includes("invalidateReadsForPath")) {
   fail("firestoreService debe deduplicar lecturas Firestore concurrentes sin cache persistente de datos clinicos.");
 }
 

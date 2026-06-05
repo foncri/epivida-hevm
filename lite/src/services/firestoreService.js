@@ -16,6 +16,15 @@ function readKey(type, path, detail = "") {
   return `${type}:${path}:${detail}`;
 }
 
+function invalidateReadsForPath(path) {
+  const collection = path.split("/")[0] || path;
+  for (const key of [...readPromises.keys()]) {
+    if (key.startsWith(`doc:${path}:`) || key.startsWith(`collection:${collection}:`) || key.startsWith(`where:${collection}:`)) {
+      readPromises.delete(key);
+    }
+  }
+}
+
 export async function dbRuntime() {
   const runtime = await firebaseFirestoreRuntime();
   if (!runtime) throw new Error("Firestore no configurado.");
@@ -59,13 +68,17 @@ export async function listCollectionWhere(path, clauses = [], options = {}) {
 }
 
 export async function setDocMerge(path, data) {
+  invalidateReadsForPath(path);
   const { fsMod, db } = await dbRuntime();
   await fsMod.setDoc(fsMod.doc(db, path), stripUndefined(data), { merge: true });
+  invalidateReadsForPath(path);
 }
 
 export async function addDocData(path, data) {
+  invalidateReadsForPath(path);
   const { fsMod, db } = await dbRuntime();
   const ref = await fsMod.addDoc(fsMod.collection(db, path), stripUndefined(data));
+  invalidateReadsForPath(`${path}/${ref.id}`);
   return ref.id;
 }
 
