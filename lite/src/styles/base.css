@@ -116,7 +116,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .stat { border: 1px solid var(--line); border-radius: 6px; padding: .8rem; background: #fff; }
 .stat strong { display: block; font-size: 1.35rem; }
 .stat span { color: var(--muted); font-size: .88rem; }
-.table-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: auto; background: #fff; }
+.table-wrap { border: 1px solid var(--line); border-radius: 6px; overflow: auto; background: #fff; contain: content; }
 .large-table tbody tr {
   content-visibility: auto;
   contain-intrinsic-size: 44px;
@@ -235,6 +235,11 @@ tr:last-child td { border-bottom: 0; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   gap: .45rem;
+}
+.bed-board-grid > .bed-tile,
+.round-nav-grid > .bed-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: 88px 76px;
 }
 .bed-tile {
   min-height: 76px;
@@ -410,6 +415,8 @@ tr:last-child td { border-bottom: 0; }
   border-radius: 6px;
   background: #fff;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
 }
 .preventive-history-day summary {
   cursor: pointer;
@@ -453,7 +460,8 @@ tr:last-child td { border-bottom: 0; }
 .discharge-review-card,
 .active-device-card,
 .patient-action-card,
-.preventive-history-card {
+.preventive-history-card,
+.device-draft {
   content-visibility: auto;
   contain-intrinsic-size: 96px;
 }

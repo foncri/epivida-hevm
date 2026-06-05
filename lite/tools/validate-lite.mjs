@@ -285,6 +285,9 @@ if (!cssSource.includes("content-visibility: auto") || !cssSource.includes(".rou
 if (!cssSource.includes(".large-table tbody tr") || !cssSource.includes("contain-intrinsic-size: 44px")) {
   fail("src/styles/base.css debe proteger filas de tablas clinicas grandes con contencion de render.");
 }
+if (!cssSource.includes(".bed-board-grid > .bed-tile") || !cssSource.includes("contain-intrinsic-size: 88px 76px") || !cssSource.includes(".preventive-history-day")) {
+  fail("src/styles/base.css debe aislar tableros de camas e historial preventivo con content-visibility.");
+}
 
 const exportServiceSource = readFileSync(join(root, "src/services/exportService.js"), "utf8");
 if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.includes("JSON.stringify(value)") || !exportServiceSource.includes("\\uFEFF")) {
