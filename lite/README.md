@@ -92,6 +92,7 @@ Configuracion recomendada para esta fase estatica:
 - Validacion base: `npm run validate:lite`.
 - Validacion de despliegue: `npm run validate:deploy`.
 - Validacion de seguridad: `npm run validate:security`.
+- Validacion offline: `npm run validate:offline`.
 - Deploy manual: `npm run deploy:pages`.
 - GitHub Actions: `.github/workflows/epivida-lite-validate.yml` ejecuta `validate-lite` estricto y revision de sintaxis en cada cambio Lite.
 - Variables: ninguna obligatoria si se inyecta la configuracion por script seguro. En una fase posterior con Vite, usar `VITE_FIREBASE_*`.

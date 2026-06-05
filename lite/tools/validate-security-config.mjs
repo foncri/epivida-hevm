@@ -98,6 +98,9 @@ for (const expected of ["NON_RETRYABLE_CODES", "permission-denied", "sync_blocke
 if (!offlineQueue.includes('item.collection !== "audit_logs"')) {
   fail("offlineQueueService no debe colapsar auditorias offline por path.");
 }
+if (!offlineQueue.includes("export function nextQueueWithWrite")) {
+  fail("offlineQueueService debe exponer nextQueueWithWrite para validar deduplicacion offline.");
+}
 
 if (failures.length) {
   console.error(`EPIVIDA Lite security config validation failed (${failures.length})`);

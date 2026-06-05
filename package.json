@@ -9,6 +9,7 @@
     "validate:lite:qa": "node lite/tools/validate-local-qa.mjs",
     "validate:deploy": "node lite/tools/validate-deploy-config.mjs",
     "validate:security": "node lite/tools/validate-security-config.mjs",
+    "validate:offline": "node lite/tools/validate-offline-queue.mjs",
     "prepare:user-seed": "node lite/tools/prepare-user-seed.mjs",
     "deploy:pages": "wrangler pages deploy lite --project-name epivida-lite",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"
