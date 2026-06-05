@@ -15,7 +15,7 @@ Fase 4 inicial: remake fiel de Paquetes Preventivos sobre la base modular.
 - Service worker minimo.
 - Google Sheets no se carga en el arranque.
 - XLSX no se carga en el arranque.
-- No hay datos clinicos seed.
+- No hay datos clinicos seed productivos; `?epividaTest=1` usa datos sinteticos efimeros para QA local.
 - CRUD minimo en censo, dispositivos e IAAS.
 - Ronda `#/ronda/fecha` compatible con la URL legacy.
 - Paquetes Preventivos con mapa de camas, filtros por servicio, tarjetas por cama y captura por paciente.
@@ -48,6 +48,14 @@ Abrir:
 ```text
 http://localhost:5199/lite/index.html#/inicio
 ```
+
+Modo local de prueba sin Firebase:
+
+```text
+http://localhost:5199/lite/index.html?epividaTest=1#/ronda/2026-06-04
+```
+
+Ese modo activa usuario y datos sinteticos de QA (`p_uci_02`, `p_history`, `p_discharge`) para verificar ronda, camas, paquetes preventivos e historial sin usar pacientes reales.
 
 ## Configurar Firebase
 

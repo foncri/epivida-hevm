@@ -4,6 +4,7 @@ import { cleanText, stripUndefined, validDevice } from "../lib/validators.js";
 import { listCollectionWhere } from "./firestoreService.js";
 import { setDocMergeOrQueue, pendingPayloadsForCollection } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
+import { testActiveDevices } from "./testDataService.js";
 
 const CACHE_KEY = "devices_active:last";
 
@@ -35,12 +36,12 @@ function activeDevice(row = {}) {
 export async function listActiveDevices() {
   try {
     const rows = await listCollectionWhere("devices_active", [["active", "==", true]]);
-    const active = (await mergePending(rows)).filter(activeDevice);
+    const active = (await mergePending([...testActiveDevices(), ...rows])).filter(activeDevice);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return (await mergePending(cached?.value || [])).filter(activeDevice);
+    return (await mergePending([...testActiveDevices(), ...(cached?.value || [])])).filter(activeDevice);
   }
 }
 
@@ -48,10 +49,10 @@ export async function listDevicesForPatient(patientId) {
   if (!patientId) return [];
   try {
     const rows = await listCollectionWhere("devices_active", [["patientId", "==", patientId]]);
-    return (await mergePending(rows)).filter(row => row.patientId === patientId);
+    return (await mergePending([...testActiveDevices(), ...rows])).filter(row => row.patientId === patientId);
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return (await mergePending(cached?.value || [])).filter(row => row.patientId === patientId);
+    return (await mergePending([...testActiveDevices(), ...(cached?.value || [])])).filter(row => row.patientId === patientId);
   }
 }
 

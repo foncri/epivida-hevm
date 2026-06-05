@@ -2,6 +2,7 @@ import { todayIso, nowIso } from "../lib/date.js";
 import { getDocData, listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+import { testRounds, testRoundsForPatient } from "./testDataService.js";
 
 async function mergePending(rows = []) {
   const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
@@ -13,9 +14,9 @@ async function mergePending(rows = []) {
 export async function listTodayRounds(date = todayIso()) {
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["date", "==", date]]);
-    return (await mergePending(rows)).filter(row => row.date === date);
+    return (await mergePending([...testRounds(date), ...rows])).filter(row => row.date === date);
   } catch {
-    return (await mergePending([])).filter(row => row.date === date);
+    return (await mergePending(testRounds(date))).filter(row => row.date === date);
   }
 }
 
@@ -23,11 +24,11 @@ export async function listRoundsForPatient(patientId) {
   if (!patientId) return [];
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]]);
-    return (await mergePending(rows))
+    return (await mergePending([...testRoundsForPatient(patientId), ...rows]))
       .filter(row => row.patientId === patientId)
       .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
   } catch {
-    return (await mergePending([]))
+    return (await mergePending(testRoundsForPatient(patientId)))
       .filter(row => row.patientId === patientId)
       .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
   }

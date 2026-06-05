@@ -178,6 +178,18 @@ if (!offlineQueueSource.includes('item.status === "local_pending"')) {
   fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
 }
 
+const testDataSource = readFileSync(join(root, "src/services/testDataService.js"), "utf8");
+for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig().testMode"]) {
+  if (!testDataSource.includes(expected)) {
+    fail("testDataService debe proveer datos sinteticos solo en epividaTest para QA local de ronda.");
+  }
+}
+const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
+const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
+if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
+  fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
+}
+
 const appSource = readFileSync(join(root, "src/app.js"), "utf8");
 if (!appSource.includes("unhandledrejection") || !appSource.includes("runtimeError")) {
   fail("src/app.js debe mostrar errores async de acciones clinicas en el shell.");

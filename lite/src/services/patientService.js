@@ -4,6 +4,7 @@ import { listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { nowIso } from "../lib/date.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+import { testActivePatients } from "./testDataService.js";
 
 const CACHE_KEY = "patients_active:last";
 
@@ -31,12 +32,12 @@ async function mergePending(rows = []) {
 export async function listActivePatients() {
   try {
     const rows = await listCollectionWhere("patients_active", [["active", "==", true]]);
-    const active = (await mergePending(rows)).filter(row => row.active !== false);
+    const active = (await mergePending([...testActivePatients(), ...rows])).filter(row => row.active !== false);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return (await mergePending(cached?.value || [])).filter(row => row.active !== false);
+    return (await mergePending([...testActivePatients(), ...(cached?.value || [])])).filter(row => row.active !== false);
   }
 }
 
