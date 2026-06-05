@@ -413,7 +413,7 @@ async function renderPatientRound(app, parsed) {
       renderAddPackagePanel(date, patient.patientId, draft, redraw),
       renderPreventiveActionsPanel(app, date, currentPatient, draft, redraw),
       renderRoundSaveBar(app, date, currentPatient, currentPatients, roundMap, draft, async (status, direction) => {
-        const result = await savePatientRound(app, date, currentPatient, activeDevices, draft, status, direction);
+        const result = await savePatientRound(app, date, currentPatient, currentPatients, activeDevices, draft, status, direction);
         message = result.message || result;
         if (result.patient) {
           currentPatient = result.patient;
@@ -979,7 +979,7 @@ function renderRoundNavTile(item, date, roundMap, currentPatientId) {
   ]);
 }
 
-async function savePatientRound(app, date, patient, activeDevices, draft, requestedStatus, direction) {
+async function savePatientRound(app, date, patient, patients, activeDevices, draft, requestedStatus, direction) {
   const errors = validateDraft(draft, activeDevices, requestedStatus);
   if (errors.length) return errors.join(" ");
   const createdEpisodes = [];
@@ -1049,7 +1049,7 @@ async function savePatientRound(app, date, patient, activeDevices, draft, reques
   clearReviewDraft(roundState(app), date, patient.patientId);
 
   if (direction) {
-    const target = navigationPatientId(date, patient, direction);
+    const target = navigationPatientId(patient, patients, direction);
     location.hash = target ? roundPatientHref(date, target) : `#/ronda/${date}`;
     return { message: "Revision guardada.", patient: patientForRound, savedRound: saved };
   }
@@ -1491,10 +1491,14 @@ function isPePackageType(type = "") {
   return key === "PEYPBMT" || key === "PE" || key.includes("PRECAUCIONESESTANDAR");
 }
 
-function navigationPatientId(date, patient, direction) {
-  const rows = [...document.querySelectorAll(".round-nav-tile[href]")]
-    .map(node => node.getAttribute("href") || "")
-    .map(href => href.split("/").at(-1))
+function navigationPatientId(patient, patients = [], direction) {
+  const service = patientService(patient);
+  const serviceKey = normalizeServiceKey(service);
+  const rows = bedBoardItems(
+    patients.filter(row => normalizeServiceKey(patientService(row)) === serviceKey).sort(sortByServiceBed),
+    service
+  )
+    .map(item => item.patient?.patientId)
     .filter(Boolean);
   const index = rows.indexOf(patient.patientId);
   if (index === -1) return "";
