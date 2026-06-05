@@ -2,7 +2,7 @@ import { badge, button, dateInput, el, field, frameScheduler, link, notice, sele
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
-import { devicesByPatient, listActiveDevices, listDevicesForPatient, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
+import { activeDevice, devicesByPatient, listActiveDevices, listDevicesForPatient, removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceService.js";
 import { archivePatient, listActivePatients, savePatient } from "../../services/patientService.js";
 import {
   defaultPreventiveDevice,
@@ -380,9 +380,8 @@ function renderRoundCard(patient, devices, round, date) {
 async function renderPatientRound(app, parsed) {
   const local = roundState(app);
   const date = parsed.date;
-  const [patients, devices, rounds, patientRounds, patientDevices] = await Promise.all([
+  const [patients, rounds, patientRounds, patientDevices] = await Promise.all([
     listActivePatients(),
-    listActiveDevices(),
     listTodayRounds(date),
     listRoundsForPatient(parsed.patientId),
     listDevicesForPatient(parsed.patientId)
@@ -394,7 +393,7 @@ async function renderPatientRound(app, parsed) {
   let currentPatient = patient;
   let currentPatients = patients;
   const roundMap = new Map(rounds.map(row => [row.patientId, row]));
-  const activeDevices = devices.filter(device => device.patientId === patient.patientId);
+  const activeDevices = patientDevices.filter(activeDevice);
   const existingRound = roundMap.get(patient.patientId);
   let currentRound = existingRound;
   let currentPatientRounds = upsertRoundById(patientRounds, existingRound);

@@ -31,7 +31,7 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
-function activeDevice(row = {}) {
+export function activeDevice(row = {}) {
   return row.active !== false && !row.removalDate && row.status !== "retirado";
 }
 
