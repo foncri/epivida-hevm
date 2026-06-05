@@ -223,6 +223,7 @@ Colecciones objetivo:
 - Sin `iaas-system`, Sheets, XLSX, `innerHTML` ni `localStorage` en `lite/src`.
 - `npm run validate:lite` verifica archivos obligatorios, JSON de Firebase, headers de seguridad y patrones legacy prohibidos.
 - `npm run validate:lite` bloquea regresiones de peso inicial: `index.html` pequeno, un solo CSS inicial, solo `epivida-lite-config.js` + `src/main.js` como scripts iniciales y sin referencias legacy en el shell.
+- `npm run validate:lite` bloquea crecimiento excesivo por ruta: la ronda tiene presupuesto ampliado por fidelidad legacy y los demas modulos deben mantenerse pequenos.
 - El router solo importa modulos clinicos cuando Firebase/Auth esta en estado `ready` y el rol tiene acceso a la ruta.
 - Las listas activas de dispositivos e IAAS filtran tambien cache y cola offline, para no reabrir invasivos retirados ni casos cerrados cuando no hay red.
 - La cola offline distingue escrituras reintentables de `sync_blocked`; errores de permisos/reglas no se mezclan como datos clinicos pendientes.

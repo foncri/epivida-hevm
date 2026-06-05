@@ -34,6 +34,8 @@ const budgets = {
   indexHtmlBytes: 15_000,
   initialCssBytes: 50_000,
   initialJsBytes: 15_000,
+  maxRouteModuleBytes: 15_000,
+  roundRouteModuleBytes: 90_000,
   maxInitialStylesheets: 1,
   maxInitialScripts: 2
 };
@@ -135,6 +137,15 @@ const initialJsBytes = ["epivida-lite-config.js", "src/main.js"]
   .reduce((sum, size) => sum + size, 0);
 assertBudget("JS inicial de EPIVIDA Lite", initialJsBytes, budgets.initialJsBytes);
 assertBudget("CSS inicial de EPIVIDA Lite", statSync(join(root, "src/styles/base.css")).size, budgets.initialCssBytes);
+
+for (const file of walk(join(root, "src/modules")).filter(file => file.endsWith("index.js"))) {
+  const relativeFile = relative(root, file).replaceAll("\\", "/");
+  const size = statSync(file).size;
+  const limit = relativeFile === "src/modules/ronda-paquetes/index.js"
+    ? budgets.roundRouteModuleBytes
+    : budgets.maxRouteModuleBytes;
+  assertBudget(`Modulo de ruta ${relativeFile}`, size, limit);
+}
 
 const routerSource = readFileSync(join(root, "src/router.js"), "utf8");
 if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource.includes("canAccessRoute(route.key")) {
