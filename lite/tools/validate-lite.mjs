@@ -184,6 +184,16 @@ if (!serviceWorkerSource.includes("NEVER_CACHE") || !serviceWorkerSource.include
   fail("epivida-lite-sw.js debe excluir epivida-lite-config.js de cache runtime.");
 }
 
+const workflowFile = join(repoRoot, ".github/workflows/epivida-lite-validate.yml");
+if (!existsSync(workflowFile)) {
+  fail("Falta workflow GitHub Actions para validar EPIVIDA Lite.");
+} else {
+  const workflowSource = readFileSync(workflowFile, "utf8");
+  if (!workflowSource.includes("EPIVIDA_STRICT_SYNTAX") || !workflowSource.includes("node lite/tools/validate-lite.mjs")) {
+    fail("El workflow de EPIVIDA Lite debe ejecutar validate-lite en modo estricto.");
+  }
+}
+
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
   checkSyntax(file);
 }

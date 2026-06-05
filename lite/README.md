@@ -76,6 +76,7 @@ Configuracion recomendada para esta fase estatica:
 - Archivo raiz: `wrangler.toml`.
 - Validacion previa: `npm run validate:lite`.
 - Deploy manual: `npm run deploy:pages`.
+- GitHub Actions: `.github/workflows/epivida-lite-validate.yml` ejecuta `validate-lite` estricto y revision de sintaxis en cada cambio Lite.
 - Variables: ninguna obligatoria si se inyecta la configuracion por script seguro. En una fase posterior con Vite, usar `VITE_FIREBASE_*`.
 
 `lite/_headers` ya incluye headers de cache para HTML, JS, CSS, assets y manifest.

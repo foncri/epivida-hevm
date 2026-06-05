@@ -1,0 +1,51 @@
+name: EPIVIDA Lite validation
+
+on:
+  push:
+    branches:
+      - feature/epivida-lite-ultrafast-rework
+    paths:
+      - "lite/**"
+      - "firebase.json"
+      - "package.json"
+      - "wrangler.toml"
+      - ".github/workflows/epivida-lite-validate.yml"
+  pull_request:
+    paths:
+      - "lite/**"
+      - "firebase.json"
+      - "package.json"
+      - "wrangler.toml"
+      - ".github/workflows/epivida-lite-validate.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-lite:
+    name: Validate EPIVIDA Lite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate Lite guardrails
+        env:
+          EPIVIDA_STRICT_SYNTAX: "1"
+        run: node lite/tools/validate-lite.mjs
+
+      - name: Check Lite JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find lite/src -name '*.js' -print0)
+          node --check lite/epivida-lite-config.js
+          node --check lite/epivida-lite-sw.js
+          node --check lite/tools/prepare-user-seed.mjs
+          node --check lite/tools/validate-lite.mjs
+          node --check lite/tools/validate-migration-package.mjs

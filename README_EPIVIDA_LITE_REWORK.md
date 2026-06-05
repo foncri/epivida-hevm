@@ -378,6 +378,7 @@ Configuracion actual para la fase estatica en `lite/`:
 - Configuracion versionada: `wrangler.toml`.
 - Deploy manual reproducible: `npm run deploy:pages`.
 - Validacion previa: `npm run validate:lite`.
+- Validacion automatica: `.github/workflows/epivida-lite-validate.yml`.
 - Rutas hash inicialmente para evitar redirects complejos.
 
 Archivo `_headers` actual:
@@ -613,6 +614,7 @@ El validador `lite/tools/validate-lite.mjs` bloquea regresiones que vuelvan a co
 - La limpieza de cola desde Admin solo puede descartar `sync_blocked`, no escrituras `local_pending`.
 - Los CSV bajo demanda deben neutralizar formulas y conservar objetos anidados como JSON sin cargar librerias pesadas.
 - El service worker no puede precachear ni guardar `epivida-lite-config.js`; la configuracion Firebase debe quedar network-first.
+- GitHub Actions debe ejecutar `validate-lite` en modo estricto y `node --check` para EPIVIDA Lite.
 
 ## Reglas de no regresion
 
