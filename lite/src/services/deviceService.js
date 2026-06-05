@@ -28,15 +28,19 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
+function activeDevice(row = {}) {
+  return row.active !== false && !row.removalDate && row.status !== "retirado";
+}
+
 export async function listActiveDevices() {
   try {
     const rows = await listCollectionWhere("devices_active", [["active", "==", true]]);
-    const active = (await mergePending(rows)).filter(row => row.active !== false && !row.removalDate && row.status !== "retirado");
+    const active = (await mergePending(rows)).filter(activeDevice);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return mergePending(cached?.value || []);
+    return (await mergePending(cached?.value || [])).filter(activeDevice);
   }
 }
 

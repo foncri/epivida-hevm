@@ -141,6 +141,16 @@ if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource
   fail("src/router.js debe validar auth ready y rol antes de importar modulos clinicos.");
 }
 
+const deviceServiceSource = readFileSync(join(root, "src/services/deviceService.js"), "utf8");
+if (!deviceServiceSource.includes("function activeDevice") || !deviceServiceSource.includes("filter(activeDevice)")) {
+  fail("deviceService debe filtrar dispositivos activos tanto desde Firestore como desde cache/cola offline.");
+}
+
+const iaasServiceSource = readFileSync(join(root, "src/services/iaasService.js"), "utf8");
+if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.includes("filter(activeIaas)")) {
+  fail("iaasService debe filtrar IAAS activas tanto desde Firestore como desde cache/cola offline.");
+}
+
 for (const file of walk(join(root, "src")).filter(file => extname(file) === ".js")) {
   checkSyntax(file);
 }

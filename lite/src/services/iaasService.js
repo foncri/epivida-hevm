@@ -28,15 +28,20 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
+function activeIaas(row = {}) {
+  const status = String(row.status || "").toLowerCase();
+  return row.active !== false && !["closed", "cerrada", "archived"].includes(status);
+}
+
 export async function listActiveIaas() {
   try {
     const rows = await listCollectionWhere("iaas_active", [["active", "==", true]]);
-    const active = (await mergePending(rows)).filter(row => !["closed", "cerrada", "archived"].includes(String(row.status || "").toLowerCase()));
+    const active = (await mergePending(rows)).filter(activeIaas);
     cacheSet(CACHE_KEY, active).catch(() => undefined);
     return active;
   } catch {
     const cached = await cacheGet(CACHE_KEY);
-    return mergePending(cached?.value || []);
+    return (await mergePending(cached?.value || [])).filter(activeIaas);
   }
 }
 

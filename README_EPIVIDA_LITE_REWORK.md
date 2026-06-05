@@ -607,6 +607,7 @@ El validador `lite/tools/validate-lite.mjs` bloquea regresiones que vuelvan a co
 - El JS inicial y el CSS inicial tienen presupuesto de bytes.
 - El shell no puede referenciar `iaas-system`, `FULL_SCRIPTS`, `FULL_STYLES`, Sheets, XLSX, `innerHTML` ni `localStorage`.
 - El router no puede importar modulos clinicos si Auth no esta `ready` o el rol no tiene acceso a la ruta.
+- Los servicios activos no pueden devolver dispositivos retirados ni IAAS cerradas desde cache/cola offline.
 
 ## Reglas de no regresion
 
