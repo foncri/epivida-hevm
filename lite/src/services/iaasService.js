@@ -7,7 +7,9 @@ import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueue
 import { writeAudit } from "./auditService.js";
 
 const CACHE_KEY = "iaas_active:last";
+const IAAS_PATIENT_LIMIT = 50;
 let activeIaasPromise = null;
+const patientIaasPromises = new Map();
 
 function makeIaasId() {
   if (globalThis.crypto?.randomUUID) return `iaas_${globalThis.crypto.randomUUID()}`;
@@ -57,6 +59,39 @@ export async function listActiveIaas() {
   return activeIaasPromise;
 }
 
+async function loadIaasForPatient(patientId, limit = IAAS_PATIENT_LIMIT) {
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || IAAS_PATIENT_LIMIT));
+  if (appConfig().testMode) {
+    return (await mergePending([])).filter(row => row.patientId === patientId && activeIaas(row));
+  }
+  try {
+    const rows = await listCollectionWhere("iaas_active", [["patientId", "==", patientId], ["active", "==", true]], { limit: pageSize });
+    return (await mergePending(rows)).filter(row => row.patientId === patientId && activeIaas(row));
+  } catch {
+    const cached = await cacheGet(CACHE_KEY);
+    return (await mergePending(cached?.value || [])).filter(row => row.patientId === patientId && activeIaas(row));
+  }
+}
+
+function invalidatePatientIaas(patientId) {
+  if (!patientId) return;
+  for (const key of [...patientIaasPromises.keys()]) {
+    if (key.startsWith(`${patientId}:`)) patientIaasPromises.delete(key);
+  }
+}
+
+export async function listIaasForPatient(patientId, options = {}) {
+  if (!patientId) return [];
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || IAAS_PATIENT_LIMIT));
+  const key = `${patientId}:${limit}`;
+  if (!patientIaasPromises.has(key)) {
+    patientIaasPromises.set(key, loadIaasForPatient(patientId, limit).finally(() => {
+      patientIaasPromises.delete(key);
+    }));
+  }
+  return patientIaasPromises.get(key);
+}
+
 export async function saveIaasCase(app, iaas) {
   if (!validIaasCase(iaas)) throw new Error("IAAS sin paciente, tipo o estado.");
   const iaasId = iaas.iaasId || makeIaasId();
@@ -76,6 +111,7 @@ export async function saveIaasCase(app, iaas) {
     entityId: iaasId
   });
   activeIaasPromise = null;
+  invalidatePatientIaas(payload.patientId);
   await writeAudit(app, {
     actionType: iaas.iaasId ? "iaas_update" : "iaas_create",
     module: "epi-iaas",
@@ -104,6 +140,7 @@ export async function closeIaasCase(app, iaas, closedReason = "") {
     entityId: iaas.iaasId
   });
   activeIaasPromise = null;
+  invalidatePatientIaas(payload.patientId);
   await writeAudit(app, {
     actionType: "iaas_close",
     module: "epi-iaas",

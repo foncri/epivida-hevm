@@ -59,6 +59,7 @@
 - Abrir expediente del paciente y confirmar que el episodio retirado aparece desde historial por paciente, no por lectura global de archivo.
 - Confirmar alta probable.
 - Ver historial solo en expediente/paciente.
+- Abrir expediente y confirmar que carga `patients_active/{id}` o `patients_archive/{id}` e IAAS por `patientId`, no listados globales de pacientes/IAAS.
 
 ## Reportes
 
@@ -75,6 +76,7 @@
 - Crear/editar IAAS con cultivo inicial.
 - Crear/editar IAAS con antimicrobiano inicial.
 - Abrir expediente del paciente y confirmar cultivos/antimicrobianos sin lecturas globales.
+- Confirmar que el expediente muestra IAAS del paciente sin cargar `iaas_active` completo.
 
 ## Seguridad
 

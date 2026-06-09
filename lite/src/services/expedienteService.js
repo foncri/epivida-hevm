@@ -1,8 +1,8 @@
 import { listAntimicrobialsForPatient } from "./antimicrobialService.js";
 import { listCulturesForPatient } from "./cultureService.js";
 import { activeDevice, listArchivedDevicesForPatient, listDevicesForPatient, mergeDeviceHistory } from "./deviceService.js";
-import { listActiveIaas } from "./iaasService.js";
-import { listActivePatients } from "./patientService.js";
+import { listIaasForPatient } from "./iaasService.js";
+import { getPatientById } from "./patientService.js";
 import { listRoundsForPatient } from "./roundService.js";
 
 const DEVICE_HISTORY_LIMIT = 50;
@@ -10,16 +10,16 @@ const CLINICAL_HISTORY_LIMIT = 50;
 
 export async function loadPatientExpediente(patientId) {
   if (!patientId) return null;
-  const [patients, activeDeviceRows, archivedDeviceRows, rounds, iaasRows, cultures, antimicrobials] = await Promise.all([
-    listActivePatients(),
+  const [patientDoc, activeDeviceRows, archivedDeviceRows, rounds, iaasRows, cultures, antimicrobials] = await Promise.all([
+    getPatientById(patientId),
     listDevicesForPatient(patientId),
     listArchivedDevicesForPatient(patientId, { limit: DEVICE_HISTORY_LIMIT }),
     listRoundsForPatient(patientId),
-    listActiveIaas(),
+    listIaasForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),
     listCulturesForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),
     listAntimicrobialsForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT })
   ]);
-  const patient = patients.find(row => row.patientId === patientId) || null;
+  const patient = patientDoc || null;
   const devices = mergeDeviceHistory(activeDeviceRows, archivedDeviceRows);
   return {
     patient,
@@ -27,7 +27,7 @@ export async function loadPatientExpediente(patientId) {
     activeDevices: devices.filter(activeDevice),
     archivedDevices: archivedDeviceRows,
     rounds,
-    iaasRows: iaasRows.filter(row => row.patientId === patientId),
+    iaasRows,
     cultures,
     antimicrobials,
     limits: {

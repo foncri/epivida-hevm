@@ -1,7 +1,7 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { appConfig } from "../lib/config.js";
 import { cleanText, stripUndefined, validPatient } from "../lib/validators.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { getDocData, listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { nowIso } from "../lib/date.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
@@ -32,6 +32,17 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
+async function pendingPatientById(patientId) {
+  const [activePending, archivePending] = await Promise.all([
+    pendingPayloadsForCollection("patients_active"),
+    pendingPayloadsForCollection("patients_archive")
+  ]);
+  const active = activePending.find(row => (row.patientId || row.id) === patientId) || null;
+  const archive = archivePending.find(row => (row.patientId || row.id) === patientId) || null;
+  if (active?.active !== false) return active || archive;
+  return archive || active;
+}
+
 async function loadActivePatients() {
   if (appConfig().testMode) {
     return (await mergePending(testActivePatients())).filter(row => row.active !== false);
@@ -52,6 +63,27 @@ export async function listActivePatients() {
     activePatientsPromise = null;
   });
   return activePatientsPromise;
+}
+
+export async function getPatientById(patientId) {
+  if (!patientId) return null;
+  const pending = await pendingPatientById(patientId);
+  if (appConfig().testMode) {
+    const testPatient = testActivePatients().find(row => (row.patientId || row.id) === patientId) || null;
+    return pending ? { ...(testPatient || {}), ...pending, patientId } : testPatient;
+  }
+  try {
+    const [activePatient, archivedPatient] = await Promise.all([
+      getDocData(`patients_active/${patientId}`),
+      getDocData(`patients_archive/${patientId}`)
+    ]);
+    const saved = activePatient && activePatient.active !== false ? activePatient : (archivedPatient || activePatient);
+    return pending ? { ...(saved || {}), ...pending, patientId } : saved;
+  } catch {
+    const cached = await cacheGet(CACHE_KEY);
+    const cachedPatient = (cached?.value || []).find(row => (row.patientId || row.id) === patientId) || null;
+    return pending ? { ...(cachedPatient || {}), ...pending, patientId } : cachedPatient;
+  }
 }
 
 export function filterPatients(patients, filters = {}) {
