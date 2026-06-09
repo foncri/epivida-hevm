@@ -200,16 +200,29 @@ function renderRoundTable(rounds) {
 function renderIaasPanel(rows) {
   return el("section", { class: "iaas-panel expediente-history-panel" }, [
     el("h2", {}, ["Seguimiento IAAS diario"]),
-    table(["Tipo", "Estado", "Fecha inicio", "Origen probable", "Notas"], rows.map(row =>
+    table(["Tipo", "Estado", "Fecha inicio", "Origen probable", "Criterios", "Seguimiento"], rows.map(row =>
       el("tr", {}, [
         el("td", {}, [row.iaasType || ""]),
         el("td", {}, [row.status || ""]),
         el("td", {}, [row.onsetDate || ""]),
         el("td", {}, [row.probableOrigin || ""]),
-        el("td", {}, [truncate(row.notes || "", 170)])
+        el("td", {}, [truncate(row.criteria || "", 170)]),
+        el("td", {}, [truncate(iaasFollowUpText(row), 220)])
       ])
     ))
   ]);
+}
+
+function iaasFollowUpText(row = {}) {
+  return [
+    row.followUp?.reviewDate ? `Fecha ${row.followUp.reviewDate}` : "",
+    row.followUp?.evolution || "",
+    row.followUp?.carePlan ? `Plan: ${row.followUp.carePlan}` : "",
+    row.vitalSigns?.temperature ? `Temp ${row.vitalSigns.temperature}` : "",
+    row.labs?.biometry ? `BH ${row.labs.biometry}` : "",
+    row.labs?.ego ? `EGO ${row.labs.ego}` : "",
+    row.notes || ""
+  ].filter(Boolean).join(" | ");
 }
 
 function renderAuditTable(rows = []) {

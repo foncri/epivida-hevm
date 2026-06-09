@@ -267,6 +267,9 @@ if (!patientServiceSource.includes("export async function getPatientById") || !p
 if (!iaasServiceSource.includes("export async function listIaasForPatient") || !iaasServiceSource.includes('["patientId", "==", patientId]') || !iaasServiceSource.includes('["active", "==", true]')) {
   fail("iaasService debe exponer lectura IAAS filtrada por paciente para expediente.");
 }
+if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan")) {
+  fail("iaasService debe normalizar seguimiento IAAS clinico estructurado: criterios, vitales, labs y plan.");
+}
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
 }
@@ -296,6 +299,9 @@ if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.in
 const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.js"), "utf8");
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
   fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
+}
+if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes("followUpSummary")) {
+  fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
 }
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");

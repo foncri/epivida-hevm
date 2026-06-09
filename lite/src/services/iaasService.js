@@ -1,7 +1,7 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
-import { stripUndefined, validIaasCase } from "../lib/validators.js";
+import { cleanText, stripUndefined, validIaasCase } from "../lib/validators.js";
 import { listCollectionWhere } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
@@ -90,6 +90,33 @@ export async function listIaasForPatient(patientId, options = {}) {
     }));
   }
   return patientIaasPromises.get(key);
+}
+
+export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
+  const previousFollowUp = previous.followUp || {};
+  const previousVitals = previous.vitalSigns || {};
+  const previousLabs = previous.labs || {};
+  return stripUndefined({
+    criteria: cleanText(source.criteria ?? previous.criteria ?? "", 1200),
+    deviceEpisodeId: cleanText(source.deviceEpisodeId ?? previous.deviceEpisodeId ?? "", 160),
+    vitalSigns: stripUndefined({
+      temperature: cleanText(source.vitalTemperature ?? previousVitals.temperature ?? "", 40),
+      heartRate: cleanText(source.vitalHeartRate ?? previousVitals.heartRate ?? "", 40),
+      respiratoryRate: cleanText(source.vitalRespiratoryRate ?? previousVitals.respiratoryRate ?? "", 40),
+      bloodPressure: cleanText(source.vitalBloodPressure ?? previousVitals.bloodPressure ?? "", 80),
+      spo2: cleanText(source.vitalSpo2 ?? previousVitals.spo2 ?? "", 40)
+    }),
+    labs: stripUndefined({
+      biometry: cleanText(source.biometry ?? previousLabs.biometry ?? "", 500),
+      ego: cleanText(source.ego ?? previousLabs.ego ?? "", 500),
+      otherStudies: cleanText(source.otherStudies ?? previousLabs.otherStudies ?? "", 700)
+    }),
+    followUp: stripUndefined({
+      reviewDate: cleanText(source.followUpDate ?? previousFollowUp.reviewDate ?? "", 40),
+      evolution: cleanText(source.clinicalEvolution ?? previousFollowUp.evolution ?? "", 1000),
+      carePlan: cleanText(source.carePlan ?? previousFollowUp.carePlan ?? "", 1000)
+    })
+  });
 }
 
 export async function saveIaasCase(app, iaas) {

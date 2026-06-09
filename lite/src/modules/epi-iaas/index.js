@@ -4,7 +4,7 @@ import { todayIso } from "../../lib/date.js";
 import { saveAntimicrobial } from "../../services/antimicrobialService.js";
 import { saveCulture } from "../../services/cultureService.js";
 import { canWrite } from "../../lib/security.js";
-import { closeIaasCase, listActiveIaas, saveIaasCase } from "../../services/iaasService.js";
+import { closeIaasCase, listActiveIaas, normalizeIaasClinicalFollowUp, saveIaasCase } from "../../services/iaasService.js";
 import { listActivePatients } from "../../services/patientService.js";
 
 const IAAS_TYPES = ["", "ITS - CC", "ITU - CU", "NAVM", "ISQ", "COVID/Influenza", "Otro"];
@@ -35,13 +35,14 @@ export async function render({ app }) {
           : "IAAS sincronizada.";
         redraw();
       }, () => { editing = null; redraw(); }) : "",
-      pagedTable(["Paciente", "Servicio", "Cama", "Tipo", "Estado", ...(writable ? ["Acciones"] : [])], rows, row =>
+      pagedTable(["Paciente", "Servicio", "Cama", "Tipo", "Estado", "Seguimiento", ...(writable ? ["Acciones"] : [])], rows, row =>
         el("tr", {}, [
           el("td", {}, [row.patientName || patientName(patients, row.patientId)]),
           el("td", {}, [row.service || ""]),
           el("td", {}, [row.bed || ""]),
           el("td", {}, [row.iaasType || ""]),
           el("td", {}, [row.syncStatus === "local_pending" ? badge("Pendiente", "warn") : statusLabel(row.status)]),
+          el("td", {}, [followUpSummary(row)]),
           writable ? el("td", { class: "actions-cell" }, [
             button("Editar", () => { editing = row; redraw(); }, { class: "small ghost" }),
             button("Cerrar", async () => {
@@ -81,7 +82,8 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
         status: data.status,
         onsetDate: data.onsetDate,
         probableOrigin: data.probableOrigin,
-        notes: data.notes
+        notes: data.notes,
+        ...normalizeIaasClinicalFollowUp(data, iaas)
       });
       await saveLinkedCulture(app, saved, data);
       await saveLinkedAntimicrobial(app, saved, data);
@@ -96,6 +98,23 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       field("Origen probable", textInput({ name: "probableOrigin", value: iaas.probableOrigin || "" }))
     ]),
     field("Notas", textareaInput({ name: "notes", rows: 3, value: iaas.notes || "" })),
+    el("div", { class: "form-grid compact" }, [
+      field("Criterios IAAS", textareaInput({ name: "criteria", rows: 3, value: iaas.criteria || "" })),
+      field("Dispositivo relacionado", textInput({ name: "deviceEpisodeId", value: iaas.deviceEpisodeId || "" })),
+      field("Fecha seguimiento", dateInput({ name: "followUpDate", value: iaas.followUp?.reviewDate || todayIso() })),
+      field("Evolucion", textareaInput({ name: "clinicalEvolution", rows: 3, value: iaas.followUp?.evolution || "" })),
+      field("Plan", textareaInput({ name: "carePlan", rows: 3, value: iaas.followUp?.carePlan || "" }))
+    ]),
+    el("div", { class: "form-grid compact" }, [
+      field("Temp", textInput({ name: "vitalTemperature", value: iaas.vitalSigns?.temperature || "" })),
+      field("FC", textInput({ name: "vitalHeartRate", value: iaas.vitalSigns?.heartRate || "" })),
+      field("FR", textInput({ name: "vitalRespiratoryRate", value: iaas.vitalSigns?.respiratoryRate || "" })),
+      field("TA", textInput({ name: "vitalBloodPressure", value: iaas.vitalSigns?.bloodPressure || "" })),
+      field("SpO2", textInput({ name: "vitalSpo2", value: iaas.vitalSigns?.spo2 || "" })),
+      field("Biometria", textInput({ name: "biometry", value: iaas.labs?.biometry || "" })),
+      field("EGO", textInput({ name: "ego", value: iaas.labs?.ego || "" })),
+      field("Otros estudios", textInput({ name: "otherStudies", value: iaas.labs?.otherStudies || "" }))
+    ]),
     el("div", { class: "form-grid compact" }, [
       field("Cultivo muestra", textInput({ name: "cultureSampleType", value: "" })),
       field("Cultivo fecha", dateInput({ name: "cultureRequestedAt", value: "" })),
@@ -149,6 +168,17 @@ function patientName(patients, patientId) {
 
 function statusLabel(value = "") {
   return IAAS_STATUS.find(([key]) => key === value)?.[1] || value;
+}
+
+function followUpSummary(row = {}) {
+  const parts = [
+    row.followUp?.reviewDate,
+    row.criteria ? "criterios" : "",
+    row.followUp?.carePlan ? "plan" : "",
+    row.vitalSigns?.temperature ? `T ${row.vitalSigns.temperature}` : "",
+    row.labs?.biometry ? "BH" : ""
+  ].filter(Boolean);
+  return parts.join(" / ") || "Sin seguimiento";
 }
 
 function upsertIaas(rows, iaas) {

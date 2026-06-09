@@ -80,6 +80,7 @@
 - Entrar a `#/epi-iaas`.
 - Crear/editar IAAS con cultivo inicial.
 - Crear/editar IAAS con antimicrobiano inicial.
+- Guardar criterios, signos vitales, biometria/EGO/otros estudios, evolucion y plan; confirmar que aparecen en expediente del paciente.
 - Abrir expediente del paciente y confirmar cultivos/antimicrobianos sin lecturas globales.
 - Confirmar que el expediente muestra IAAS del paciente sin cargar `iaas_active` completo.
 
