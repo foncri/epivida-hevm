@@ -263,6 +263,7 @@ for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.j
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
+const patientRoundPanelsSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRoundPanels.js"), "utf8");
 const preventiveFormsSource = readFileSync(join(root, "src/modules/ronda-paquetes/preventiveForms.js"), "utf8");
 const saveRoundFlowSource = readFileSync(join(root, "src/modules/ronda-paquetes/saveRoundFlow.js"), "utf8");
 if (
@@ -296,6 +297,18 @@ if (
   !preventiveFormsSource.includes("ensurePatientActionDraft")
 ) {
   fail("ronda-paquetes debe mantener formularios preventivos y acciones de paciente en preventiveForms.js, no en el orquestador principal.");
+}
+if (
+  !roundModuleSource.includes('from "./patientRoundPanels.js"') ||
+  roundModuleSource.includes("function renderPatientRoundSummary") ||
+  roundModuleSource.includes("function renderDailyPreventiveHistoryPanel") ||
+  roundModuleSource.includes("function peSummaryItems") ||
+  !patientRoundPanelsSource.includes("export function renderPatientRoundSummary") ||
+  !patientRoundPanelsSource.includes("export function renderDailyPreventiveHistoryPanel") ||
+  !patientRoundPanelsSource.includes("export function upsertRoundById") ||
+  !patientRoundPanelsSource.includes("draftFromRound")
+) {
+  fail("ronda-paquetes debe mantener resumen e historial preventivo de paciente en patientRoundPanels.js.");
 }
 if (!deviceServiceSource.includes("export function activeDevice") || !roundModuleSource.includes("patientDevices.filter(activeDevice)") || !roundModuleSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
   fail("ronda-paquetes debe evitar lecturas globales de dispositivos al abrir la ronda individual de paciente.");

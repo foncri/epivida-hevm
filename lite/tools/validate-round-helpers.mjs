@@ -29,6 +29,7 @@ const {
   truncate
 } = await import("../src/modules/ronda-paquetes/roundPatientUtils.js");
 const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js");
+const { peSummaryItems, preventiveHistoryRounds, roundReviewDate, savedRoundActionLines, upsertRoundById } = await import("../src/modules/ronda-paquetes/patientRoundPanels.js");
 const { ensurePatientActionDraft, patientMovementChanged } = await import("../src/modules/ronda-paquetes/preventiveForms.js");
 const { draftFromRound, reviewDraft, roundState } = await import("../src/modules/ronda-paquetes/saveRoundFlow.js");
 
@@ -118,6 +119,26 @@ requireValue(!patientMovementChanged(patients[0], actionDraft.patientMovement), 
 actionDraft.patientMovement._dirty = true;
 actionDraft.patientMovement.bed = "4";
 requireValue(patientMovementChanged(patients[0], actionDraft.patientMovement), "Cambio de cama preparado debe detectarse sin consultar DOM.");
+
+const sortedRounds = upsertRoundById([
+  { roundId: "old", patientId: "p_mi_01", date: "2026-06-01" },
+  { roundId: "new", patientId: "p_mi_01", roundDate: "2026-06-05" }
+]);
+requireValue(sortedRounds[0].roundId === "new" && roundReviewDate(sortedRounds[0]) === "2026-06-05", "patientRoundPanels debe ordenar historial preventivo por fecha descendente.");
+requireValue(preventiveHistoryRounds([{ roundId: "empty" }, { roundId: "with_notes", date: "2026-06-02", notes: "Nota" }]).length === 1, "Historial preventivo debe ocultar rondas vacias.");
+requireValue(savedRoundActionLines({
+  patientMovement: { fromService: "MI", fromBed: "1", toService: "MI", toBed: "2" },
+  quickDischarge: { enabled: true, date: "2026-06-04", type: "MEJORIA", shift: "MATUTINO" },
+  generalObservations: "Observacion de prueba"
+}).length === 3, "Paneles de paciente deben conservar acciones guardadas de movimiento, alta y observaciones.");
+const peItems = peSummaryItems("p_mi_01", "2026-06-04", [{
+  patientId: "p_mi_01",
+  date: "2026-06-03",
+  packageReviews: [{ packageType: "P.E. Y P.B.M.T.", preventiveChecks: { handHygiene: "SI" } }]
+}], {
+  deviceDrafts: [{ packageType: "P.E. Y P.B.M.T.", draftId: "draft_pe", preventiveChecks: { handHygiene: "NO" } }]
+});
+requireValue(peItems.length === 2 && peItems[0].source === "draft", "Resumen PE/PBMT debe combinar historial guardado y captura actual.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite round helper validation failed (${failures.length})`);
