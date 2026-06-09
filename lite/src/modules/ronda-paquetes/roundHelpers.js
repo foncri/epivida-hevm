@@ -159,6 +159,12 @@ export function sortByServiceBed(a, b) {
     || patientLabel(a).localeCompare(patientLabel(b), "es");
 }
 
+export function upsertOrRemovePatient(patients, saved) {
+  const next = patients.filter(patient => patient.patientId !== saved.patientId);
+  if (saved.active === false) return next;
+  return [saved, ...next].sort(sortByServiceBed);
+}
+
 export function compareBeds(a, b) {
   const an = bedNumberToken(a);
   const bn = bedNumberToken(b);

@@ -14,7 +14,8 @@ const {
   knownBedsForService,
   normalizeRoundText,
   normalizeServiceKey,
-  roundPatientSearchText
+  roundPatientSearchText,
+  upsertOrRemovePatient
 } = await import("../src/modules/ronda-paquetes/roundHelpers.js");
 const {
   daysBetween,
@@ -77,6 +78,9 @@ requireValue(miRows.map(row => row.patientId).join(",") === "p_mi_01,p_mi_02", "
 
 const queryRows = filterAndSortRoundPatients(patients, { service: "Todos", query: "cateter" });
 requireValue(queryRows.length === 1 && queryRows[0].patientId === "p_mi_01", "Busqueda debe normalizar acentos y encontrar diagnostico.");
+const updatedRows = upsertOrRemovePatient(miRows, { ...patients[0], bed: "4" });
+requireValue(updatedRows.some(row => row.patientId === "p_mi_02" && row.bed === "4"), "upsertOrRemovePatient debe actualizar paciente activo en memoria.");
+requireValue(!upsertOrRemovePatient(miRows, { ...patients[0], active: false }).some(row => row.patientId === "p_mi_02"), "upsertOrRemovePatient debe retirar de la lista si el paciente queda inactivo.");
 
 const searchTextBefore = roundPatientSearchText(patients[0]);
 patients[0].currentDiagnosis = "Neumonia nosocomial";

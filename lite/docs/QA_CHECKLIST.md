@@ -51,7 +51,7 @@
 - Filtrar servicio.
 - Abrir paciente.
 - Confirmar que el mapa de camas se renderiza desde `bedBoard.js` y no depende de consultas DOM.
-- Confirmar que resumen/historial preventivo renderiza desde `patientRoundPanels.js`, que formularios preventivos y alta rapida renderizan desde `preventiveForms.js`, y que guardar/retirar/alta rapida sigue pasando por `saveRoundFlow.js` sin recargar la app.
+- Confirmar que paciente individual carga desde `patientRound.js`, resumen/historial preventivo renderiza desde `patientRoundPanels.js`, formularios preventivos y alta rapida renderizan desde `preventiveForms.js`, navegacion/guardar desde `roundNavigation.js`, y que guardar/retirar/alta rapida sigue pasando por `saveRoundFlow.js` sin recargar la app.
 - Agregar paquete/dispositivo.
 - Guardar y siguiente.
 - Retirar dispositivo.

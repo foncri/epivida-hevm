@@ -261,10 +261,12 @@ for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.j
   }
 }
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
+const patientRoundSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRound.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
 const patientRoundPanelsSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRoundPanels.js"), "utf8");
 const preventiveFormsSource = readFileSync(join(root, "src/modules/ronda-paquetes/preventiveForms.js"), "utf8");
+const roundNavigationSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundNavigation.js"), "utf8");
 const saveRoundFlowSource = readFileSync(join(root, "src/modules/ronda-paquetes/saveRoundFlow.js"), "utf8");
 if (
   roundModuleSource.includes("document.querySelectorAll") ||
@@ -288,7 +290,7 @@ if ((saveRoundFlowSource.match(/activeDeviceById/g) || []).length < 2) {
   fail("ronda-paquetes debe reutilizar mapas por episodeId para validar y guardar retiros sin busquedas lineales repetidas.");
 }
 if (
-  !roundModuleSource.includes('from "./preventiveForms.js"') ||
+  !patientRoundSource.includes('from "./preventiveForms.js"') ||
   roundModuleSource.includes("function renderActiveDevicesPanel") ||
   roundModuleSource.includes("function renderPreventiveActionsPanel") ||
   !preventiveFormsSource.includes("export function renderActiveDevicesPanel") ||
@@ -299,7 +301,7 @@ if (
   fail("ronda-paquetes debe mantener formularios preventivos y acciones de paciente en preventiveForms.js, no en el orquestador principal.");
 }
 if (
-  !roundModuleSource.includes('from "./patientRoundPanels.js"') ||
+  !patientRoundSource.includes('from "./patientRoundPanels.js"') ||
   roundModuleSource.includes("function renderPatientRoundSummary") ||
   roundModuleSource.includes("function renderDailyPreventiveHistoryPanel") ||
   roundModuleSource.includes("function peSummaryItems") ||
@@ -310,10 +312,23 @@ if (
 ) {
   fail("ronda-paquetes debe mantener resumen e historial preventivo de paciente en patientRoundPanels.js.");
 }
-if (!deviceServiceSource.includes("export function activeDevice") || !roundModuleSource.includes("patientDevices.filter(activeDevice)") || !roundModuleSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
+if (
+  !roundModuleSource.includes('from "./patientRound.js"') ||
+  roundModuleSource.includes("async function renderPatientRound") ||
+  !patientRoundSource.includes("export async function renderPatientRound") ||
+  !patientRoundSource.includes("renderRoundSaveBar") ||
+  !patientRoundSource.includes("upsertOrRemovePatient")
+) {
+  fail("ronda-paquetes debe delegar el contenedor de paciente individual a patientRound.js.");
+}
+if (!deviceServiceSource.includes("export function activeDevice") || !patientRoundSource.includes("patientDevices.filter(activeDevice)") || !patientRoundSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
   fail("ronda-paquetes debe evitar lecturas globales de dispositivos al abrir la ronda individual de paciente.");
 }
-if (!roundModuleSource.includes("rows.map(row => ({ bed: patientBed(row), patient: row }))") || roundModuleSource.includes("const items = bedBoardItems(rows, service);")) {
+if (
+  !roundNavigationSource.includes("export function renderRoundSaveBar") ||
+  !roundNavigationSource.includes("rows.map(row => ({ bed: patientBed(row), patient: row }))") ||
+  roundNavigationSource.includes("const items = bedBoardItems(rows, service);")
+) {
   fail("ronda-paquetes debe evitar renderizar camas vacias no navegables en la ronda individual de paciente.");
 }
 

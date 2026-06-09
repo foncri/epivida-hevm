@@ -1,15 +1,14 @@
 import { badge, button, dateInput, el, field, frameScheduler, link, notice, selectInput, textInput } from "../../components/dom.js";
-import { emptyModule, stats } from "../../components/moduleLayout.js";
+import { stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
-import { activeDevice, devicesByPatient, listActiveDevices, listDevicesForPatient } from "../../services/deviceService.js";
+import { devicesByPatient, listActiveDevices } from "../../services/deviceService.js";
 import { archivePatient, listActivePatients, savePatient } from "../../services/patientService.js";
 import { devicePackageSignal } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
-import { listRoundsForPatient, listTodayRounds, roundSessionForDate, saveRoundSession } from "../../services/roundService.js";
-import { bedTileState, renderBedBoard } from "./bedBoard.js";
-import { renderDailyPreventiveHistoryPanel, renderPatientRoundSummary, renderPeSummaryPanel, renderSavedRoundPanel, upsertRoundById } from "./patientRoundPanels.js";
-import { renderActiveDevicesPanel, renderAddPackagePanel, renderPreventiveActionsPanel } from "./preventiveForms.js";
+import { listTodayRounds, roundSessionForDate, saveRoundSession } from "../../services/roundService.js";
+import { renderBedBoard } from "./bedBoard.js";
+import { renderPatientRound } from "./patientRound.js";
 import { DISCHARGE_SHIFTS, DISCHARGE_TYPES, PROBABLE_DISCHARGE_MESSAGE, REPORTED_DISCHARGE_MESSAGE } from "./roundConstants.js";
 import {
   bedBoardItems,
@@ -21,7 +20,8 @@ import {
   patientLabel,
   patientService,
   ROUND_SERVICE_FILTERS,
-  sortByServiceBed
+  sortByServiceBed,
+  upsertOrRemovePatient
 } from "./roundHelpers.js";
 import {
   isCvcDevice,
@@ -34,7 +34,7 @@ import {
   syncLabel,
   truncate
 } from "./roundPatientUtils.js";
-import { reviewDraft, roundState, savePatientRound } from "./saveRoundFlow.js";
+import { roundState } from "./saveRoundFlow.js";
 
 export async function render({ app, route }) {
   const parsed = parseRoundRoute(route.parts);
@@ -302,105 +302,6 @@ function renderRoundCard(patient, devices, round, date) {
   ]);
 }
 
-async function renderPatientRound(app, parsed) {
-  const local = roundState(app);
-  const date = parsed.date;
-  const [patients, rounds, patientRounds, patientDevices] = await Promise.all([
-    listActivePatients(),
-    listTodayRounds(date),
-    listRoundsForPatient(parsed.patientId),
-    listDevicesForPatient(parsed.patientId)
-  ]);
-  const patient = patients.find(row => row.patientId === parsed.patientId);
-  if (!patient) {
-    return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo. La ronda y el mapa de camas siguen disponibles.");
-  }
-  let currentPatient = patient;
-  let currentPatients = patients;
-  const roundMap = new Map(rounds.map(row => [row.patientId, row]));
-  const activeDevices = patientDevices.filter(activeDevice);
-  const existingRound = roundMap.get(patient.patientId);
-  let currentRound = existingRound;
-  let currentPatientRounds = upsertRoundById(patientRounds, existingRound);
-  const draft = reviewDraft(local, date, patient.patientId, existingRound);
-  const page = el("div", { class: "patient-round stack" });
-  let message = "";
-
-  function redraw() {
-    page.replaceChildren(
-      renderPatientRoundSummary(currentPatient, date),
-      message ? notice(message, message.includes("pendiente") || message.includes("falta") ? "warn" : "ok") : "",
-      renderSavedRoundPanel(currentRound, draft, redraw),
-      renderActiveDevicesPanel(activeDevices, draft, redraw),
-      renderPeSummaryPanel(patient.patientId, date, currentPatientRounds, draft),
-      renderDailyPreventiveHistoryPanel(date, patient.patientId, currentPatientRounds, patientDevices),
-      renderAddPackagePanel(date, patient.patientId, draft, redraw),
-      renderPreventiveActionsPanel(app, date, currentPatient, draft, redraw),
-      renderRoundSaveBar(app, date, currentPatient, currentPatients, roundMap, draft, async (status, direction) => {
-        const result = await savePatientRound(app, date, currentPatient, currentPatients, activeDevices, draft, status, direction);
-        message = result.message || result;
-        if (result.patient) {
-          currentPatient = result.patient;
-          currentPatients = upsertOrRemovePatient(currentPatients, result.patient);
-        }
-        if (result.savedRound) {
-          currentRound = result.savedRound;
-          currentPatientRounds = upsertRoundById(currentPatientRounds, result.savedRound);
-          roundMap.set(currentPatient.patientId, result.savedRound);
-        }
-        if (!direction) redraw();
-      })
-    );
-  }
-
-  redraw();
-  return page;
-}
-
-function renderRoundSaveBar(app, date, patient, patients, roundMap, draft, onSave) {
-  const canEdit = canWrite("ronda-paquetes", app.state.auth.profile?.role);
-  return el("div", { class: "round-save-bar" }, [
-    renderRoundNavigationBoard(date, patient, patients, roundMap),
-    button("Guardar como incompleto", () => canEdit && onSave("incompleto", false), { class: "ghost", disabled: !canEdit }),
-    button("Marcar pendiente", () => canEdit && onSave("pendiente", false), { class: "ghost", disabled: !canEdit }),
-    button("Guardar y anterior cama", () => canEdit && onSave("revisado", "previous"), { class: "primary", disabled: !canEdit }),
-    button("Guardar", () => canEdit && onSave("revisado", false), { class: "primary", disabled: !canEdit }),
-    button("Guardar y siguiente cama", () => canEdit && onSave("revisado", "next"), { class: "primary strong", disabled: !canEdit })
-  ]);
-}
-
-function renderRoundNavigationBoard(date, patient, patients, roundMap) {
-  const service = patientService(patient);
-  const serviceKey = normalizeServiceKey(service);
-  const rows = patients.filter(row => normalizeServiceKey(patientService(row)) === serviceKey).sort(sortByServiceBed);
-  const items = rows.map(row => ({ bed: patientBed(row), patient: row }));
-  if (!items.length) return "";
-  return el("div", { class: "round-nav-board preventive" }, [
-    el("div", { class: "round-nav-head" }, [
-      el("strong", {}, [`Camas ${service}`]),
-      el("span", {}, ["Seleccionar cama"])
-    ]),
-    el("div", { class: "round-nav-grid" }, items.map(item => renderRoundNavTile(item, date, roundMap, patient.patientId)))
-  ]);
-}
-
-function renderRoundNavTile(item, date, roundMap, currentPatientId) {
-  const bed = item.bed || patientBed(item.patient) || "S/C";
-  if (!item.patient) {
-    return el("button", { type: "button", disabled: true, class: "bed-tile round-nav-tile vacant" }, [
-      el("strong", {}, [bed]),
-      el("span", {}, ["Vacia"]),
-      el("small", {}, ["Sin paciente"])
-    ]);
-  }
-  const state = bedTileState(item.patient, roundMap);
-  return el("a", { href: roundPatientHref(date, item.patient.patientId), class: `bed-tile round-nav-tile ${state.status} ${item.patient.patientId === currentPatientId ? "current" : ""}` }, [
-    el("strong", {}, [bed]),
-    el("span", {}, [state.label]),
-    el("small", {}, [truncate(patientLabel(item.patient), 22)])
-  ]);
-}
-
 function parseRoundRoute(parts = []) {
   const route = parts[0] || "ronda-paquetes";
   const first = normalizeDate(parts[1]);
@@ -529,12 +430,6 @@ function patientStillHospitalizedPayload(patient = {}) {
 function isDischargeIssue(value = "") {
   const text = normalizeRoundText(value);
   return text.includes("ALTA") || text.includes("MOVIDO") || text.includes("CONCILIACION");
-}
-
-function upsertOrRemovePatient(patients, saved) {
-  const next = patients.filter(patient => patient.patientId !== saved.patientId);
-  if (saved.active === false) return next;
-  return [saved, ...next].sort(sortByServiceBed);
 }
 
 function packageSignalsForPatient(patient, devices) {
