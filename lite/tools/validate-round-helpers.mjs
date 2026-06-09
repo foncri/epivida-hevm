@@ -33,6 +33,7 @@ const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js
 const { peSummaryItems, preventiveHistoryRounds, roundReviewDate, savedRoundActionLines, upsertRoundById } = await import("../src/modules/ronda-paquetes/patientRoundPanels.js");
 const { ensurePatientActionDraft, patientMovementChanged } = await import("../src/modules/ronda-paquetes/preventiveForms.js");
 const { draftFromRound, reviewDraft, roundState } = await import("../src/modules/ronda-paquetes/saveRoundFlow.js");
+const { normalizeDate, validIsoDate } = await import("../src/lib/date.js");
 
 const patients = [
   {
@@ -93,6 +94,8 @@ requireValue(occupiedBeds.includes("1:p_mi_01") && occupiedBeds.includes("2:p_mi
 requireValue(bedBoard.some(item => item.bed === "30" && !item.patient), "Mapa de Medicina Interna debe incluir camas conocidas vacias.");
 requireValue(navigationPatientId(patients[0], patients, "previous") === "p_mi_01", "Navegacion previa debe calcularse desde datos, no desde DOM.");
 requireValue(daysBetween("2026-06-01", "2026-06-04") === 3, "daysBetween debe calcular dias de estancia por fecha ISO.");
+requireValue(validIsoDate("2026-06-04") && normalizeDate("04/06/2026") === "2026-06-04", "date.js debe aceptar fechas reales ISO y dd/mm/yyyy.");
+requireValue(!validIsoDate("2026-13-01") && normalizeDate("2026-02-31") === "" && normalizeDate("31/02/2026") === "", "date.js debe rechazar fechas imposibles para proteger rutas de ronda.");
 requireValue(truncate("ABCDEFGHIJ", 5) === "ABCD...", "truncate debe limitar texto sin romper tablas.");
 requireValue(statusLabel("reviewed") === "Revisado" && syncLabel("local_pending") === "Pendiente sync", "Labels de ronda deben conservar textos visibles.");
 requireValue(isCvcDevice({ deviceType: "PICC" }), "PICC debe contar como dispositivo CVC/ITS.");

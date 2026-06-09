@@ -50,6 +50,7 @@
 ## Ronda
 
 - Entrar a `#/ronda-paquetes`.
+- Abrir `#/ronda/2026-02-31` y confirmar que la ronda usa fecha valida por defecto, no una fecha imposible.
 - Filtrar servicio.
 - Abrir paciente.
 - Confirmar que el mapa de camas se renderiza desde `bedBoard.js` y no depende de consultas DOM.

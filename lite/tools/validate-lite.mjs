@@ -178,6 +178,10 @@ if (!routerSource.includes("export function preloadRoute") || !routerSource.incl
 const firebaseSource = readFileSync(join(root, "src/lib/firebase.js"), "utf8");
 const authServiceSource = readFileSync(join(root, "src/services/authService.js"), "utf8");
 const firestoreServiceSource = readFileSync(join(root, "src/services/firestoreService.js"), "utf8");
+const dateSource = readFileSync(join(root, "src/lib/date.js"), "utf8");
+if (!dateSource.includes("export function validIsoDate") || !dateSource.includes('parsed.toISOString().slice(0, 10) === text') || !dateSource.includes("validIsoDate(text) ? text : \"\"")) {
+  fail("src/lib/date.js debe validar fechas ISO reales y rechazar rutas con fechas imposibles.");
+}
 if (!firebaseSource.includes("firebaseAuthRuntime") || !firebaseSource.includes("firebaseFirestoreRuntime")) {
   fail("src/lib/firebase.js debe separar runtime de Auth y Firestore para aligerar el arranque.");
 }
