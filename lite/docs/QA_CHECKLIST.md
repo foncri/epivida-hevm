@@ -55,6 +55,7 @@
 - Agregar paquete/dispositivo.
 - Guardar y siguiente.
 - Retirar dispositivo.
+- Confirmar que el retiro escribe `devices_archive/{episodeId}` y deja el episodio fuera de listados activos.
 - Confirmar alta probable.
 - Ver historial solo en expediente/paciente.
 

@@ -195,6 +195,9 @@ const deviceServiceSource = readFileSync(join(root, "src/services/deviceService.
 if (!deviceServiceSource.includes("function activeDevice") || !deviceServiceSource.includes("filter(activeDevice)")) {
   fail("deviceService debe filtrar dispositivos activos tanto desde Firestore como desde cache/cola offline.");
 }
+if (!deviceServiceSource.includes("devices_archive/${device.episodeId}") || !deviceServiceSource.includes("archivedAt") || !deviceServiceSource.includes("archiveSyncStatus")) {
+  fail("deviceService debe archivar episodios retirados en devices_archive sin borrar historial clinico.");
+}
 
 const iaasServiceSource = readFileSync(join(root, "src/services/iaasService.js"), "utf8");
 if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.includes("filter(activeIaas)")) {

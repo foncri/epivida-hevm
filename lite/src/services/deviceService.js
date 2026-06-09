@@ -126,19 +126,41 @@ export async function saveDeviceEpisode(app, device) {
 
 export async function removeDeviceEpisode(app, device, removalDate) {
   if (!device?.episodeId) throw new Error("Dispositivo sin identificador.");
+  const timestamp = nowIso();
+  const userId = app.state.auth.user?.uid || "";
   const payload = stripUndefined({
     ...device,
     removalDate,
     active: false,
     status: "retirado",
-    updatedAt: nowIso(),
-    updatedBy: app.state.auth.user?.uid || ""
+    updatedAt: timestamp,
+    updatedBy: userId
   });
-  const saved = await setDocMergeOrQueue(app, `devices_active/${device.episodeId}`, payload, {
-    module: "dispositivos",
-    entityType: "device",
-    entityId: device.episodeId
+  const archivePayload = stripUndefined({
+    ...payload,
+    archivedAt: timestamp,
+    archivedBy: userId,
+    archiveReason: "device_removed"
   });
+  const [savedActive, savedArchive] = await Promise.all([
+    setDocMergeOrQueue(app, `devices_active/${device.episodeId}`, payload, {
+      module: "dispositivos",
+      entityType: "device",
+      entityId: device.episodeId
+    }),
+    setDocMergeOrQueue(app, `devices_archive/${device.episodeId}`, archivePayload, {
+      module: "dispositivos",
+      entityType: "device",
+      entityId: device.episodeId
+    })
+  ]);
+  const saved = {
+    ...savedActive,
+    archiveSyncStatus: savedArchive.syncStatus || savedActive.syncStatus,
+    syncStatus: [savedActive.syncStatus, savedArchive.syncStatus].includes("local_pending")
+      ? "local_pending"
+      : savedActive.syncStatus
+  };
   activeDevicesPromise = null;
   if (payload.patientId) devicePatientPromises.delete(payload.patientId);
   await writeAudit(app, {
