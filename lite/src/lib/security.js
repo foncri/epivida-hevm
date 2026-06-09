@@ -2,6 +2,7 @@ const ROUTE_ROLES = {
   login: ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectura"],
   inicio: ["admin_epidemiologia", "epidemiologia", "lectura"],
   censo: ["admin_epidemiologia", "epidemiologia", "lectura"],
+  "importar-censo": ["admin_epidemiologia", "epidemiologia"],
   expediente: ["admin_epidemiologia", "epidemiologia", "enfermeria"],
   "monitoreo-epidemiologico": ["admin_epidemiologia", "epidemiologia", "lectura"],
   "ronda-paquetes": ["admin_epidemiologia", "epidemiologia", "enfermeria"],
@@ -28,7 +29,7 @@ const LEGACY_ROLE_MAP = {
 const ROUTE_ALIASES = {
   dashboard: "inicio",
   "censo-hospitalario": "censo",
-  "importar-censo": "admin",
+  "importar-censo": "importar-censo",
   pacientes: "expediente",
   ronda: "ronda-paquetes",
   "reporte-diario": "reportes",
@@ -59,7 +60,7 @@ export function canWrite(module, role) {
   const canonicalModule = canonicalRouteKey(module);
   if (normalized === "admin_epidemiologia") return true;
   if (canonicalModule === "ronda-paquetes" || canonicalModule === "dispositivos") return ["epidemiologia", "enfermeria"].includes(normalized);
-  if (["censo", "monitoreo-epidemiologico", "epi-iaas"].includes(canonicalModule)) return normalized === "epidemiologia";
+  if (["censo", "importar-censo", "monitoreo-epidemiologico", "epi-iaas"].includes(canonicalModule)) return normalized === "epidemiologia";
   return false;
 }
 

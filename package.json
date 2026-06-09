@@ -12,6 +12,7 @@
     "validate:offline": "node lite/tools/validate-offline-queue.mjs",
     "validate:round": "node lite/tools/validate-round-helpers.mjs",
     "validate:patients": "node lite/tools/validate-patient-filters.mjs",
+    "validate:import": "node lite/tools/validate-census-import.mjs",
     "validate:parity": "node lite/tools/validate-feature-parity.mjs",
     "validate:no-legacy": "node lite/tools/validate-no-legacy-imports.mjs",
     "validate:performance": "node lite/tools/validate-performance-budget.mjs",

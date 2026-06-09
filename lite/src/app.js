@@ -5,6 +5,7 @@ import { button, el, link, notice, statusDot } from "./components/dom.js";
 const NAV = [
   ["inicio", "Inicio"],
   ["censo", "Censo"],
+  ["importar-censo", "Importar"],
   ["monitoreo-epidemiologico", "Monitoreo"],
   ["ronda-paquetes", "Ronda"],
   ["epi-iaas", "EPI-IAAS"],

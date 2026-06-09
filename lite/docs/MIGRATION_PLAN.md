@@ -9,8 +9,8 @@
 
 ## Fase 2: P0 Clinico
 
-- Modulo `importar-censo`.
-- `importService` y `reconciliationService`.
+- Endurecimiento de `importar-censo` con fixtures hospitalarios anonimizados.
+- Ampliacion de `importService` y `reconciliationService` para excepciones locales.
 - `monitorService`.
 - Split de `ronda-paquetes`.
 - Archivado correcto de dispositivos retirados.

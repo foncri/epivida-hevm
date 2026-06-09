@@ -62,6 +62,7 @@ await runScript("validate-security-config", "lite/tools/validate-security-config
 await runScript("validate-offline-queue", "lite/tools/validate-offline-queue.mjs");
 await runScript("validate-round-helpers", "lite/tools/validate-round-helpers.mjs");
 await runScript("validate-patient-filters", "lite/tools/validate-patient-filters.mjs");
+await runScript("validate-census-import", "lite/tools/validate-census-import.mjs");
 await runScript("validate-feature-parity", "lite/tools/validate-feature-parity.mjs");
 await runScript("validate-no-legacy-imports", "lite/tools/validate-no-legacy-imports.mjs");
 await runScript("validate-performance-budget", "lite/tools/validate-performance-budget.mjs");
@@ -77,6 +78,7 @@ const syntaxFiles = [
   join(root, "tools/validate-deploy-config.mjs"),
   join(root, "tools/validate-lite.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
+  join(root, "tools/validate-census-import.mjs"),
   join(root, "tools/validate-feature-parity.mjs"),
   join(root, "tools/validate-no-legacy-imports.mjs"),
   join(root, "tools/validate-performance-budget.mjs"),

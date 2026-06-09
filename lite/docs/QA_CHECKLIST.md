@@ -36,6 +36,15 @@
 - Ver badge `local_pending` si Firestore falla.
 - No recargar toda la app.
 
+## Importacion
+
+- Entrar a `#/importar-censo`.
+- Pegar CSV/TSV anonimo con encabezados.
+- Confirmar preview antes de guardar.
+- Confirmar nuevos, movidos/actualizados, duplicados y ausentes.
+- Confirmar que ausentes no se archivan sin marcar confirmacion.
+- Guardar y verificar `census_days/{date}`, `patients_active`, `patients_search`, `daily_snapshots` y auditoria.
+
 ## Ronda
 
 - Entrar a `#/ronda-paquetes`.

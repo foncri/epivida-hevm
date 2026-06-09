@@ -9,7 +9,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 | Auth | Login Google, dominio autorizado, persistencia y usuario activo. | `authService` usa `firebaseAuthRuntime`, popup con redirect fallback y perfil activo; bootstrap cliente retirado. | Falta verificar manualmente dominios Auth y flujo de provision por Admin/seed. | P0 | Mantener creacion de usuarios solo por Admin/seed controlado y auditar altas. | `npm run validate:security`; login admin; usuario no activo queda bloqueado. |
 | Usuarios | Roles admin, epidemiologia, enfermeria y lectura. | `security.js`, `admin/index.js`, reglas `users`. | Falta auditoria de cambios de rol mas completa. | P0 | Auditar `saveUserProfile` con before/after y mostrar historial simple. | Cambiar rol en admin y verificar `audit_logs`. |
 | Censo | Alta, edicion, egreso, cama, servicio, estado, sexo, DEIH, diagnosticos. | `modules/censo`, `patientService`, `patients_active`, `patients_archive`. | Falta conciliacion avanzada de pacientes movidos/ausentes desde importacion. | P0 | Implementar `importar-censo` + `reconciliationService`. | Fixture con nuevos, movidos, ausentes y egreso confirmado. |
-| Importacion | Pegar Excel/Sheets/CSV, detectar encabezados, normalizar servicio/cama y preview. | Ruta `importar-censo` aun aliasa a Admin. | Falta modulo dedicado y guardado atomico con preview. | P0 | Crear `modules/importar-censo`, `importService`, `reconciliationService`. | `npm run validate:parity`; importar fixture CSV sin guardar automatico. |
+| Importacion | Pegar Excel/Sheets/CSV, detectar encabezados, normalizar servicio/cama y preview. | `modules/importar-censo`, `importService` y `reconciliationService` parsean texto/CSV, generan preview y guardan solo tras confirmacion. | Falta conciliacion clinica avanzada para excepciones locales y soporte Excel dinamico opcional. | P0 | Endurecer reglas de importacion con fixtures hospitalarios y split por casos especiales. | `npm run validate:import`; importar fixture CSV sin guardar automatico. |
 | Monitoreo | Filtros por servicio, sexo, estado, diagnostico, busqueda y conteos. | `modules/monitoreo` filtra localmente pacientes activos y pagina tabla. | Falta servicio `monitorService` para snapshots/metricas y gravedad. | P0 | Extraer metricas a `monitorService` y usar `daily_snapshots` para dashboard. | 300 pacientes activos: filtro sin consulta por tecla. |
 | Ronda | Ronda por fecha, mapa de camas, paciente individual, guardar y siguiente. | `modules/ronda-paquetes` implementa flujo completo con cola offline. | Archivo aun grande; requiere split interno. | P0 | Dividir en `roundPage`, `patientRound`, `bedBoard`, `saveRoundFlow`. | `npm run validate:round`; entrar a monitoreo no carga ronda. |
 | Paquetes preventivos | CVC/ITS, ITU-CU, NAVM, ISQ, PE/PBMT, especiales, SI/NO/NA. | `preventivePackageService` y UI de ronda. | Reglas de ISQ y especiales deben pasar a catalogos/servicio. | P0 | Catalogos versionados y pruebas unitarias de paquetes. | Fixture de dispositivos activa paquetes correctos. |
@@ -30,8 +30,8 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 
 ## Brechas P0
 
-- Modulo `#/importar-censo` real.
-- `reconciliationService` para nuevos, movidos, ausentes y egresos.
+- Endurecer `#/importar-censo` con fixtures hospitalarios reales anonimizados.
+- Ampliar `reconciliationService` para excepciones clinicas locales.
 - Split de `ronda-paquetes/index.js`.
 - `devices_archive` al retiro y expediente historico paginado.
 - `iaasService` con seguimiento clinico heredado.

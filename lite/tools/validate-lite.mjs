@@ -168,6 +168,9 @@ const routerSource = readFileSync(join(root, "src/router.js"), "utf8");
 if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource.includes("canAccessRoute(route.key")) {
   fail("src/router.js debe validar auth ready y rol antes de importar modulos clinicos.");
 }
+if (!routerSource.includes('"importar-censo": () => import("./modules/importar-censo/index.js")')) {
+  fail("src/router.js debe cargar importar-censo como modulo dinamico propio, no como alias a Admin.");
+}
 if (!routerSource.includes("export function preloadRoute") || !routerSource.includes("routePreloads")) {
   fail("src/router.js debe precargar modulos de ruta con cache sin ejecutar datos clinicos.");
 }

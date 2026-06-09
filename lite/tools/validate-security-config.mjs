@@ -91,6 +91,7 @@ for (const collection of [
 
 for (const expected of [
   'ronda-paquetes": ["admin_epidemiologia", "epidemiologia", "enfermeria"]',
+  '"importar-censo": ["admin_epidemiologia", "epidemiologia"]',
   'dispositivos: ["admin_epidemiologia", "epidemiologia", "enfermeria"]',
   '"epi-iaas": ["admin_epidemiologia", "epidemiologia"]',
   'admin: ["admin_epidemiologia"]'

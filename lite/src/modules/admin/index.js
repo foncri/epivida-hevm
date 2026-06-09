@@ -17,6 +17,7 @@ const ROUTE_OPTIONS = [
   ["monitoreo-epidemiologico", "Monitoreo"],
   ["ronda-paquetes", "Ronda paquetes"],
   ["censo", "Censo"],
+  ["importar-censo", "Importar censo"],
   ["reportes", "Reportes"],
   ["admin", "Admin"]
 ];
