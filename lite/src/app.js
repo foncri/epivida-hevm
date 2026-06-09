@@ -101,11 +101,29 @@ export function createApp(root) {
   }
 
   function renderDenied() {
+    const user = state.auth.user || {};
+    const now = new Date().toISOString();
+    const profilePath = user.uid ? `users/${user.uid}` : "";
+    const profileJson = user.uid ? JSON.stringify({
+      uid: user.uid,
+      email: user.email || "",
+      displayName: user.displayName || user.email || "",
+      role: "admin_epidemiologia",
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+      defaultRoute: "inicio"
+    }, null, 2) : "";
     return shell([
       el("section", { class: "empty-state" }, [
         el("h1", {}, ["Acceso pendiente"]),
         el("p", {}, [state.auth.error || "Tu usuario inicio sesion, pero todavia no tiene un perfil activo en EPIVIDA."]),
-        el("p", { class: "muted" }, [`Usuario: ${state.auth.user?.email || state.auth.user?.uid || "sin correo"}`]),
+        el("p", { class: "muted" }, [`Usuario: ${user.email || user.uid || "sin correo"}`]),
+        user.uid ? el("div", { class: "profile-seed" }, [
+          el("strong", {}, ["Perfil requerido en Firestore"]),
+          el("span", {}, [profilePath]),
+          el("pre", {}, [profileJson])
+        ]) : "",
         button("Salir", () => import("./services/authService.js").then(mod => mod.signOut()), { class: "ghost" })
       ])
     ]);

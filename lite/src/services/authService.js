@@ -11,6 +11,9 @@ function loginErrorMessage(error) {
   const code = String(error?.code || "");
   if (code === "auth/unauthorized-domain") return "Dominio no autorizado en Firebase Auth.";
   if (code === "auth/popup-blocked") return "El navegador bloqueo la ventana de Google. Se intentara redireccion.";
+  if (code === "permission-denied" || String(error?.message || "").toLowerCase().includes("missing or insufficient permissions")) {
+    return "Firestore bloqueo el perfil del usuario. Revisa que las reglas Lite esten desplegadas y que exista users/{UID} activo.";
+  }
   return error?.message || "No se pudo iniciar sesion con Google.";
 }
 
@@ -67,8 +70,8 @@ export function initAuthState(app) {
         return;
       }
       try {
-        const { getUserProfile, touchLastLogin } = await import("./userService.js");
-        const profile = await getUserProfile(user.uid);
+        const { getOrBootstrapUserProfile, touchLastLogin } = await import("./userService.js");
+        const profile = await getOrBootstrapUserProfile(user);
         if (!activeProfile(profile)) {
           app.setAuth({ status: "denied", user, profile: null, error: "Usuario inactivo o no autorizado." });
           return;
@@ -79,7 +82,7 @@ export function initAuthState(app) {
         if (parseRoute().key === "login") location.hash = `#/${defaultRouteForRole(normalized.role)}`;
         app.loadCurrentRoute?.();
       } catch (error) {
-        app.setAuth({ status: "denied", user, profile: null, error: error?.message || "No se pudo validar el rol." });
+        app.setAuth({ status: "denied", user, profile: null, error: loginErrorMessage(error) || "No se pudo validar el rol." });
       }
     });
   }).catch(error => {

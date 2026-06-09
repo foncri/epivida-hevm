@@ -21,6 +21,30 @@ service cloud.firestore {
       return hasUser() && userData().active == true;
     }
 
+    function bootstrapAdmin(uid) {
+      return signedIn()
+        && request.auth.uid == uid
+        && request.auth.token.email == "todofoncri@gmail.com"
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "email",
+          "displayName",
+          "role",
+          "active",
+          "defaultRoute",
+          "createdAt",
+          "updatedAt",
+          "seedSource"
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == "admin_epidemiologia"
+        && request.resource.data.active == true
+        && request.resource.data.defaultRoute == "inicio"
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string;
+    }
+
     function role() {
       return activeUser() ? userData().role : "none";
     }
@@ -50,8 +74,9 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if activeUser() && (admin() || request.auth.uid == uid);
-      allow create: if admin();
+      allow get: if signedIn() && request.auth.uid == uid || admin();
+      allow list: if admin();
+      allow create: if admin() || bootstrapAdmin(uid);
       allow update: if admin()
         || (
           activeUser()
