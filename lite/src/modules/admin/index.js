@@ -1,4 +1,4 @@
-import { button, checkboxInput, el, field, link, notice, selectInput, table, textInput } from "../../components/dom.js";
+import { button, checkboxInput, el, field, link, notice, pagedTable, selectInput, textInput } from "../../components/dom.js";
 import { firebaseConfigStatus } from "../../lib/config.js";
 import { modulePage } from "../../components/moduleLayout.js";
 import { loadCatalogs } from "../../services/catalogService.js";
@@ -78,7 +78,7 @@ export async function render({ app }) {
         el("span", { class: "muted" }, ["Prepara un paquete JSON desde el store legacy sin subir datos al servidor."]),
         link("./tools/legacy-export/index.html", "Abrir herramienta", { class: "button ghost" })
       ]),
-      table(["Modulo", "Entidad", "Estado", "Creado", "Intentos", "Error"], pending.map(item =>
+      pagedTable(["Modulo", "Entidad", "Estado", "Creado", "Intentos", "Error"], pending, item =>
         el("tr", {}, [
           el("td", {}, [item.module || item.collection || ""]),
           el("td", {}, [item.entityType || item.kind || ""]),
@@ -87,7 +87,7 @@ export async function render({ app }) {
           el("td", {}, [String(item.attempts || 0)]),
           el("td", {}, [item.error || ""])
         ])
-      ))
+      )
     );
   }
 
@@ -103,7 +103,7 @@ function renderUsersPanel(app, users, editingUser, onEdit, onSaved) {
     el("span", { class: "muted" }, ["Alta y ajuste de perfiles Firestore. No crea cuentas Google; usa el UID de Firebase Auth."]),
     button("Nuevo perfil", () => onEdit({ active: true, role: "lectura", defaultRoute: "monitoreo-epidemiologico" }), { class: "ghost" }),
     editingUser ? userForm(app, editingUser, onSaved, () => onEdit(null)) : "",
-    table(["Correo", "Nombre", "Rol", "Activo", "Inicio", "Sync", "Acciones"], users.map(user =>
+    pagedTable(["Correo", "Nombre", "Rol", "Activo", "Inicio", "Sync", "Acciones"], users, user =>
       el("tr", {}, [
         el("td", {}, [user.email || user.uid || ""]),
         el("td", {}, [user.displayName || ""]),
@@ -119,7 +119,7 @@ function renderUsersPanel(app, users, editingUser, onEdit, onSaved) {
           }, { class: "small ghost" })
         ])
       ])
-    ))
+    )
   ]);
 }
 

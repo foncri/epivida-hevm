@@ -1,7 +1,7 @@
-import { badge, button, dateInput, el, field, frameScheduler, notice, numberInput, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
+import { badge, button, dateInput, el, field, frameScheduler, notice, numberInput, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage } from "../../components/moduleLayout.js";
 import { currentCensus } from "../../services/censusService.js";
-import { archivePatient, filterPatients, savePatient } from "../../services/patientService.js";
+import { archivePatient, filterPatients, savePatient, sortPatientsByServiceBed } from "../../services/patientService.js";
 import { canWrite } from "../../lib/security.js";
 
 const SEX_OPTIONS = ["", "F", "M"];
@@ -16,12 +16,14 @@ export async function render({ app }) {
   const writable = canWrite("censo", role);
   let editing = null;
   let message = "";
+  let messageTone = "";
+  let busyPatientId = "";
   const body = el("div", { class: "stack" });
 
   function redraw() {
-    const visible = filterPatients(patients, filters);
+    const visible = sortPatientsByServiceBed(filterPatients(patients, filters));
     body.replaceChildren(
-      message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
+      message ? notice(message, messageTone || (message.includes("pendiente") ? "warn" : "ok")) : "",
       toolbar(filters, patients, redraw, scheduleRedraw),
       editing ? patientForm(app, editing, async saved => {
         patients = upsertPatient(patients, saved);
@@ -29,30 +31,47 @@ export async function render({ app }) {
         message = saved.syncStatus === "local_pending"
           ? "Paciente guardado localmente; queda pendiente de sincronizar."
           : "Paciente sincronizado.";
+        messageTone = saved.syncStatus === "local_pending" ? "warn" : "ok";
+        redraw();
+      }, error => {
+        message = error;
+        messageTone = "warn";
         redraw();
       }, () => { editing = null; redraw(); }) : "",
-      table(["Cama", "Paciente", "Servicio", "Estado", "DEIH", ...(writable ? ["Acciones"] : [])], visible.map(patient =>
+      pagedTable(["Cama", "Paciente", "Servicio", "Estado", "DEIH", "Sync", ...(writable ? ["Acciones"] : [])], visible, patient =>
         el("tr", {}, [
           el("td", {}, [patient.bed || patient.currentBed || ""]),
           el("td", {}, [patient.patientName || patient.patientId || ""]),
           el("td", {}, [patient.service || patient.currentService || ""]),
           el("td", {}, [patient.status || patient.currentState || ""]),
+          el("td", {}, [String(patient.deih ?? "")]),
           el("td", {}, [
-            patient.syncStatus === "local_pending" ? badge("Pendiente", "warn") : String(patient.deih ?? "")
+            patient.syncStatus === "local_pending" ? badge("Pendiente", "warn") : patient.syncStatus || ""
           ]),
           writable ? el("td", { class: "actions-cell" }, [
             button("Editar", () => { editing = patient; redraw(); }, { class: "small ghost" }),
             button("Egreso", async () => {
-              const saved = await archivePatient(app, patient, "egreso_manual");
-              patients = patients.filter(row => row.patientId !== saved.patientId);
-              message = saved.syncStatus === "local_pending"
-                ? "Egreso guardado localmente; queda pendiente de sincronizar."
-                : "Egreso sincronizado.";
+              if (!globalThis.confirm(`Confirmar egreso de ${patient.patientName || patient.patientId || "paciente"}?`)) return;
+              busyPatientId = patient.patientId || patient.id || "";
               redraw();
-            }, { class: "small ghost" })
+              try {
+                const saved = await archivePatient(app, patient, "egreso_manual");
+                patients = patients.filter(row => row.patientId !== saved.patientId);
+                message = saved.syncStatus === "local_pending"
+                  ? "Egreso guardado localmente; queda pendiente de sincronizar."
+                  : "Egreso sincronizado.";
+                messageTone = saved.syncStatus === "local_pending" ? "warn" : "ok";
+              } catch (error) {
+                message = error?.message || "No se pudo egresar el paciente.";
+                messageTone = "warn";
+              } finally {
+                busyPatientId = "";
+                redraw();
+              }
+            }, { class: "small ghost", disabled: busyPatientId === (patient.patientId || patient.id || "") })
           ]) : ""
         ])
-      ))
+      )
     );
   }
 
@@ -74,34 +93,47 @@ function patientValues(patients, getter) {
   return ["Todos", ...new Set(patients.map(getter).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), "es")))];
 }
 
-function patientForm(app, patient, onSaved, onCancel) {
+function patientForm(app, patient, onSaved, onError, onCancel) {
+  let saving = false;
+  const saveButton = button("Guardar", null, { type: "submit", dataset: { saveButton: "patient" } });
   return el("form", {
     class: "form-card",
     onsubmit: async event => {
       event.preventDefault();
-      const form = event.currentTarget;
-      const data = Object.fromEntries(new FormData(form));
-      const payload = {
-        ...patient,
-        patientName: data.patientName,
-        service: data.service,
-        currentService: data.service,
-        bed: data.bed,
-        currentBed: data.bed,
-        sector: data.sector,
-        sex: data.sex,
-        age: data.age ? Number(data.age) : "",
-        admissionDate: data.admissionDate,
-        status: data.status,
-        currentState: data.status,
-        epidemiologicalDiagnosis: data.epidemiologicalDiagnosis,
-        currentEpidemiologicalDiagnosis: data.epidemiologicalDiagnosis,
-        hospitalDiagnosis: data.hospitalDiagnosis,
-        currentDiagnosis: data.hospitalDiagnosis,
-        observations: data.observations
-      };
-      const saved = await savePatient(app, payload);
-      onSaved(saved);
+      if (saving) return;
+      saving = true;
+      saveButton.disabled = true;
+      saveButton.textContent = "Guardando";
+      try {
+        const form = event.currentTarget;
+        const data = Object.fromEntries(new FormData(form));
+        const payload = {
+          ...patient,
+          patientName: data.patientName,
+          service: data.service,
+          currentService: data.service,
+          bed: data.bed,
+          currentBed: data.bed,
+          sector: data.sector,
+          sex: data.sex,
+          age: data.age ? Number(data.age) : "",
+          admissionDate: data.admissionDate,
+          status: data.status,
+          currentState: data.status,
+          epidemiologicalDiagnosis: data.epidemiologicalDiagnosis,
+          currentEpidemiologicalDiagnosis: data.epidemiologicalDiagnosis,
+          hospitalDiagnosis: data.hospitalDiagnosis,
+          currentDiagnosis: data.hospitalDiagnosis,
+          observations: data.observations
+        };
+        const saved = await savePatient(app, payload);
+        onSaved(saved);
+      } catch (error) {
+        onError(error?.message || "No se pudo guardar el paciente.");
+        saving = false;
+        saveButton.disabled = false;
+        saveButton.textContent = "Guardar";
+      }
     }
   }, [
     el("div", { class: "form-grid" }, [
@@ -118,7 +150,7 @@ function patientForm(app, patient, onSaved, onCancel) {
     ]),
     field("Observaciones", textareaInput({ name: "observations", rows: 3, value: patient.observations || "" })),
     el("div", { class: "toolbar" }, [
-      button("Guardar", null, { type: "submit" }),
+      saveButton,
       button("Cancelar", onCancel, { class: "ghost" })
     ])
   ]);

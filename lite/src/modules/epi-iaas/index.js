@@ -1,4 +1,4 @@
-import { badge, button, dateInput, el, field, notice, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
+import { badge, button, dateInput, el, field, notice, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
@@ -33,7 +33,7 @@ export async function render({ app }) {
           : "IAAS sincronizada.";
         redraw();
       }, () => { editing = null; redraw(); }) : "",
-      table(["Paciente", "Servicio", "Cama", "Tipo", "Estado", ...(writable ? ["Acciones"] : [])], rows.map(row =>
+      pagedTable(["Paciente", "Servicio", "Cama", "Tipo", "Estado", ...(writable ? ["Acciones"] : [])], rows, row =>
         el("tr", {}, [
           el("td", {}, [row.patientName || patientName(patients, row.patientId)]),
           el("td", {}, [row.service || ""]),
@@ -52,7 +52,7 @@ export async function render({ app }) {
             }, { class: "small ghost" })
           ]) : ""
         ])
-      ))
+      )
     );
   }
 

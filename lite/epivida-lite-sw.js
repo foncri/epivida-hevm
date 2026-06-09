@@ -1,6 +1,13 @@
-const CACHE_NAME = "epivida-lite-shell-2026-06-05-cache02";
+const APP_VERSION = "2026-06-09-release01";
+const CACHE_NAME = `epivida-lite-shell-${APP_VERSION}`;
 const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
 const NEVER_CACHE = new Set(["/lite/epivida-lite-config.js", "/epivida-lite-config.js"]);
+const NEVER_CACHE_PREFIXES = [
+  "/iaas-system",
+  "/epivida-auth-gate",
+  "/google",
+  "/sheets"
+];
 const RUNTIME_DESTINATIONS = new Set(["script", "style", "worker", "manifest", "image"]);
 
 self.addEventListener("install", event => {
@@ -20,7 +27,7 @@ self.addEventListener("fetch", event => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (NEVER_CACHE.has(url.pathname)) return;
+  if (shouldNeverCache(url)) return;
   if (shouldRuntimeCache(request, url)) {
     event.respondWith(cacheFirstWithRefresh(request, event));
     return;
@@ -43,8 +50,13 @@ self.addEventListener("fetch", event => {
 });
 
 function shouldRuntimeCache(request, url) {
-  if (NEVER_CACHE.has(url.pathname)) return false;
+  if (shouldNeverCache(url)) return false;
   return RUNTIME_DESTINATIONS.has(request.destination) || url.pathname.includes("/src/");
+}
+
+function shouldNeverCache(url) {
+  if (NEVER_CACHE.has(url.pathname)) return true;
+  return NEVER_CACHE_PREFIXES.some(prefix => url.pathname.startsWith(prefix) || url.pathname.startsWith(`/lite${prefix}`));
 }
 
 async function cacheFirstWithRefresh(request, event) {

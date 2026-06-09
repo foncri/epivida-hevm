@@ -1,4 +1,4 @@
-import { badge, button, checkboxInput, dateInput, el, field, notice, selectInput, table, textareaInput, textInput } from "../../components/dom.js";
+import { badge, button, checkboxInput, dateInput, el, field, notice, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
@@ -33,7 +33,7 @@ export async function render({ app }) {
           : "Dispositivo sincronizado.";
         redraw();
       }, () => { editing = null; redraw(); }) : "",
-      table(["Paciente", "Tipo", "Sitio", "Instalacion", "Estado", ...(writable ? ["Acciones"] : [])], devices.map(device =>
+      pagedTable(["Paciente", "Tipo", "Sitio", "Instalacion", "Estado", ...(writable ? ["Acciones"] : [])], devices, device =>
         el("tr", {}, [
           el("td", {}, [device.patientName || patientName(patients, device.patientId)]),
           el("td", {}, [device.deviceType || ""]),
@@ -52,7 +52,7 @@ export async function render({ app }) {
             }, { class: "small ghost" })
           ]) : ""
         ])
-      ))
+      )
     );
   }
 

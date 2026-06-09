@@ -59,11 +59,13 @@ export function filterPatients(patients, filters = {}) {
   const service = cleanText(filters.service || "");
   const status = cleanText(filters.status || "");
   const sex = cleanText(filters.sex || "");
+  const diagnosis = cleanText(filters.diagnosis || "");
   return patients.filter(patient => {
     if (query && !patientFilterText(patient).includes(query)) return false;
     if (service && service !== "Todos" && (patient.service || patient.currentService) !== service) return false;
     if (status && status !== "Todos" && (patient.status || patient.currentState) !== status) return false;
     if (sex && sex !== "Todos" && patient.sex !== sex) return false;
+    if (diagnosis && diagnosis !== "Todos" && epidemiologicalDiagnosis(patient) !== diagnosis) return false;
     return true;
   });
 }
@@ -167,7 +169,22 @@ export function uniqueValues(rows, field) {
     if (field === "service") return row.service || row.currentService;
     if (field === "status") return row.status || row.currentState;
     if (field === "bed") return row.bed || row.currentBed;
+    if (field === "diagnosis") return epidemiologicalDiagnosis(row);
     return row[field];
   };
   return ["Todos", ...new Set(rows.map(row => cleanText(valueFor(row))).filter(Boolean).sort((a, b) => a.localeCompare(b, "es")))];
+}
+
+export function epidemiologicalDiagnosis(patient = {}) {
+  return patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis || "";
+}
+
+export function sortPatientsByServiceBed(rows = []) {
+  return [...rows].sort((a, b) => {
+    const serviceCompare = String(a.service || a.currentService || "").localeCompare(String(b.service || b.currentService || ""), "es", { numeric: true });
+    if (serviceCompare) return serviceCompare;
+    const bedCompare = String(a.bed || a.currentBed || "").localeCompare(String(b.bed || b.currentBed || ""), "es", { numeric: true });
+    if (bedCompare) return bedCompare;
+    return String(a.patientName || a.patientId || "").localeCompare(String(b.patientName || b.patientId || ""), "es", { numeric: true });
+  });
 }

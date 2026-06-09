@@ -248,8 +248,8 @@ const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");
 if (!domSource.includes("frameScheduler") || !domSource.includes("requestAnimationFrame")) {
   fail("components/dom.js debe exponer frameScheduler para coalescer redibujos clinicos.");
 }
-if (!domSource.includes("large-table") || !domSource.includes("rows.length > 40")) {
-  fail("components/dom.js debe marcar tablas clinicas grandes para optimizar renderizado.");
+if (!domSource.includes("export function pagedTable") || !domSource.includes("rows.length > 100") || !domSource.includes("pageSize = options.pageSize || 50")) {
+  fail("components/dom.js debe paginar tablas clinicas grandes a partir de 100 filas.");
 }
 for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.js", "src/modules/ronda-paquetes/index.js"]) {
   const source = readFileSync(join(root, file), "utf8");
@@ -316,6 +316,9 @@ if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");
 const coreMatch = serviceWorkerSource.match(/const CORE = \[(.*?)\];/s);
+if (!serviceWorkerSource.includes("const APP_VERSION") || !serviceWorkerSource.includes("const CACHE_NAME = `epivida-lite-shell-${APP_VERSION}`")) {
+  fail("epivida-lite-sw.js debe versionar cache con APP_VERSION y derivar CACHE_NAME.");
+}
 if (!coreMatch || coreMatch[1].includes("epivida-lite-config.js")) {
   fail("epivida-lite-sw.js no debe precachear epivida-lite-config.js.");
 }
@@ -398,6 +401,12 @@ if (!packageSource.includes("validate:patients") || !packageSource.includes("val
 const headers = readFileSync(join(root, "_headers"), "utf8");
 for (const expected of ["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy"]) {
   if (!headers.includes(expected)) fail(`Falta header ${expected} en lite/_headers`);
+}
+if (/\/\*\.js[\s\S]*?immutable/.test(headers) || /\/\*\.css[\s\S]*?immutable/.test(headers)) {
+  fail("lite/_headers no debe declarar immutable global para JS/CSS sin fingerprint.");
+}
+if (/\/epivida-lite-config\.js\s*\r?\n(?:[^\n]*\r?\n){0,3}[^\n]*immutable/.test(headers)) {
+  fail("epivida-lite-config.js debe permanecer no-cache.");
 }
 
 if (failures.length) {

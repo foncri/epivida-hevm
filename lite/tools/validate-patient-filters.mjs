@@ -8,7 +8,7 @@ function requireValue(condition, message) {
   if (!condition) fail(message);
 }
 
-const { filterPatients, patientFilterText, uniqueValues } = await import("../src/services/patientService.js");
+const { filterPatients, patientFilterText, sortPatientsByServiceBed, uniqueValues } = await import("../src/services/patientService.js");
 
 const patients = [
   {
@@ -18,6 +18,7 @@ const patients = [
     bed: "12",
     status: "GRAVE",
     sex: "F",
+    epidemiologicalDiagnosis: "IAAS",
     hospitalDiagnosis: "Neumonia"
   },
   {
@@ -27,6 +28,7 @@ const patients = [
     currentBed: "67",
     currentState: "ESTABLE",
     sex: "M",
+    currentEpidemiologicalDiagnosis: "NO IAAS",
     currentDiagnosis: "Bronquiolitis"
   }
 ];
@@ -34,12 +36,15 @@ const patients = [
 requireValue(filterPatients(patients, { query: "neumonia" }).map(row => row.patientId).join(",") === "p_1", "Busqueda debe encontrar diagnostico hospitalario.");
 requireValue(filterPatients(patients, { service: "PEDIATRIA" }).map(row => row.patientId).join(",") === "p_2", "Filtro de servicio debe usar currentService.");
 requireValue(filterPatients(patients, { status: "ESTABLE", sex: "M" }).map(row => row.patientId).join(",") === "p_2", "Filtros de estado y sexo deben combinarse.");
+requireValue(filterPatients(patients, { diagnosis: "IAAS" }).map(row => row.patientId).join(",") === "p_1", "Filtro de diagnostico epidemiologico debe usar campos actuales y legacy.");
 
 const before = patientFilterText(patients[0]);
 patients[0].hospitalDiagnosis = "Sepsis";
 const after = patientFilterText(patients[0]);
 requireValue(before.includes("neumonia") && after.includes("sepsis"), "Cache de busqueda debe invalidarse cuando cambia la firma clinica.");
 requireValue(uniqueValues(patients, "service").includes("MEDICINA INTERNA") && uniqueValues(patients, "service").includes("PEDIATRIA"), "uniqueValues debe leer service y currentService.");
+requireValue(uniqueValues(patients, "diagnosis").includes("IAAS") && uniqueValues(patients, "diagnosis").includes("NO IAAS"), "uniqueValues debe leer diagnostico epidemiologico.");
+requireValue(sortPatientsByServiceBed([{ patientId: "b", service: "UCI", bed: "10" }, { patientId: "a", service: "UCI", bed: "2" }]).map(row => row.patientId).join(",") === "a,b", "Orden de pacientes debe ser natural por servicio y cama.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite patient filter validation failed (${failures.length})`);

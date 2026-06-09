@@ -31,8 +31,21 @@ function parseJson(path, label = path) {
 }
 
 const wrangler = readRequired("wrangler.toml");
-if (!/name\s*=\s*"epivida-lite"/.test(wrangler)) {
-  fail("wrangler.toml debe publicar el proyecto Cloudflare Pages epivida-lite.");
+if (!/name\s*=\s*"epivida-hevm"/.test(wrangler)) {
+  fail("wrangler.toml debe publicar el proyecto Cloudflare Pages epivida-hevm.");
+}
+
+function headerSection(source, path) {
+  const lines = source.split(/\r?\n/);
+  const start = lines.findIndex(line => line.trim() === path);
+  if (start < 0) return "";
+  const section = [];
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (index > start && line.startsWith("/") && line.trim().length > 1) break;
+    section.push(line);
+  }
+  return section.join("\n");
 }
 if (!/pages_build_output_dir\s*=\s*"lite"/.test(wrangler)) {
   fail("wrangler.toml debe usar pages_build_output_dir = \"lite\".");
@@ -54,8 +67,8 @@ if (firebase) {
 const packageJson = parseJson("package.json");
 if (packageJson) {
   const scripts = packageJson.scripts || {};
-  if (scripts["deploy:pages"] !== "wrangler pages deploy lite --project-name epivida-lite") {
-    fail("package.json debe conservar deploy:pages para Cloudflare Pages epivida-lite.");
+  if (scripts["deploy:pages"] !== "wrangler pages deploy lite --project-name epivida-hevm") {
+    fail("package.json debe conservar deploy:pages para Cloudflare Pages epivida-hevm.");
   }
   if (scripts["deploy:firestore"] !== "firebase deploy --only firestore:rules,firestore:indexes") {
     fail("package.json debe conservar deploy:firestore para reglas e indices Firestore.");
@@ -70,10 +83,35 @@ for (const expected of [
   "X-Content-Type-Options: nosniff",
   "Referrer-Policy: strict-origin-when-cross-origin",
   "Permissions-Policy: camera=(), microphone=(), geolocation=()",
+  "X-Frame-Options: DENY",
+  "/index.html",
+  "/*.html",
   "/src/*",
   "/epivida-lite-config.js",
-  "Cache-Control: no-cache",
-  "/*.js",
+  "/epivida-lite-sw.js",
+  "/assets/*",
+  "/manifest.webmanifest",
+  "Cache-Control: no-cache"
+]) {
+  if (!headers.includes(expected)) fail(`lite/_headers debe incluir ${expected}.`);
+}
+
+if (/\/\*\.js[\s\S]*?Cache-Control:\s*public,\s*max-age=31536000,\s*immutable/.test(headers)) {
+  fail("lite/_headers no debe usar immutable global para /*.js sin fingerprint.");
+}
+if (/\/\*\.css[\s\S]*?Cache-Control:\s*public,\s*max-age=31536000,\s*immutable/.test(headers)) {
+  fail("lite/_headers no debe usar immutable global para /*.css sin fingerprint.");
+}
+if (/\/\*\.js[\s\S]*immutable/.test(headers) && /\/src\/\*[\s\S]*Cache-Control:\s*no-cache/.test(headers)) {
+  fail("lite/_headers no debe mezclar /*.js immutable con /src/* no-cache.");
+}
+if (/\/\*\.css[\s\S]*immutable/.test(headers) && /\/src\/\*[\s\S]*Cache-Control:\s*no-cache/.test(headers)) {
+  fail("lite/_headers no debe mezclar /*.css immutable con /src/* no-cache.");
+}
+if (headerSection(headers, "/epivida-lite-config.js").includes("immutable")) {
+  fail("epivida-lite-config.js no puede recibir immutable.");
+}
+for (const expected of [
   "Cache-Control: public, max-age=31536000, immutable"
 ]) {
   if (!headers.includes(expected)) fail(`lite/_headers debe incluir ${expected}.`);
