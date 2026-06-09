@@ -263,6 +263,7 @@ for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.j
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
+const preventiveFormsSource = readFileSync(join(root, "src/modules/ronda-paquetes/preventiveForms.js"), "utf8");
 const saveRoundFlowSource = readFileSync(join(root, "src/modules/ronda-paquetes/saveRoundFlow.js"), "utf8");
 if (
   roundModuleSource.includes("document.querySelectorAll") ||
@@ -284,6 +285,17 @@ if (!saveRoundFlowSource.includes("createdEpisodeTasks") || !saveRoundFlowSource
 }
 if ((saveRoundFlowSource.match(/activeDeviceById/g) || []).length < 2) {
   fail("ronda-paquetes debe reutilizar mapas por episodeId para validar y guardar retiros sin busquedas lineales repetidas.");
+}
+if (
+  !roundModuleSource.includes('from "./preventiveForms.js"') ||
+  roundModuleSource.includes("function renderActiveDevicesPanel") ||
+  roundModuleSource.includes("function renderPreventiveActionsPanel") ||
+  !preventiveFormsSource.includes("export function renderActiveDevicesPanel") ||
+  !preventiveFormsSource.includes("export function renderAddPackagePanel") ||
+  !preventiveFormsSource.includes("export function renderPreventiveActionsPanel") ||
+  !preventiveFormsSource.includes("ensurePatientActionDraft")
+) {
+  fail("ronda-paquetes debe mantener formularios preventivos y acciones de paciente en preventiveForms.js, no en el orquestador principal.");
 }
 if (!deviceServiceSource.includes("export function activeDevice") || !roundModuleSource.includes("patientDevices.filter(activeDevice)") || !roundModuleSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
   fail("ronda-paquetes debe evitar lecturas globales de dispositivos al abrir la ronda individual de paciente.");

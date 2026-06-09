@@ -29,6 +29,7 @@ const {
   truncate
 } = await import("../src/modules/ronda-paquetes/roundPatientUtils.js");
 const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js");
+const { ensurePatientActionDraft, patientMovementChanged } = await import("../src/modules/ronda-paquetes/preventiveForms.js");
 const { draftFromRound, reviewDraft, roundState } = await import("../src/modules/ronda-paquetes/saveRoundFlow.js");
 
 const patients = [
@@ -108,6 +109,15 @@ const draft = reviewDraft(local, "2026-06-04", "p_mi_01", {
 requireValue(local.drafts["2026-06-04:p_mi_01"] === draft, "roundState y reviewDraft deben administrar drafts fuera del orquestador principal.");
 requireValue(draft.deviceDrafts.length === 1 && draft.deviceDrafts[0].packageType === "ITS - CC", "draftFromRound debe reconstruir revisiones preventivas guardadas.");
 requireValue(draftFromRound(null, "2026-06-04", "p_new").quickDischarge.enabled === false, "draftFromRound debe crear draft vacio seguro.");
+
+const actionDraft = {};
+ensurePatientActionDraft(actionDraft, patients[0], "2026-06-04");
+requireValue(actionDraft.patientMovement.service === "MI" && actionDraft.patientMovement.bed === "2", "preventiveForms debe inicializar movimiento desde servicio/cama actuales.");
+requireValue(actionDraft.quickDischarge.enabled === false && actionDraft.quickDischarge.date === "2026-06-04", "preventiveForms debe inicializar alta rapida desactivada y fechada.");
+requireValue(!patientMovementChanged(patients[0], actionDraft.patientMovement), "Movimiento sin dirty flag no debe marcar cambio de cama.");
+actionDraft.patientMovement._dirty = true;
+actionDraft.patientMovement.bed = "4";
+requireValue(patientMovementChanged(patients[0], actionDraft.patientMovement), "Cambio de cama preparado debe detectarse sin consultar DOM.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite round helper validation failed (${failures.length})`);

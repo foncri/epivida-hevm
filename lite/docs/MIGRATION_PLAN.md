@@ -12,7 +12,7 @@
 - Endurecimiento de `importar-censo` con fixtures hospitalarios anonimizados.
 - Ampliacion de `importService` y `reconciliationService` para excepciones locales.
 - `monitorService`.
-- Continuar split de `ronda-paquetes` despues de separar `bedBoard.js`, `roundPatientUtils.js` y `saveRoundFlow.js`; faltan paciente individual y formularios preventivos.
+- Continuar split de `ronda-paquetes` despues de separar `bedBoard.js`, `roundPatientUtils.js`, `preventiveForms.js` y `saveRoundFlow.js`; falta paciente individual e historial preventivo.
 - Archivado correcto de dispositivos retirados.
 - IAAS con seguimiento clinico heredado.
 - Reportes basicos con `exports_log`.
