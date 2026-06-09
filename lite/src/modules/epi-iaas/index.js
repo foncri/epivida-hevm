@@ -1,6 +1,8 @@
 import { badge, button, dateInput, el, field, notice, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
+import { saveAntimicrobial } from "../../services/antimicrobialService.js";
+import { saveCulture } from "../../services/cultureService.js";
 import { canWrite } from "../../lib/security.js";
 import { closeIaasCase, listActiveIaas, saveIaasCase } from "../../services/iaasService.js";
 import { listActivePatients } from "../../services/patientService.js";
@@ -81,6 +83,8 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
         probableOrigin: data.probableOrigin,
         notes: data.notes
       });
+      await saveLinkedCulture(app, saved, data);
+      await saveLinkedAntimicrobial(app, saved, data);
       onSaved(saved);
     }
   }, [
@@ -92,11 +96,43 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       field("Origen probable", textInput({ name: "probableOrigin", value: iaas.probableOrigin || "" }))
     ]),
     field("Notas", textareaInput({ name: "notes", rows: 3, value: iaas.notes || "" })),
+    el("div", { class: "form-grid compact" }, [
+      field("Cultivo muestra", textInput({ name: "cultureSampleType", value: "" })),
+      field("Cultivo fecha", dateInput({ name: "cultureRequestedAt", value: "" })),
+      field("Microorganismo", textInput({ name: "cultureOrganism", value: "" })),
+      field("Farmaco", textInput({ name: "antimicrobialDrug", value: "" })),
+      field("Inicio farmaco", dateInput({ name: "antimicrobialStartDate", value: "" })),
+      field("Indicacion", textInput({ name: "antimicrobialIndication", value: "" }))
+    ]),
     el("div", { class: "toolbar" }, [
       button("Guardar", null, { type: "submit" }),
       button("Cancelar", onCancel, { class: "ghost" })
     ])
   ]);
+}
+
+async function saveLinkedCulture(app, iaas, data) {
+  if (!data.cultureSampleType && !data.cultureRequestedAt && !data.cultureOrganism) return null;
+  return saveCulture(app, {
+    patientId: iaas.patientId,
+    iaasId: iaas.iaasId,
+    sampleType: data.cultureSampleType || "Sin muestra",
+    requestedAt: data.cultureRequestedAt || todayIso(),
+    organism: data.cultureOrganism || "",
+    status: data.cultureOrganism ? "resultado" : "solicitado"
+  });
+}
+
+async function saveLinkedAntimicrobial(app, iaas, data) {
+  if (!data.antimicrobialDrug && !data.antimicrobialStartDate && !data.antimicrobialIndication) return null;
+  return saveAntimicrobial(app, {
+    patientId: iaas.patientId,
+    iaasId: iaas.iaasId,
+    drug: data.antimicrobialDrug || "Sin farmaco",
+    startDate: data.antimicrobialStartDate || todayIso(),
+    indication: data.antimicrobialIndication || iaas.iaasType || "",
+    status: "activo"
+  });
 }
 
 function patientOptions(patients) {

@@ -68,6 +68,13 @@
 - Confirmar `exports_log` y `audit_logs` para cada CSV.
 - Confirmar que XLSX no carga al inicio.
 
+## IAAS, Cultivos Y Antimicrobianos
+
+- Entrar a `#/epi-iaas`.
+- Crear/editar IAAS con cultivo inicial.
+- Crear/editar IAAS con antimicrobiano inicial.
+- Abrir expediente del paciente y confirmar cultivos/antimicrobianos sin lecturas globales.
+
 ## Seguridad
 
 - Enfermeria puede ronda y dispositivos.

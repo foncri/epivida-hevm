@@ -206,6 +206,14 @@ const iaasServiceSource = readFileSync(join(root, "src/services/iaasService.js")
 if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.includes("filter(activeIaas)")) {
   fail("iaasService debe filtrar IAAS activas tanto desde Firestore como desde cache/cola offline.");
 }
+const cultureServiceSource = readFileSync(join(root, "src/services/cultureService.js"), "utf8");
+if (!cultureServiceSource.includes("export async function listCulturesForPatient") || !cultureServiceSource.includes('"cultures", [["patientId", "==", patientId]]') || !cultureServiceSource.includes("pendingPayloadsForCollection(\"cultures\")") || !cultureServiceSource.includes("export async function saveCulture")) {
+  fail("cultureService debe consultar cultivos por paciente/caso y mezclar cola offline sin lecturas globales.");
+}
+const antimicrobialServiceSource = readFileSync(join(root, "src/services/antimicrobialService.js"), "utf8");
+if (!antimicrobialServiceSource.includes("export async function listAntimicrobialsForPatient") || !antimicrobialServiceSource.includes('"antimicrobials", [["patientId", "==", patientId]]') || !antimicrobialServiceSource.includes("pendingPayloadsForCollection(\"antimicrobials\")") || !antimicrobialServiceSource.includes("export async function saveAntimicrobial")) {
+  fail("antimicrobialService debe consultar antimicrobianos por paciente/caso y mezclar cola offline sin lecturas globales.");
+}
 
 const offlineQueueSource = readFileSync(join(root, "src/services/offlineQueueService.js"), "utf8");
 if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueueSource.includes("sync_blocked")) {
@@ -242,8 +250,8 @@ if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceS
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
 }
-if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT")) {
-  fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos activos/archivados con limite.");
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId")) {
+  fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos/cultivos/antimicrobianos con limites.");
 }
 
 const appSource = readFileSync(join(root, "src/app.js"), "utf8");
@@ -260,6 +268,10 @@ if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-p
 const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
 if (!expedienteModuleSource.includes("loadPatientExpediente") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
+}
+const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.js"), "utf8");
+if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
+  fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
 }
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");

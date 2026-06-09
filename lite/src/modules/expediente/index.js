@@ -13,7 +13,7 @@ export async function render({ route }) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo activo. Los datos clinico-operativos de ronda y paquetes se conservan en sus colecciones.");
   }
 
-  const { devices, activeDevices, rounds, iaasRows: patientIaas } = expediente;
+  const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials } = expediente;
   const latestRound = rounds.at(-1) || {};
   return el("div", { class: "expediente-page stack" }, [
     renderHero(patient),
@@ -31,6 +31,8 @@ export async function render({ route }) {
     ]),
     renderPackageReviewPanel(rounds),
     renderDeviceTable(devices),
+    renderCultureTable(cultures),
+    renderAntimicrobialTable(antimicrobials),
     renderRoundTable(rounds),
     renderIaasPanel(patientIaas)
   ]);
@@ -143,6 +145,36 @@ function renderDeviceTable(devices) {
         el("td", {}, [device.status || "activo"]),
         el("td", {}, [device.preventivePackage || ""]),
         el("td", {}, [device.careStatus || "no_valorado"])
+      ])
+    ))
+  ]);
+}
+
+function renderCultureTable(cultures = []) {
+  return el("section", { class: "iaas-panel expediente-history-panel" }, [
+    el("h2", {}, ["Cultivos"]),
+    table(["Fecha", "Muestra", "Estado", "Microorganismo", "Susceptibilidad"], cultures.map(culture =>
+      el("tr", {}, [
+        el("td", {}, [culture.requestedAt || "NA"]),
+        el("td", {}, [culture.sampleType || ""]),
+        el("td", {}, [culture.status || ""]),
+        el("td", {}, [culture.organism || ""]),
+        el("td", {}, [truncate(culture.susceptibility || "", 170)])
+      ])
+    ))
+  ]);
+}
+
+function renderAntimicrobialTable(rows = []) {
+  return el("section", { class: "iaas-panel expediente-history-panel" }, [
+    el("h2", {}, ["Antimicrobianos"]),
+    table(["Inicio", "Fin", "Farmaco", "Indicacion", "Estado"], rows.map(row =>
+      el("tr", {}, [
+        el("td", {}, [row.startDate || "NA"]),
+        el("td", {}, [row.endDate || "Activo"]),
+        el("td", {}, [row.drug || ""]),
+        el("td", {}, [truncate(row.indication || "", 170)]),
+        el("td", {}, [row.status || ""])
       ])
     ))
   ]);

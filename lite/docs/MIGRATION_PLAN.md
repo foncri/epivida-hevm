@@ -14,7 +14,7 @@
 - `monitorService`.
 - Mantener `ronda-paquetes` modular despues de separar `bedBoard.js`, `roundPatientUtils.js`, `patientRound.js`, `patientRoundPanels.js`, `preventiveForms.js`, `roundNavigation.js` y `saveRoundFlow.js`; separar `roundPage.js` solo si la pagina/lista principal vuelve a crecer.
 - Ampliar `expedienteService` con cursores visibles por seccion; ya lee primera pagina de `devices_archive` por paciente.
-- IAAS con seguimiento clinico heredado.
+- IAAS con seguimiento clinico heredado; cultivos y antimicrobianos ya tienen servicios filtrados por paciente/caso y captura inicial desde EPI-IAAS.
 - Reportes historicos por rango/chunk; CSV basico ya registra `exports_log`.
 - Auditoria exhaustiva.
 - Reglas Firestore para nuevas colecciones.
