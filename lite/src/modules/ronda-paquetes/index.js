@@ -26,6 +26,7 @@ import {
 } from "../../services/preventivePackageService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
 import { listRoundsForPatient, listTodayRounds, roundSessionForDate, saveRoundReview, saveRoundSession } from "../../services/roundService.js";
+import { bedTileState, renderBedBoard } from "./bedBoard.js";
 import {
   bedBoardItems,
   compareBeds,
@@ -41,6 +42,22 @@ import {
   sortByServiceBed,
   uniqueValues
 } from "./roundHelpers.js";
+import {
+  daysBetween,
+  deviceActiveOnDate,
+  isCvcDevice,
+  isFoleyDevice,
+  isNavDevice,
+  isPePackageType,
+  isSurgicalSignal,
+  navigationPatientId,
+  normalizeStatusKey,
+  roundStatus,
+  roundPatientHref,
+  statusLabel,
+  syncLabel,
+  truncate
+} from "./roundPatientUtils.js";
 
 const DISCHARGE_TYPES = ["MEJORIA", "TRASLADO", "MAXIMO BENEFICIO", "VOLUNTARIA", "DEFUNCION", "SIN DATO"];
 const DISCHARGE_SHIFTS = ["MATUTINO", "VESPERTINO", "NOCTURNO", "JORNADA ESPECIAL", "SIN TURNO"];
@@ -172,70 +189,6 @@ function renderServiceFilters(patients, local, redraw, scheduleRedraw = redraw) 
         scheduleRedraw();
       }
     })
-  ]);
-}
-
-function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
-  const items = bedBoardItems(patients, serviceFilter);
-  let pending = 0;
-  let reviewed = 0;
-  const boardItems = items.map(item => {
-    if (!item.patient) return item;
-    const state = bedTileState(item.patient, roundMap);
-    if (state.status === "overdue") pending += 1;
-    if (state.status === "reviewed") reviewed += 1;
-    return { ...item, state };
-  });
-  return el("section", { class: "bed-board preventive" }, [
-    el("div", { class: "bed-board-head" }, [
-      el("div", {}, [
-        el("h2", {}, ["Mapa de camas preventivas"]),
-        el("p", {}, ["Toca una cama para abrir el paciente. Las vacias quedan bloqueadas y las pendientes aparecen en rojo."])
-      ]),
-      el("div", { class: "bed-board-totals" }, [
-        el("span", {}, [`${boardItems.length} cama(s)`]),
-        el("span", {}, [`${reviewed} vistas`]),
-        pending ? el("strong", {}, [`${pending} pendientes`]) : ""
-      ])
-    ]),
-    el("div", { class: "bed-board-legend" }, [
-      el("span", { class: "legend available" }, ["Disponible"]),
-      el("span", { class: "legend vacant" }, ["Desocupada"]),
-      el("span", { class: "legend reviewed" }, ["Vista"]),
-      el("span", { class: "legend overdue" }, ["Pendiente"])
-    ]),
-    renderBedBoardPicker(boardItems, date),
-    el("div", { class: "bed-board-grid" }, boardItems.map(item => renderBedTile(item, date, roundMap)))
-  ]);
-}
-
-function renderBedBoardPicker(items, date) {
-  const selectable = items.filter(item => item.patient && !item.state?.disabled);
-  if (!selectable.length) return "";
-  return field("Ir a cama preventiva", selectInput([
-    ["", "Seleccionar cama disponible"],
-    ...selectable.map(item => [item.patient.patientId, `Cama ${item.bed || patientBed(item.patient)} - ${patientLabel(item.patient)}`])
-  ], {
-    onchange: event => {
-      if (event.target.value) location.hash = roundPatientHref(date, event.target.value);
-    }
-  }));
-}
-
-function renderBedTile(item, date, roundMap) {
-  const bed = item.bed || patientBed(item.patient) || "S/C";
-  if (!item.patient) {
-    return el("button", { type: "button", class: "bed-tile vacant", disabled: true, "aria-label": `${bed}: Cama desocupada` }, [
-      el("strong", {}, [bed]),
-      el("span", {}, ["Vacia"]),
-      el("small", {}, ["Sin paciente"])
-    ]);
-  }
-  const state = item.state || bedTileState(item.patient, roundMap);
-  return el("a", { class: `bed-tile ${state.status}`, href: roundPatientHref(date, item.patient.patientId), title: state.title, "aria-label": `${bed}: ${state.title}` }, [
-    el("strong", {}, [bed]),
-    el("span", {}, [state.label]),
-    el("small", {}, [truncate(patientLabel(item.patient), 24)])
   ]);
 }
 
@@ -1339,40 +1292,12 @@ function serviceCounts(patients) {
   };
 }
 
-function bedTileState(patient, roundMap) {
-  if (!patient?.patientId) return { status: "vacant", disabled: true, label: "Vacia", title: "Cama desocupada" };
-  const round = roundMap.get(patient.patientId);
-  if (round && ["reviewed", "revisado", "alerta"].includes(round.status)) return { status: "reviewed", disabled: false, label: "Vista", title: "Ronda preventiva guardada" };
-  if (round?.status === "incompleto") return { status: "overdue", disabled: false, label: "Incompleta", title: "Ronda preventiva incompleta" };
-  return { status: "overdue", disabled: false, label: "Pendiente", title: "Pendiente de ronda preventiva" };
-}
-
-function roundStatus(round) {
-  if (!round?.status) return "pendiente";
-  if (round.status === "reviewed") return "revisado";
-  return round.status;
-}
-
 function roundBadge(round) {
   const status = roundStatus(round);
   if (status === "revisado") return badge("Revisado", "ok");
   if (status === "alerta") return badge("Alerta", "bad");
   if (status === "incompleto") return badge("Incompleto", "warn");
   return badge("Pendiente", "warn");
-}
-
-function statusLabel(status = "") {
-  const normalized = roundStatus({ status });
-  if (normalized === "revisado") return "Revisado";
-  if (normalized === "alerta") return "Alerta";
-  if (normalized === "incompleto") return "Incompleto";
-  return "Pendiente";
-}
-
-function syncLabel(syncStatus = "") {
-  if (syncStatus === "local_pending") return "Pendiente sync";
-  if (syncStatus === "error") return "Error sync";
-  return "Sincronizado";
 }
 
 function dischargeDraft(local, date, patient) {
@@ -1485,84 +1410,6 @@ function roundRowKey(round = {}) {
 
 function roundReviewDate(round = {}) {
   return normalizeDate(round.date || round.roundDate || round.reviewDate) || round.date || round.roundDate || round.reviewDate || "";
-}
-
-function deviceActiveOnDate(device = {}, value = "") {
-  const date = normalizeDate(value);
-  if (!date) return false;
-  if (normalizeDate(device.createdDuringRoundDate) === date || normalizeDate(device.roundDate) === date) return true;
-  const start = normalizeDate(device.installationDate || device.createdAt);
-  const end = normalizeDate(device.removalDate);
-  if (!start) return false;
-  return start <= date && (!end || end >= date);
-}
-
-function isPePackageType(type = "") {
-  const key = normalizeRoundText(type).replace(/[^A-Z]/g, "");
-  return key === "PEYPBMT" || key === "PE" || key.includes("PRECAUCIONESESTANDAR");
-}
-
-function navigationPatientId(patient, patients = [], direction) {
-  const service = patientService(patient);
-  const serviceKey = normalizeServiceKey(service);
-  const rows = bedBoardItems(
-    patients.filter(row => normalizeServiceKey(patientService(row)) === serviceKey).sort(sortByServiceBed),
-    service
-  )
-    .map(item => item.patient?.patientId)
-    .filter(Boolean);
-  const index = rows.indexOf(patient.patientId);
-  if (index === -1) return "";
-  return direction === "previous" ? rows[index - 1] || "" : rows[index + 1] || "";
-}
-
-function roundPatientHref(date, patientId) {
-  return `#/ronda/${date}/paciente/${patientId}`;
-}
-
-function daysBetween(start, end) {
-  const startDate = normalizeDate(start);
-  const endDate = normalizeDate(end);
-  if (!startDate || !endDate) return null;
-  const startMs = Date.parse(`${startDate}T00:00:00Z`);
-  const endMs = Date.parse(`${endDate}T00:00:00Z`);
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
-  return Math.max(0, Math.floor((endMs - startMs) / 86400000));
-}
-
-function truncate(value, length) {
-  const text = String(value || "");
-  return text.length > length ? `${text.slice(0, Math.max(0, length - 1))}...` : text;
-}
-
-function normalizeStatusKey(value) {
-  return normalizeRoundText(value).replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-}
-
-function isCvcDevice(device) {
-  return ["CVC", "CVPC", "PICC", "CATT HD", "C. PUERTO", "ONFALOCLISIS", "ITS - CC"].includes(device.deviceType) || device.preventivePackage === "ITS - CC";
-}
-
-function isFoleyDevice(device) {
-  return device.deviceType === "Sonda Foley" || device.preventivePackage === "ITU - CU";
-}
-
-function isNavDevice(device) {
-  const text = normalizeRoundText([device.deviceType, device.preventivePackage].join(" "));
-  return /NAVM|VENTILACION|ENDOTRAQUEAL|TRAQUEOSTOMIA|CPAP|BPAP|COT|CET/.test(text);
-}
-
-function isSurgicalSignal(patient = {}) {
-  const text = normalizeRoundText([
-    patient.currentService,
-    patient.service,
-    patient.currentDiagnosis,
-    patient.hospitalDiagnosis,
-    patient.epidemiologicalDiagnosis,
-    patient.currentEpidemiologicalDiagnosis,
-    patient.notes
-  ].filter(Boolean).join(" "));
-  return /QUIRURG|CIRUG|TRAUMATOLOG|HERIDA|ISQ|POST ?OP|POP|LAPE|COLEC|FRACTURA|TUMOR|COLOSTOM/.test(text);
 }
 
 function renderEmptyBeds() {

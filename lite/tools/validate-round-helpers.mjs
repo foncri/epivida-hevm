@@ -16,6 +16,19 @@ const {
   normalizeServiceKey,
   roundPatientSearchText
 } = await import("../src/modules/ronda-paquetes/roundHelpers.js");
+const {
+  daysBetween,
+  deviceActiveOnDate,
+  isCvcDevice,
+  isFoleyDevice,
+  isNavDevice,
+  isSurgicalSignal,
+  navigationPatientId,
+  statusLabel,
+  syncLabel,
+  truncate
+} = await import("../src/modules/ronda-paquetes/roundPatientUtils.js");
+const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js");
 
 const patients = [
   {
@@ -71,6 +84,16 @@ const bedBoard = bedBoardItems(miRows, "MEDICINA INTERNA");
 const occupiedBeds = bedBoard.filter(item => item.patient).map(item => `${item.bed}:${item.patient.patientId}`);
 requireValue(occupiedBeds.includes("1:p_mi_01") && occupiedBeds.includes("2:p_mi_02"), "Mapa de camas debe conservar pacientes en camas ocupadas.");
 requireValue(bedBoard.some(item => item.bed === "30" && !item.patient), "Mapa de Medicina Interna debe incluir camas conocidas vacias.");
+requireValue(navigationPatientId(patients[0], patients, "previous") === "p_mi_01", "Navegacion previa debe calcularse desde datos, no desde DOM.");
+requireValue(daysBetween("2026-06-01", "2026-06-04") === 3, "daysBetween debe calcular dias de estancia por fecha ISO.");
+requireValue(truncate("ABCDEFGHIJ", 5) === "ABCD...", "truncate debe limitar texto sin romper tablas.");
+requireValue(statusLabel("reviewed") === "Revisado" && syncLabel("local_pending") === "Pendiente sync", "Labels de ronda deben conservar textos visibles.");
+requireValue(isCvcDevice({ deviceType: "PICC" }), "PICC debe contar como dispositivo CVC/ITS.");
+requireValue(isFoleyDevice({ preventivePackage: "ITU - CU" }), "Paquete ITU-CU debe contar como Foley.");
+requireValue(isNavDevice({ deviceType: "CET" }), "CET debe contar como NAVM.");
+requireValue(deviceActiveOnDate({ installationDate: "2026-06-01", removalDate: "2026-06-05" }, "2026-06-04"), "Dispositivo debe estar activo dentro del rango.");
+requireValue(isSurgicalSignal({ hospitalDiagnosis: "Post operatorio por fractura" }), "Diagnostico quirurgico debe activar senal ISQ.");
+requireValue(bedTileState({ patientId: "p_mi_01" }, new Map([["p_mi_01", { status: "reviewed" }]])).status === "reviewed", "Estado de cama revisada debe vivir en bedBoard.js.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite round helper validation failed (${failures.length})`);

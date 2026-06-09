@@ -261,10 +261,13 @@ for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.j
   }
 }
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
+const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
+const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
 if (
   roundModuleSource.includes("document.querySelectorAll") ||
-  !roundModuleSource.includes("navigationPatientId(patient, patients, direction)") ||
-  !roundModuleSource.includes("bedBoardItems(")
+  !roundPatientUtilsSource.includes("navigationPatientId(patient, patients = [], direction)") ||
+  !roundPatientUtilsSource.includes("bedBoardItems(") ||
+  !bedBoardSource.includes("export function renderBedBoard")
 ) {
   fail("ronda-paquetes debe calcular navegacion por cama desde datos cargados, sin consultar DOM renderizado.");
 }

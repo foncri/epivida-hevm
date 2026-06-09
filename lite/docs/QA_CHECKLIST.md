@@ -50,6 +50,7 @@
 - Entrar a `#/ronda-paquetes`.
 - Filtrar servicio.
 - Abrir paciente.
+- Confirmar que el mapa de camas se renderiza desde `bedBoard.js` y no depende de consultas DOM.
 - Agregar paquete/dispositivo.
 - Guardar y siguiente.
 - Retirar dispositivo.

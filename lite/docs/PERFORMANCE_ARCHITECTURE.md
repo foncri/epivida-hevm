@@ -32,6 +32,7 @@ EPIVIDA Lite debe pintar rapido, autenticar rapido, cargar solo la ruta necesari
 - `virtualTable` queda reservado para mas de 300 filas en componentes de fase P0/P1.
 - Filtros locales se coalescen con `frameScheduler`.
 - Ronda no debe usar `querySelectorAll` para navegar camas; la navegacion sale de datos ya cargados.
+- El mapa de camas vive fuera del orquestador en `modules/ronda-paquetes/bedBoard.js`; el siguiente corte debe separar formularios y flujo de guardado.
 - No renderizar formularios ocultos gigantes.
 
 ## Escrituras

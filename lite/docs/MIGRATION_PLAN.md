@@ -12,7 +12,7 @@
 - Endurecimiento de `importar-censo` con fixtures hospitalarios anonimizados.
 - Ampliacion de `importService` y `reconciliationService` para excepciones locales.
 - `monitorService`.
-- Split de `ronda-paquetes`.
+- Continuar split de `ronda-paquetes` despues del primer corte de `bedBoard.js` y utilidades puras.
 - Archivado correcto de dispositivos retirados.
 - IAAS con seguimiento clinico heredado.
 - Reportes basicos con `exports_log`.
