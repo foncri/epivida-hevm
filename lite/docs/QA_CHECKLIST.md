@@ -65,7 +65,7 @@
 - Entrar a `#/reportes`.
 - Exportar CSV.
 - Confirmar proteccion contra formulas.
-- Confirmar `exports_log` cuando este habilitado.
+- Confirmar `exports_log` y `audit_logs` para cada CSV.
 - Confirmar que XLSX no carga al inicio.
 
 ## Seguridad

@@ -18,7 +18,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 | Cultivos | Tipos de cultivo, resultados y alertas. | No hay `cultureService`. | Falta coleccion `cultures` y UI por paciente/caso. | P1 | Crear `cultureService` y seccion lazy en expediente/IAAS. | Agregar cultivo a caso IAAS y verlo solo al abrir caso. |
 | Antibioticos | Catalogo antimicrobiano, inicio, fin, indicacion. | No hay `antimicrobialService`. | Falta modelo propio y relacion con IAAS/paciente. | P1 | Crear `antimicrobialService` y formulario bajo demanda. | Agregar antibiotico y exportarlo en reporte IAAS. |
 | Expediente | Vista por paciente con censos, rondas, dispositivos, IAAS y auditoria. | `modules/expediente` usa `expedienteService` y mezcla dispositivos activos + primera pagina de `devices_archive` por paciente. | Falta carga bajo demanda por tabs y paginacion de rondas/auditoria/IAAS historicas. | P0 | Ampliar `expedienteService` con cursores por seccion. | Abrir expediente no carga historicos globales ni archivos sin filtro. |
-| Reportes | Diario, censo, ronda, dispositivos, IAAS, CSV/XLSX/JSON. | `modules/reportes`, `exportService` CSV protegido. | Falta rango historico paginado, `exports_log` y Excel dinamico opcional. | P0 | Crear `reportService`, registrar exportaciones y chunking por rango. | Exportar CSV registra `exports_log`; XLSX no carga al inicio. |
+| Reportes | Diario, censo, ronda, dispositivos, IAAS, CSV/XLSX/JSON. | `modules/reportes`, `exportService` CSV protegido, auditado y registrado en `exports_log`. | Falta rango historico paginado y Excel dinamico opcional. | P0 | Crear `reportService` para rangos/chunking historico. | Exportar CSV registra `exports_log`; XLSX no carga al inicio. |
 | Auditoria | `auditLogs` para cambios clinicos y sync. | `auditService` append-only y reglas `audit_logs`. | Falta cobertura exhaustiva de todos los dominios. | P0 | Envolver acciones criticas con `writeAudit`. | Alta/edicion/egreso/dispositivo/IAAS/ronda generan log. |
 | Offline | Mirror local, drafts, writeQueue, respaldo. | IndexedDB cache + `offlineQueueService`, Firestore persistence y `sync_blocked`. | Falta UX de restauracion/export JSON y retry por lote. | P1 | Admin muestra cola, reintento, limpieza bloqueada y backup controlado. | Simular permiso denegado y ver `sync_blocked`. |
 | Exportacion | CSV, respaldo, Sheets opcional. | CSV protegido, sin XLSX inicial. | Falta export por rango con cursor y JSON backup. | P1 | `exportService` paginado y `migrationService` para backup. | Exportar rango de 30 dias sin cargar 1M. |
@@ -35,7 +35,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 - Continuar split de `ronda-paquetes/index.js` solo si la pagina/lista principal vuelve a crecer; paciente individual, formularios, navegacion e historial ya viven en modulos dedicados.
 - Paginacion visible por seccion en expediente para historicos largos.
 - `iaasService` con seguimiento clinico heredado.
-- `reportService` con `exports_log`.
+- `reportService` con rangos historicos paginados.
 - Reglas Firestore para culturas, antimicrobianos, busqueda y snapshots agregados.
 
 ## Brechas P1

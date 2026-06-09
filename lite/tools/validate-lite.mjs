@@ -375,6 +375,9 @@ const exportServiceSource = readFileSync(join(root, "src/services/exportService.
 if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.includes("JSON.stringify(value)") || !exportServiceSource.includes("\\uFEFF")) {
   fail("exportService debe proteger CSV contra formulas, objetos anidados y compatibilidad UTF-8.");
 }
+if (!exportServiceSource.includes('addDocOrQueue(app, "exports_log"') || !exportServiceSource.includes('actionType: "export_csv"')) {
+  fail("exportService debe registrar audit log y exports_log al exportar CSV.");
+}
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");
 const coreMatch = serviceWorkerSource.match(/const CORE = \[(.*?)\];/s);
