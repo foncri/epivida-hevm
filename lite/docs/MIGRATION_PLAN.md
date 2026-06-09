@@ -17,7 +17,7 @@
 - IAAS con seguimiento clinico heredado; IAAS, cultivos y antimicrobianos ya tienen servicios filtrados por paciente/caso y captura inicial desde EPI-IAAS.
 - Reportes historicos por rango/chunk; snapshots diarios ya exportan rango acotado y CSV basico registra `exports_log`.
 - Auditoria exhaustiva.
-- Reglas Firestore para nuevas colecciones.
+- Prueba/despliegue controlado de reglas Firestore para nuevas colecciones.
 
 ## Fase 3: P1
 

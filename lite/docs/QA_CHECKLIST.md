@@ -85,3 +85,4 @@
 - Lectura puede monitoreo, censo y reportes.
 - Admin puede todo.
 - Deletes bloqueados por reglas.
+- Cambiar un rol en Admin y confirmar `audit_logs` con `user_profile_update`, `before` y `after`.

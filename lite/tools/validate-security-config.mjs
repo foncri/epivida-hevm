@@ -107,6 +107,11 @@ if (!authService.includes("activeProfile(profile)") || !authService.includes("no
 if (/BOOTSTRAP|bootstrap|seedSource:\s*["']epivida-lite-bootstrap/.test(userService)) {
   fail("userService no debe conservar bootstrap admin en cliente despues de confirmar el primer admin productivo.");
 }
+for (const expected of ["writeAudit", "existingUserProfile(uid)", 'actionType: before ? "user_profile_update" : "user_profile_create"', "before,", "after: saved"]) {
+  if (!userService.includes(expected)) {
+    fail(`userService debe auditar cambios de perfiles con before/after: ${expected}`);
+  }
+}
 if (/BOOTSTRAP|bootstrapEmails/.test(config)) {
   fail("config.js no debe exponer bootstrap admin por cliente despues de produccion inicial.");
 }

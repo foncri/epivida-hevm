@@ -4,6 +4,7 @@ import { cleanText, stripUndefined } from "../lib/validators.js";
 import { knownRole, normalizeRole } from "../lib/security.js";
 import { getDocData, listCollection, setDocMerge } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+import { writeAudit } from "./auditService.js";
 
 const TEST_USERS = [
   {
@@ -55,6 +56,15 @@ export async function listUserProfiles() {
   }
 }
 
+async function existingUserProfile(uid) {
+  if (appConfig().testMode) return TEST_USERS.find(row => row.uid === uid) || null;
+  try {
+    return await getDocData(`users/${uid}`);
+  } catch {
+    return null;
+  }
+}
+
 export async function saveUserProfile(app, profile = {}) {
   const uid = cleanText(profile.uid, 160);
   const email = cleanText(profile.email, 240).toLowerCase();
@@ -74,9 +84,19 @@ export async function saveUserProfile(app, profile = {}) {
     updatedAt: nowIso(),
     updatedBy: app.state.auth.user?.uid || ""
   });
-  return setDocMergeOrQueue(app, `users/${uid}`, payload, {
+  const before = await existingUserProfile(uid);
+  const saved = await setDocMergeOrQueue(app, `users/${uid}`, payload, {
     module: "admin",
     entityType: "user",
     entityId: uid
   });
+  await writeAudit(app, {
+    actionType: before ? "user_profile_update" : "user_profile_create",
+    module: "admin",
+    entityType: "user",
+    entityId: uid,
+    before,
+    after: saved
+  });
+  return saved;
 }

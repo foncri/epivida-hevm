@@ -7,7 +7,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 | Dominio | Feature antigua | En Lite actual | Brecha | Prioridad | Implementacion propuesta | Prueba |
 |---|---|---|---|---|---|---|
 | Auth | Login Google, dominio autorizado, persistencia y usuario activo. | `authService` usa `firebaseAuthRuntime`, popup con redirect fallback y perfil activo; bootstrap cliente retirado. | Falta verificar manualmente dominios Auth y flujo de provision por Admin/seed. | P0 | Mantener creacion de usuarios solo por Admin/seed controlado y auditar altas. | `npm run validate:security`; login admin; usuario no activo queda bloqueado. |
-| Usuarios | Roles admin, epidemiologia, enfermeria y lectura. | `security.js`, `admin/index.js`, reglas `users`. | Falta auditoria de cambios de rol mas completa. | P0 | Auditar `saveUserProfile` con before/after y mostrar historial simple. | Cambiar rol en admin y verificar `audit_logs`. |
+| Usuarios | Roles admin, epidemiologia, enfermeria y lectura. | `security.js`, `admin/index.js`, reglas `users`; `saveUserProfile` audita altas/cambios con before/after. | Falta vista de historial simple en Admin. | P1 | Mostrar ultimos `audit_logs` filtrados por usuario objetivo sin cargar auditoria global. | Cambiar rol en admin y verificar `audit_logs`. |
 | Censo | Alta, edicion, egreso, cama, servicio, estado, sexo, DEIH, diagnosticos. | `modules/censo`, `patientService`, `patients_active`, `patients_archive`. | Falta conciliacion avanzada de pacientes movidos/ausentes desde importacion. | P0 | Implementar `importar-censo` + `reconciliationService`. | Fixture con nuevos, movidos, ausentes y egreso confirmado. |
 | Importacion | Pegar Excel/Sheets/CSV, detectar encabezados, normalizar servicio/cama y preview. | `modules/importar-censo`, `importService` y `reconciliationService` parsean texto/CSV, generan preview y guardan solo tras confirmacion. | Falta conciliacion clinica avanzada para excepciones locales y soporte Excel dinamico opcional. | P0 | Endurecer reglas de importacion con fixtures hospitalarios y split por casos especiales. | `npm run validate:import`; importar fixture CSV sin guardar automatico. |
 | Monitoreo | Filtros por servicio, sexo, estado, diagnostico, busqueda y conteos. | `modules/monitoreo` filtra localmente pacientes activos y pagina tabla. | Falta servicio `monitorService` para snapshots/metricas y gravedad. | P0 | Extraer metricas a `monitorService` y usar `daily_snapshots` para dashboard. | 300 pacientes activos: filtro sin consulta por tecla. |
@@ -25,7 +25,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 | Dashboard | Dashboard visual/operativo. | `inicio` usa snapshot minimo. | Falta snapshot diario robusto y metricas operativas. | P1 | `snapshotService` con `daily_snapshots`, mensual y anual. | Inicio lee un snapshot, no colecciones clinicas completas. |
 | Catalogos | Servicios, camas, dispositivos, antimicrobianos, cultivos. | `catalogService` basico y constantes dispersas. | Falta normalizacion central y catalogos editables. | P1 | `catalogs` con cache y versionado; `normalize.js`. | Cambiar catalogo en Admin se refleja sin redeploy. |
 | Rendimiento | App monolitica con todos los scripts. | `index.html` minimo, router dinamico, SW Lite, tablas paginadas. | Falta medir Cloudflare final y split de ronda. | P0 | Validadores de performance, Lighthouse y Network. | `#/monitoreo` no carga ronda, IAAS completo, reportes, XLSX ni legacy. |
-| Seguridad | Reglas por rol, deletes bloqueados. | `lite/firebase/firestore.rules` exige usuario activo y roles. | Faltan reglas para `cultures`, `antimicrobials`, snapshots mensuales y busqueda. | P0 | Ampliar rules al nuevo modelo antes de activar modulos. | `npm run validate:security` y pruebas manuales por rol. |
+| Seguridad | Reglas por rol, deletes bloqueados. | `lite/firebase/firestore.rules` exige usuario activo, roles, colecciones clinicas nuevas, snapshots y busqueda; `validate:security` bloquea bootstrap cliente. | Falta prueba manual por rol en Firebase real. | P0 | Ejecutar QA manual con usuarios enfermeria/epidemiologia/lectura/admin. | `npm run validate:security` y pruebas manuales por rol. |
 | Escalabilidad | Store local completo. | Colecciones activas separadas de archive. | Falta paginacion/cursor en servicios historicos y busqueda limitada. | P0 | `paginateQuery`, `patients_search`, snapshots y indices. | Validador de escalabilidad bloquea lecturas historicas globales. |
 
 ## Brechas P0
@@ -36,7 +36,7 @@ Esta matriz fija la paridad funcional esperada entre EPIVIDA antigua y EPIVIDA L
 - Paginacion visible por seccion en expediente para rondas, auditoria e historicos largos.
 - `iaasService` con seguimiento clinico heredado y UI avanzada de cultivos/antimicrobianos.
 - `reportService` con chunking avanzado para historicos crudos aprobados.
-- Reglas Firestore para culturas, antimicrobianos, busqueda y snapshots agregados.
+- Pruebas manuales por rol contra Firebase real para las nuevas colecciones clinicas.
 
 ## Brechas P1
 
