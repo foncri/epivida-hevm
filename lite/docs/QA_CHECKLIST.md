@@ -65,6 +65,7 @@
 - Abrir expediente y confirmar que carga `patients_active/{id}` o `patients_archive/{id}` e IAAS por `patientId`, no listados globales de pacientes/IAAS.
 - Confirmar que historial de rondas del expediente consulta `nursing_rounds` por `patientId`, `date desc` y limite, no toda la coleccion.
 - Confirmar que auditoria relacionada del expediente consulta `audit_logs` por `patientId` y no carga auditoria global.
+- Si una seccion historica tiene mas registros que el limite, usar `Cargar mas` y confirmar que solo consulta esa seccion con `patientId`, `limit` y cursor.
 
 ## Reportes
 
@@ -83,6 +84,7 @@
 - Guardar criterios, signos vitales, biometria/EGO/otros estudios, evolucion y plan; confirmar que aparecen en expediente del paciente.
 - Abrir expediente del paciente y confirmar cultivos/antimicrobianos sin lecturas globales.
 - Confirmar que el expediente muestra IAAS del paciente sin cargar `iaas_active` completo.
+- Confirmar que `Cargar mas IAAS`, cultivos y antimicrobianos no re-renderiza toda la app ni consulta pacientes globales.
 
 ## Seguridad
 

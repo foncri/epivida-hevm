@@ -273,7 +273,7 @@ if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp")
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
 }
-if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("listIaasForPatient(patientId") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("listRoundsForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT })") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId") || !expedienteServiceSource.includes("listAuditForPatient(patientId")) {
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("export async function loadExpedienteSectionPage") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("pageIaasForPatient") || !expedienteServiceSource.includes("pageArchivedDevicesForPatient") || !expedienteServiceSource.includes("pageRoundsForPatient") || !expedienteServiceSource.includes("pageCulturesForPatient") || !expedienteServiceSource.includes("pageAntimicrobialsForPatient") || !expedienteServiceSource.includes("pageAuditForPatient") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("CLINICAL_HISTORY_LIMIT") || !expedienteServiceSource.includes("pageMeta")) {
   fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos/cultivos/antimicrobianos con limites.");
 }
 
@@ -289,7 +289,7 @@ if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-p
 }
 
 const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
-if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModuleSource.includes("renderAuditTable") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
+if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModuleSource.includes("loadExpedienteSectionPage") || !expedienteModuleSource.includes("renderCursorTablePanel") || !expedienteModuleSource.includes("appendUniqueRows") || !expedienteModuleSource.includes("renderAuditTable") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
 }
 const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/index.js"), "utf8");

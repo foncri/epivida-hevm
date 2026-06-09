@@ -2,7 +2,7 @@ import { cacheGet, cacheSet } from "../lib/cache.js";
 import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
 import { cleanText, stripUndefined, validIaasCase } from "../lib/validators.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
 
@@ -90,6 +90,34 @@ export async function listIaasForPatient(patientId, options = {}) {
     }));
   }
   return patientIaasPromises.get(key);
+}
+
+export async function pageIaasForPatient(patientId, cursorState = {}) {
+  if (!patientId) return emptyCursorPage([], cursorState.pageSize || IAAS_PATIENT_LIMIT);
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || IAAS_PATIENT_LIMIT));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listIaasForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+  try {
+    const page = await paginateQuery("iaas_active", [["patientId", "==", patientId], ["active", "==", true]], [], pageSize, cursorState, cursorState.direction || "next");
+    const rows = (await mergePending(page.rows))
+      .filter(row => row.patientId === patientId && activeIaas(row))
+      .slice(0, page.pageSize);
+    return { ...page, rows };
+  } catch {
+    return emptyCursorPage(await listIaasForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+}
+
+function emptyCursorPage(rows = [], pageSize = IAAS_PATIENT_LIMIT) {
+  return {
+    rows,
+    firstCursor: null,
+    lastCursor: null,
+    hasNext: false,
+    hasPrevious: false,
+    pageSize
+  };
 }
 
 export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {

@@ -1,6 +1,6 @@
 import { appConfig } from "../lib/config.js";
 import { todayIso, nowIso } from "../lib/date.js";
-import { getDocData, listCollectionWhere } from "./firestoreService.js";
+import { getDocData, listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { testRounds, testRoundsForPatient } from "./testDataService.js";
@@ -91,6 +91,39 @@ export async function listRoundsForPatient(patientId, options = {}) {
     }));
   }
   return patientRoundsPromises.get(key);
+}
+
+export async function pageRoundsForPatient(patientId, cursorState = {}) {
+  if (!patientId) return emptyPage(cursorState);
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || ROUND_HISTORY_LIMIT));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listRoundsForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+  try {
+    const page = await paginateQuery("nursing_rounds", [["patientId", "==", patientId]], [["date", "desc"]], pageSize, cursorState, cursorState.direction || "next");
+    const rows = (await mergePendingForPatient(patientId, page.rows))
+      .filter(row => row.patientId === patientId)
+      .slice(0, page.pageSize);
+    return { ...page, rows };
+  } catch {
+    return emptyCursorPage(await listRoundsForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+}
+
+function emptyPage(cursorState = {}) {
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || ROUND_HISTORY_LIMIT));
+  return emptyCursorPage([], pageSize);
+}
+
+function emptyCursorPage(rows = [], pageSize = ROUND_HISTORY_LIMIT) {
+  return {
+    rows,
+    firstCursor: null,
+    lastCursor: null,
+    hasNext: false,
+    hasPrevious: false,
+    pageSize
+  };
 }
 
 async function loadRoundSessionForDate(date = todayIso()) {

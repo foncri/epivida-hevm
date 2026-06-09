@@ -1,7 +1,7 @@
-import { badge, el, link, table } from "../../components/dom.js";
+import { badge, button, el, link, notice, table } from "../../components/dom.js";
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
-import { loadPatientExpediente } from "../../services/expedienteService.js";
+import { loadExpedienteSectionPage, loadPatientExpediente } from "../../services/expedienteService.js";
 
 export async function render({ route }) {
   const patientId = patientIdFromRoute(route.parts);
@@ -13,7 +13,7 @@ export async function render({ route }) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo activo. Los datos clinico-operativos de ronda y paquetes se conservan en sus colecciones.");
   }
 
-  const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials, auditRows } = expediente;
+  const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials, auditRows, pages = {} } = expediente;
   const latestRound = rounds[0] || {};
   return el("div", { class: "expediente-page stack" }, [
     renderHero(patient),
@@ -30,12 +30,12 @@ export async function render({ route }) {
       renderRoundTimelinePanel(rounds)
     ]),
     renderPackageReviewPanel(rounds),
-    renderDeviceTable(devices),
-    renderCultureTable(cultures),
-    renderAntimicrobialTable(antimicrobials),
-    renderRoundTable(rounds),
-    renderIaasPanel(patientIaas),
-    renderAuditTable(auditRows)
+    renderDeviceTable(patientId, devices, pages.archivedDevices),
+    renderCultureTable(patientId, cultures, pages.cultures),
+    renderAntimicrobialTable(patientId, antimicrobials, pages.antimicrobials),
+    renderRoundTable(patientId, rounds, pages.rounds),
+    renderIaasPanel(patientId, patientIaas, pages.iaasRows),
+    renderAuditTable(patientId, auditRows, pages.auditRows)
   ]);
 }
 
@@ -135,82 +135,107 @@ function renderPackageReviewPanel(rounds) {
   ]);
 }
 
-function renderDeviceTable(devices) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Episodios de dispositivos"]),
-    table(["Tipo", "Instalacion", "Retiro", "Estado", "Paquete", "Cuidado"], devices.map(device =>
-      el("tr", {}, [
-        el("td", {}, [device.deviceType || ""]),
-        el("td", {}, [device.installationDate || "Datos incompletos"]),
-        el("td", {}, [device.removalDate || "Activo"]),
-        el("td", {}, [device.status || "activo"]),
-        el("td", {}, [device.preventivePackage || ""]),
-        el("td", {}, [device.careStatus || "no_valorado"])
-      ])
-    ))
-  ]);
+function renderDeviceTable(patientId, devices, pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "archivedDevices",
+    title: "Episodios de dispositivos",
+    loadLabel: "Cargar mas retirados",
+    pageInfo,
+    initialRows: devices,
+    rowKey: row => row.episodeId || row.id,
+    headers: ["Tipo", "Instalacion", "Retiro", "Estado", "Paquete", "Cuidado"],
+    rowRenderer: device => el("tr", {}, [
+      el("td", {}, [device.deviceType || ""]),
+      el("td", {}, [device.installationDate || "Datos incompletos"]),
+      el("td", {}, [device.removalDate || "Activo"]),
+      el("td", {}, [device.status || "activo"]),
+      el("td", {}, [device.preventivePackage || ""]),
+      el("td", {}, [device.careStatus || "no_valorado"])
+    ])
+  });
 }
 
-function renderCultureTable(cultures = []) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Cultivos"]),
-    table(["Fecha", "Muestra", "Estado", "Microorganismo", "Susceptibilidad"], cultures.map(culture =>
-      el("tr", {}, [
-        el("td", {}, [culture.requestedAt || "NA"]),
-        el("td", {}, [culture.sampleType || ""]),
-        el("td", {}, [culture.status || ""]),
-        el("td", {}, [culture.organism || ""]),
-        el("td", {}, [truncate(culture.susceptibility || "", 170)])
-      ])
-    ))
-  ]);
+function renderCultureTable(patientId, cultures = [], pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "cultures",
+    title: "Cultivos",
+    loadLabel: "Cargar mas cultivos",
+    pageInfo,
+    initialRows: cultures,
+    rowKey: row => row.cultureId || row.id,
+    headers: ["Fecha", "Muestra", "Estado", "Microorganismo", "Susceptibilidad"],
+    rowRenderer: culture => el("tr", {}, [
+      el("td", {}, [culture.requestedAt || "NA"]),
+      el("td", {}, [culture.sampleType || ""]),
+      el("td", {}, [culture.status || ""]),
+      el("td", {}, [culture.organism || ""]),
+      el("td", {}, [truncate(culture.susceptibility || "", 170)])
+    ])
+  });
 }
 
-function renderAntimicrobialTable(rows = []) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Antimicrobianos"]),
-    table(["Inicio", "Fin", "Farmaco", "Indicacion", "Estado"], rows.map(row =>
-      el("tr", {}, [
-        el("td", {}, [row.startDate || "NA"]),
-        el("td", {}, [row.endDate || "Activo"]),
-        el("td", {}, [row.drug || ""]),
-        el("td", {}, [truncate(row.indication || "", 170)]),
-        el("td", {}, [row.status || ""])
-      ])
-    ))
-  ]);
+function renderAntimicrobialTable(patientId, rows = [], pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "antimicrobials",
+    title: "Antimicrobianos",
+    loadLabel: "Cargar mas antimicrobianos",
+    pageInfo,
+    initialRows: rows,
+    rowKey: row => row.antimicrobialId || row.id,
+    headers: ["Inicio", "Fin", "Farmaco", "Indicacion", "Estado"],
+    rowRenderer: row => el("tr", {}, [
+      el("td", {}, [row.startDate || "NA"]),
+      el("td", {}, [row.endDate || "Activo"]),
+      el("td", {}, [row.drug || ""]),
+      el("td", {}, [truncate(row.indication || "", 170)]),
+      el("td", {}, [row.status || ""])
+    ])
+  });
 }
 
-function renderRoundTable(rounds) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Historial de rondas y alertas"]),
-    table(["Fecha", "Servicio", "Cama", "Estado", "Alertas", "Notas"], rounds.map(round =>
-      el("tr", {}, [
-        el("td", {}, [round.date || round.roundDate || "NA"]),
-        el("td", {}, [round.service || "Sin servicio"]),
-        el("td", {}, [round.bed || "S/C"]),
-        el("td", {}, [statusLabel(round.status)]),
-        el("td", {}, [truncate((round.alertsGenerated || []).join(" | "), 170)]),
-        el("td", {}, [truncate(round.notes || "", 170)])
-      ])
-    ))
-  ]);
+function renderRoundTable(patientId, rounds, pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "rounds",
+    title: "Historial de rondas y alertas",
+    loadLabel: "Cargar mas rondas",
+    pageInfo,
+    initialRows: rounds,
+    rowKey: row => row.roundId || row.id || `${row.date || row.roundDate}_${row.patientId}`,
+    headers: ["Fecha", "Servicio", "Cama", "Estado", "Alertas", "Notas"],
+    rowRenderer: round => el("tr", {}, [
+      el("td", {}, [round.date || round.roundDate || "NA"]),
+      el("td", {}, [round.service || "Sin servicio"]),
+      el("td", {}, [round.bed || "S/C"]),
+      el("td", {}, [statusLabel(round.status)]),
+      el("td", {}, [truncate((round.alertsGenerated || []).join(" | "), 170)]),
+      el("td", {}, [truncate(round.notes || "", 170)])
+    ])
+  });
 }
 
-function renderIaasPanel(rows) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Seguimiento IAAS diario"]),
-    table(["Tipo", "Estado", "Fecha inicio", "Origen probable", "Criterios", "Seguimiento"], rows.map(row =>
-      el("tr", {}, [
-        el("td", {}, [row.iaasType || ""]),
-        el("td", {}, [row.status || ""]),
-        el("td", {}, [row.onsetDate || ""]),
-        el("td", {}, [row.probableOrigin || ""]),
-        el("td", {}, [truncate(row.criteria || "", 170)]),
-        el("td", {}, [truncate(iaasFollowUpText(row), 220)])
-      ])
-    ))
-  ]);
+function renderIaasPanel(patientId, rows, pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "iaasRows",
+    title: "Seguimiento IAAS diario",
+    loadLabel: "Cargar mas IAAS",
+    pageInfo,
+    initialRows: rows,
+    rowKey: row => row.iaasId || row.id,
+    headers: ["Tipo", "Estado", "Fecha inicio", "Origen probable", "Criterios", "Seguimiento"],
+    rowRenderer: row => el("tr", {}, [
+      el("td", {}, [row.iaasType || ""]),
+      el("td", {}, [row.status || ""]),
+      el("td", {}, [row.onsetDate || ""]),
+      el("td", {}, [row.probableOrigin || ""]),
+      el("td", {}, [truncate(row.criteria || "", 170)]),
+      el("td", {}, [truncate(iaasFollowUpText(row), 220)])
+    ])
+  });
 }
 
 function iaasFollowUpText(row = {}) {
@@ -225,19 +250,84 @@ function iaasFollowUpText(row = {}) {
   ].filter(Boolean).join(" | ");
 }
 
-function renderAuditTable(rows = []) {
-  return el("section", { class: "iaas-panel expediente-history-panel" }, [
-    el("h2", {}, ["Auditoria relacionada"]),
-    table(["Fecha", "Modulo", "Accion", "Usuario", "Entidad"], rows.map(row =>
-      el("tr", {}, [
-        el("td", {}, [row.createdAt || "NA"]),
-        el("td", {}, [row.module || ""]),
-        el("td", {}, [row.actionType || ""]),
-        el("td", {}, [row.userEmail || row.userId || ""]),
-        el("td", {}, [row.entityType || row.entityId || ""])
-      ])
-    ))
+function renderAuditTable(patientId, rows = [], pageInfo) {
+  return renderCursorTablePanel({
+    patientId,
+    sectionKey: "auditRows",
+    title: "Auditoria relacionada",
+    loadLabel: "Cargar mas auditoria",
+    pageInfo,
+    initialRows: rows,
+    rowKey: row => row.auditId || row.id,
+    headers: ["Fecha", "Modulo", "Accion", "Usuario", "Entidad"],
+    rowRenderer: row => el("tr", {}, [
+      el("td", {}, [row.createdAt || "NA"]),
+      el("td", {}, [row.module || ""]),
+      el("td", {}, [row.actionType || ""]),
+      el("td", {}, [row.userEmail || row.userId || ""]),
+      el("td", {}, [row.entityType || row.entityId || ""])
+    ])
+  });
+}
+
+function renderCursorTablePanel({ patientId, sectionKey, title, loadLabel, pageInfo = {}, initialRows = [], rowKey, headers, rowRenderer }) {
+  const rows = [...initialRows];
+  const cursorState = { ...pageInfo };
+  const tableMount = el("div");
+  const status = el("div", { class: "expediente-pagination-status" });
+  const root = el("section", { class: "iaas-panel expediente-history-panel" }, [
+    el("div", { class: "expediente-history-header" }, [
+      el("h2", {}, [title]),
+      el("span", { class: "muted" }, [`${rows.length} registros cargados`])
+    ]),
+    tableMount,
+    status
   ]);
+
+  function renderRows() {
+    tableMount.replaceChildren(table(headers, rows.map(rowRenderer)));
+    status.replaceChildren();
+    if (cursorState.hasNext) {
+      status.append(button(loadLabel, loadMore, { class: "small ghost" }));
+    } else if (rows.length >= (cursorState.pageSize || 50)) {
+      status.append(el("p", { class: "muted" }, ["No hay mas registros en esta pagina."]));
+    }
+  }
+
+  async function loadMore() {
+    const trigger = status.querySelector("button");
+    if (trigger) {
+      trigger.disabled = true;
+      trigger.textContent = "Cargando...";
+    }
+    try {
+      const page = await loadExpedienteSectionPage(patientId, sectionKey, { ...cursorState, direction: "next" });
+      appendUniqueRows(rows, page.rows || [], rowKey);
+      Object.assign(cursorState, {
+        firstCursor: page.firstCursor || cursorState.firstCursor,
+        lastCursor: page.lastCursor || null,
+        hasNext: Boolean(page.hasNext),
+        hasPrevious: Boolean(page.hasPrevious),
+        pageSize: page.pageSize || cursorState.pageSize || 50
+      });
+      renderRows();
+    } catch (error) {
+      status.replaceChildren(notice(error.message || "No se pudo cargar mas historial.", "error"));
+    }
+  }
+
+  renderRows();
+  return root;
+}
+
+function appendUniqueRows(rows, nextRows = [], rowKey) {
+  const seen = new Set(rows.map(row => rowKey(row)).filter(Boolean));
+  nextRows.forEach(row => {
+    const key = rowKey(row);
+    if (key && seen.has(key)) return;
+    if (key) seen.add(key);
+    rows.push(row);
+  });
 }
 
 function patientLabel(patient = {}) {

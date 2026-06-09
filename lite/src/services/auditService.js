@@ -1,5 +1,5 @@
 import { nowIso } from "../lib/date.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 
 const AUDIT_PATIENT_LIMIT = 50;
@@ -58,4 +58,29 @@ export async function listAuditForPatient(patientId, options = {}) {
   } catch {
     return mergePendingAuditForPatient(patientId, []);
   }
+}
+
+export async function pageAuditForPatient(patientId, cursorState = {}) {
+  if (!patientId) return emptyCursorPage([], cursorState.pageSize || AUDIT_PATIENT_LIMIT);
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || AUDIT_PATIENT_LIMIT));
+  try {
+    const page = await paginateQuery("audit_logs", [["patientId", "==", patientId]], [["createdAt", "desc"]], pageSize, cursorState, cursorState.direction || "next");
+    const rows = (await mergePendingAuditForPatient(patientId, page.rows))
+      .filter(row => row.patientId === patientId)
+      .slice(0, page.pageSize);
+    return { ...page, rows };
+  } catch {
+    return emptyCursorPage(await listAuditForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+}
+
+function emptyCursorPage(rows = [], pageSize = AUDIT_PATIENT_LIMIT) {
+  return {
+    rows,
+    firstCursor: null,
+    lastCursor: null,
+    hasNext: false,
+    hasPrevious: false,
+    pageSize
+  };
 }

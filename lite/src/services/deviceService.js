@@ -2,7 +2,7 @@ import { cacheGet, cacheSet } from "../lib/cache.js";
 import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
 import { cleanText, stripUndefined, validDevice } from "../lib/validators.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { setDocMergeOrQueue, pendingPayloadsForCollection } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
 import { testActiveDevices } from "./testDataService.js";
@@ -105,6 +105,23 @@ export async function listArchivedDevicesForPatient(patientId, options = {}) {
   }
 }
 
+export async function pageArchivedDevicesForPatient(patientId, cursorState = {}) {
+  if (!patientId) return emptyCursorPage([], cursorState.pageSize || ARCHIVE_PAGE_SIZE);
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || ARCHIVE_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listArchivedDevicesForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+  try {
+    const page = await paginateQuery("devices_archive", [["patientId", "==", patientId]], [["removalDate", "desc"]], pageSize, cursorState, cursorState.direction || "next");
+    const rows = (await mergeArchivePending(patientId, page.rows))
+      .filter(row => row.patientId === patientId)
+      .slice(0, page.pageSize);
+    return { ...page, rows };
+  } catch {
+    return emptyCursorPage(await listArchivedDevicesForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+}
+
 export function mergeDeviceHistory(activeRows = [], archivedRows = []) {
   const map = byEpisodeId(activeRows);
   archivedRows.forEach(row => map.set(row.episodeId || row.id, { ...map.get(row.episodeId || row.id), ...row }));
@@ -112,6 +129,17 @@ export function mergeDeviceHistory(activeRows = [], archivedRows = []) {
     String(b.removalDate || b.updatedAt || "").localeCompare(String(a.removalDate || a.updatedAt || ""))
     || String(b.installationDate || "").localeCompare(String(a.installationDate || ""))
   );
+}
+
+function emptyCursorPage(rows = [], pageSize = ARCHIVE_PAGE_SIZE) {
+  return {
+    rows,
+    firstCursor: null,
+    lastCursor: null,
+    hasNext: false,
+    hasPrevious: false,
+    pageSize
+  };
 }
 
 export function devicesByPatient(devices = []) {

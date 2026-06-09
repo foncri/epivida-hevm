@@ -1,6 +1,6 @@
 import { nowIso } from "../lib/date.js";
 import { cleanText, stripUndefined } from "../lib/validators.js";
-import { listCollectionWhere } from "./firestoreService.js";
+import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
 
@@ -44,6 +44,20 @@ export async function listAntimicrobialsForPatient(patientId, options = {}) {
   }
 }
 
+export async function pageAntimicrobialsForPatient(patientId, cursorState = {}) {
+  if (!patientId) return emptyCursorPage([], cursorState.pageSize || ANTIMICROBIAL_PAGE_SIZE);
+  const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || ANTIMICROBIAL_PAGE_SIZE));
+  try {
+    const page = await paginateQuery("antimicrobials", [["patientId", "==", patientId]], [["startDate", "desc"]], pageSize, cursorState, cursorState.direction || "next");
+    const rows = (await mergePending(page.rows, row => row.patientId === patientId))
+      .filter(row => row.patientId === patientId)
+      .slice(0, page.pageSize);
+    return { ...page, rows };
+  } catch {
+    return emptyCursorPage(await listAntimicrobialsForPatient(patientId, { limit: pageSize }), pageSize);
+  }
+}
+
 export async function listAntimicrobialsForIaas(iaasId, options = {}) {
   if (!iaasId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || ANTIMICROBIAL_PAGE_SIZE));
@@ -56,6 +70,17 @@ export async function listAntimicrobialsForIaas(iaasId, options = {}) {
   } catch {
     return mergePending([], row => row.iaasId === iaasId);
   }
+}
+
+function emptyCursorPage(rows = [], pageSize = ANTIMICROBIAL_PAGE_SIZE) {
+  return {
+    rows,
+    firstCursor: null,
+    lastCursor: null,
+    hasNext: false,
+    hasPrevious: false,
+    pageSize
+  };
 }
 
 export async function saveAntimicrobial(app, antimicrobial = {}) {
