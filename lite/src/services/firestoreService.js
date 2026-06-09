@@ -1,4 +1,5 @@
 import { firebaseFirestoreRuntime } from "../lib/firebase.js";
+import { clampPageSize } from "../lib/pagination.js";
 import { stripUndefined } from "../lib/validators.js";
 
 const readPromises = new Map();
@@ -65,6 +66,35 @@ export async function listCollectionWhere(path, clauses = [], options = {}) {
     const snap = await fsMod.getDocs(queryRef);
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   });
+}
+
+export async function paginateQuery(path, filters = [], order = [], pageSize = 50, cursorState = {}, direction = "next") {
+  const { fsMod, db } = await dbRuntime();
+  const ref = fsMod.collection(db, path);
+  const constraints = filters.map(([field, operator, value]) => fsMod.where(field, operator, value));
+  order.forEach(([field, orderDirection = "asc"]) => {
+    constraints.push(fsMod.orderBy(field, orderDirection));
+  });
+
+  const size = clampPageSize(pageSize);
+  if (direction === "previous" && cursorState.firstCursor) {
+    constraints.push(fsMod.endBefore(cursorState.firstCursor));
+    constraints.push(fsMod.limitToLast(size));
+  } else {
+    if (cursorState.lastCursor) constraints.push(fsMod.startAfter(cursorState.lastCursor));
+    constraints.push(fsMod.limit(size));
+  }
+
+  const snap = await fsMod.getDocs(fsMod.query(ref, ...constraints));
+  const docs = snap.docs;
+  return {
+    rows: docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    firstCursor: docs[0] || null,
+    lastCursor: docs.at(-1) || null,
+    hasNext: docs.length === size,
+    hasPrevious: Boolean(cursorState.firstCursor || cursorState.previous?.length),
+    pageSize: size
+  };
 }
 
 export async function setDocMerge(path, data) {

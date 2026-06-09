@@ -12,6 +12,11 @@
     "validate:offline": "node lite/tools/validate-offline-queue.mjs",
     "validate:round": "node lite/tools/validate-round-helpers.mjs",
     "validate:patients": "node lite/tools/validate-patient-filters.mjs",
+    "validate:parity": "node lite/tools/validate-feature-parity.mjs",
+    "validate:no-legacy": "node lite/tools/validate-no-legacy-imports.mjs",
+    "validate:performance": "node lite/tools/validate-performance-budget.mjs",
+    "validate:indexes": "node lite/tools/validate-firestore-index-coverage.mjs",
+    "validate:scalability": "node lite/tools/validate-scalability.mjs",
     "prepare:user-seed": "node lite/tools/prepare-user-seed.mjs",
     "deploy:pages": "wrangler pages deploy lite --project-name epivida-hevm",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"

@@ -74,6 +74,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /patients_search/{patientId} {
+      allow read: if reader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
     match /census_days/{date} {
       allow read: if reader();
       allow create, update: if epidemiologia();
@@ -122,7 +128,31 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /cultures/{cultureId} {
+      allow read: if epidemiologia();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /antimicrobials/{antimicrobialId} {
+      allow read: if epidemiologia();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
     match /daily_snapshots/{date} {
+      allow read: if reportReader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /monthly_snapshots/{month} {
+      allow read: if reportReader();
+      allow create, update: if epidemiologia();
+      allow delete: if false;
+    }
+
+    match /yearly_snapshots/{year} {
       allow read: if reportReader();
       allow create, update: if epidemiologia();
       allow delete: if false;
@@ -156,6 +186,11 @@ service cloud.firestore {
       allow create: if reportReader()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.createdAt is string;
+      allow update, delete: if false;
+    }
+
+    match /migration_logs/{id} {
+      allow read, create: if admin();
       allow update, delete: if false;
     }
   }

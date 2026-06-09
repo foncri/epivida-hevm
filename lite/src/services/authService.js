@@ -70,8 +70,8 @@ export function initAuthState(app) {
         return;
       }
       try {
-        const { getOrBootstrapUserProfile, touchLastLogin } = await import("./userService.js");
-        const profile = await getOrBootstrapUserProfile(user);
+        const { getRequiredUserProfile, touchLastLogin } = await import("./userService.js");
+        const profile = await getRequiredUserProfile(user);
         if (!activeProfile(profile)) {
           app.setAuth({ status: "denied", user, profile: null, error: "Usuario inactivo o no autorizado." });
           return;

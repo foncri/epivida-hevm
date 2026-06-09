@@ -16,49 +16,14 @@ const TEST_USERS = [
   }
 ];
 
-const BOOTSTRAP_ADMIN_EMAILS = new Set(["todofoncri@gmail.com"]);
-
-function authEmail(user) {
-  return cleanText(user?.email, 240).toLowerCase();
-}
-
-function canBootstrapAdmin(user) {
-  return Boolean(user?.uid && BOOTSTRAP_ADMIN_EMAILS.has(authEmail(user)));
-}
-
-function isProfileReadBlocked(error) {
-  const text = String(`${error?.code || ""} ${error?.message || ""}`).toLowerCase();
-  return text.includes("permission-denied")
-    || text.includes("missing or insufficient permissions")
-    || text.includes("usuario sin perfil");
-}
-
 export async function getUserProfile(uid) {
   const profile = await getDocData(`users/${uid}`);
   if (!profile) throw new Error("Usuario sin perfil en Firestore.");
   return profile;
 }
 
-export async function getOrBootstrapUserProfile(user) {
-  try {
-    return await getUserProfile(user.uid);
-  } catch (error) {
-    if (!canBootstrapAdmin(user) || !isProfileReadBlocked(error)) throw error;
-    const now = nowIso();
-    const payload = stripUndefined({
-      uid: user.uid,
-      email: authEmail(user),
-      displayName: cleanText(user.displayName || user.email, 240),
-      role: "admin_epidemiologia",
-      active: true,
-      defaultRoute: "inicio",
-      createdAt: now,
-      updatedAt: now,
-      seedSource: "epivida-lite-bootstrap"
-    });
-    await setDocMerge(`users/${user.uid}`, payload);
-    return payload;
-  }
+export async function getRequiredUserProfile(user) {
+  return getUserProfile(user.uid);
 }
 
 export async function touchLastLogin(uid) {

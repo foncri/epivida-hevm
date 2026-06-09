@@ -1,6 +1,5 @@
 globalThis.window = {
   __EPIVIDA_LITE_TEST_MODE__: true,
-  EPIVIDA_LITE_BOOTSTRAP_EMAILS: [],
   EPIVIDA_LITE_REQUIRE_AUTH: true
 };
 globalThis.location = {

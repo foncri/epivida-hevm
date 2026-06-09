@@ -49,7 +49,6 @@ export function appConfig() {
     && new URLSearchParams(location.search).get("epividaTest") === "1";
   return {
     requireAuth: window.EPIVIDA_LITE_REQUIRE_AUTH !== false,
-    bootstrapEmails: (window.EPIVIDA_LITE_BOOTSTRAP_EMAILS || []).map(email => String(email).toLowerCase()),
     testMode: window.__EPIVIDA_LITE_TEST_MODE__ === true || localTest
   };
 }

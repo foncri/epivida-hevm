@@ -27,7 +27,9 @@ function blockFor(source, collection) {
 
 const rules = read("firebase/firestore.rules");
 const security = read("src/lib/security.js");
+const config = read("src/lib/config.js");
 const authService = read("src/services/authService.js");
+const userService = read("src/services/userService.js");
 const offlineQueue = read("src/services/offlineQueueService.js");
 
 if (/allow\s+read\s*,\s*write\s*:\s*if\s+true/.test(rules) || /allow\s+write\s*:\s*if\s+true/.test(rules)) {
@@ -58,6 +60,7 @@ for (const collection of [
   "users",
   "patients_active",
   "patients_archive",
+  "patients_search",
   "census_days",
   "nursing_rounds",
   "round_sessions",
@@ -65,11 +68,16 @@ for (const collection of [
   "devices_archive",
   "iaas_active",
   "iaas_archive",
+  "cultures",
+  "antimicrobials",
   "daily_snapshots",
+  "monthly_snapshots",
+  "yearly_snapshots",
   "audit_logs",
   "catalogs",
   "sync_queue",
-  "exports_log"
+  "exports_log",
+  "migration_logs"
 ]) {
   const block = blockFor(rules, collection);
   if (!block) {
@@ -94,6 +102,12 @@ for (const expected of [
 
 if (!authService.includes("activeProfile(profile)") || !authService.includes("normalizeRole(profile.role)")) {
   fail("authService debe normalizar rol y rechazar perfiles inactivos antes de cargar modulos.");
+}
+if (/BOOTSTRAP|bootstrap|seedSource:\s*["']epivida-lite-bootstrap/.test(userService)) {
+  fail("userService no debe conservar bootstrap admin en cliente despues de confirmar el primer admin productivo.");
+}
+if (/BOOTSTRAP|bootstrapEmails/.test(config)) {
+  fail("config.js no debe exponer bootstrap admin por cliente despues de produccion inicial.");
 }
 
 for (const expected of ["NON_RETRYABLE_CODES", "permission-denied", "sync_blocked", "item.status === \"local_pending\""]) {
