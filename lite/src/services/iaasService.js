@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
+import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
 import { stripUndefined, validIaasCase } from "../lib/validators.js";
 import { listCollectionWhere } from "./firestoreService.js";
@@ -35,6 +36,9 @@ function activeIaas(row = {}) {
 }
 
 async function loadActiveIaas() {
+  if (appConfig().testMode) {
+    return (await mergePending([])).filter(activeIaas);
+  }
   try {
     const rows = await listCollectionWhere("iaas_active", [["active", "==", true]]);
     const active = (await mergePending(rows)).filter(activeIaas);

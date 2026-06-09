@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
+import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
 import { addDocData, setDocMerge } from "./firestoreService.js";
 
@@ -140,6 +141,17 @@ export async function pendingPayloadsForCollection(collection) {
 }
 
 export async function setDocMergeOrQueue(app, path, data, meta = {}) {
+  if (appConfig().testMode) {
+    await queueWrite(app, {
+      kind: "setDocMerge",
+      path,
+      data,
+      collection: path.split("/")[0],
+      error: "Modo local de prueba.",
+      ...meta
+    });
+    return { ...data, syncStatus: "local_pending" };
+  }
   try {
     await setDocMerge(path, data);
     return { ...data, syncStatus: "server_synced" };
@@ -167,6 +179,16 @@ export async function setDocMergeOrQueue(app, path, data, meta = {}) {
 }
 
 export async function addDocOrQueue(app, collection, data, meta = {}) {
+  if (appConfig().testMode) {
+    const item = await queueWrite(app, {
+      kind: "addDocData",
+      collection,
+      data,
+      error: "Modo local de prueba.",
+      ...meta
+    });
+    return { id: item.id, syncStatus: "local_pending" };
+  }
   try {
     const id = await addDocData(collection, data);
     return { id, syncStatus: "server_synced" };
@@ -194,6 +216,15 @@ export async function addDocOrQueue(app, collection, data, meta = {}) {
 export async function flushPendingWrites() {
   const queue = await readQueue();
   if (!queue.length) return { attempted: 0, synced: 0, pending: 0, blocked: 0, errors: 0 };
+  if (appConfig().testMode) {
+    return {
+      attempted: 0,
+      synced: 0,
+      pending: queue.filter(item => item.status === "local_pending").length,
+      blocked: queue.filter(item => item.status === "sync_blocked").length,
+      errors: 0
+    };
+  }
   let attempted = 0;
   let synced = 0;
   let errors = 0;

@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
+import { appConfig } from "../lib/config.js";
 import { nowIso } from "../lib/date.js";
 import { cleanText, stripUndefined, validDevice } from "../lib/validators.js";
 import { listCollectionWhere } from "./firestoreService.js";
@@ -36,6 +37,9 @@ export function activeDevice(row = {}) {
 }
 
 async function loadActiveDevices() {
+  if (appConfig().testMode) {
+    return (await mergePending(testActiveDevices())).filter(activeDevice);
+  }
   try {
     const rows = await listCollectionWhere("devices_active", [["active", "==", true]]);
     const active = (await mergePending([...testActiveDevices(), ...rows])).filter(activeDevice);
@@ -55,6 +59,9 @@ export async function listActiveDevices() {
 }
 
 async function loadDevicesForPatient(patientId) {
+  if (appConfig().testMode) {
+    return (await mergePending(testActiveDevices())).filter(row => row.patientId === patientId);
+  }
   try {
     const rows = await listCollectionWhere("devices_active", [["patientId", "==", patientId]]);
     return (await mergePending([...testActiveDevices(), ...rows])).filter(row => row.patientId === patientId);

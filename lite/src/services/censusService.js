@@ -1,8 +1,13 @@
+import { appConfig } from "../lib/config.js";
 import { todayIso } from "../lib/date.js";
 import { getDocData, setDocMerge } from "./firestoreService.js";
 import { listActivePatients } from "./patientService.js";
 
 export async function currentCensus(date = todayIso()) {
+  if (appConfig().testMode) {
+    const patients = await listActivePatients();
+    return { date, totalPatients: patients.length, importedAt: "", importedBy: "", patients };
+  }
   try {
     const census = await getDocData(`census_days/${date}`);
     const patients = await listActivePatients();

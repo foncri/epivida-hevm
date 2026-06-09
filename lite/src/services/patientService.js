@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
+import { appConfig } from "../lib/config.js";
 import { cleanText, stripUndefined, validPatient } from "../lib/validators.js";
 import { listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
@@ -32,6 +33,9 @@ async function mergePending(rows = []) {
 }
 
 async function loadActivePatients() {
+  if (appConfig().testMode) {
+    return (await mergePending(testActivePatients())).filter(row => row.active !== false);
+  }
   try {
     const rows = await listCollectionWhere("patients_active", [["active", "==", true]]);
     const active = (await mergePending([...testActivePatients(), ...rows])).filter(row => row.active !== false);

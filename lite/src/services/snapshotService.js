@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
+import { appConfig } from "../lib/config.js";
 import { todayIso } from "../lib/date.js";
 import { getDocData } from "./firestoreService.js";
 
@@ -9,6 +10,10 @@ function snapshotCacheKey(date) {
 }
 
 async function loadSnapshot(date) {
+  if (appConfig().testMode) {
+    const cached = await cacheGet(snapshotCacheKey(date));
+    return cached?.value || null;
+  }
   try {
     const snapshot = await getDocData(`daily_snapshots/${date}`);
     if (snapshot) cacheSet(snapshotCacheKey(date), snapshot).catch(() => undefined);

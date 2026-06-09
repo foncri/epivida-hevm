@@ -1,3 +1,4 @@
+import { appConfig } from "../lib/config.js";
 import { todayIso, nowIso } from "../lib/date.js";
 import { getDocData, listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
@@ -16,6 +17,9 @@ async function mergePending(rows = []) {
 }
 
 async function loadTodayRounds(date = todayIso()) {
+  if (appConfig().testMode) {
+    return (await mergePending(testRounds(date))).filter(row => row.date === date);
+  }
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["date", "==", date]]);
     return (await mergePending([...testRounds(date), ...rows])).filter(row => row.date === date);
@@ -35,6 +39,11 @@ export async function listTodayRounds(date = todayIso()) {
 }
 
 async function loadRoundsForPatient(patientId) {
+  if (appConfig().testMode) {
+    return (await mergePending(testRoundsForPatient(patientId)))
+      .filter(row => row.patientId === patientId)
+      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+  }
   try {
     const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]]);
     return (await mergePending([...testRoundsForPatient(patientId), ...rows]))
@@ -61,6 +70,7 @@ async function loadRoundSessionForDate(date = todayIso()) {
   const sessionId = date;
   const pending = await pendingPayloadsForCollection("round_sessions");
   const pendingSession = pending.find(row => (row.sessionId || row.id) === sessionId || row.date === date);
+  if (appConfig().testMode) return pendingSession || null;
   try {
     const saved = await getDocData(`round_sessions/${sessionId}`);
     return {
