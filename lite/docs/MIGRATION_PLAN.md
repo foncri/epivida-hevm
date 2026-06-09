@@ -11,7 +11,7 @@
 
 - Endurecimiento de `importar-censo` con fixtures hospitalarios anonimizados.
 - Ampliacion de `importService` y `reconciliationService` para excepciones locales.
-- `monitorService`.
+- Extender `monitorService`; ya centraliza filtros, orden y metricas locales de monitoreo.
 - Mantener `ronda-paquetes` modular despues de separar `bedBoard.js`, `roundPatientUtils.js`, `patientRound.js`, `patientRoundPanels.js`, `preventiveForms.js`, `roundNavigation.js` y `saveRoundFlow.js`; separar `roundPage.js` solo si la pagina/lista principal vuelve a crecer.
 - Ampliar `expedienteService` con cursores visibles por seccion; ya lee paciente por ID activo/archivo y primera pagina de `devices_archive`, IAAS, cultivos y antimicrobianos por paciente.
 - IAAS con seguimiento clinico heredado; IAAS, cultivos y antimicrobianos ya tienen servicios filtrados por paciente/caso y captura inicial desde EPI-IAAS.

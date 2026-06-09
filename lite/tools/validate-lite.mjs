@@ -239,6 +239,7 @@ for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig()
   }
 }
 const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
+const monitorServiceSource = readFileSync(join(root, "src/services/monitorService.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
 const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
@@ -246,6 +247,9 @@ if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.
 }
 if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceSource.includes("export function patientFilterText")) {
   fail("patientService debe cachear texto de busqueda local para censo/monitoreo.");
+}
+if (!monitorServiceSource.includes("export function monitorMetrics") || !monitorServiceSource.includes("export function monitorDiagnosisGroup") || !monitorServiceSource.includes("visibleMonitorPatients") || !monitorServiceSource.includes("riesgo_iaas") || !monitorServiceSource.includes("no_iaas")) {
+  fail("monitorService debe centralizar metricas/filtros de monitoreo sin lecturas historicas.");
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
@@ -277,6 +281,10 @@ if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-p
 const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
 if (!expedienteModuleSource.includes("loadPatientExpediente") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
+}
+const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/index.js"), "utf8");
+if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.includes("visibleMonitorPatients") || !monitoreoModuleSource.includes("monitorFilterOptions") || monitoreoModuleSource.includes("filterPatients") || monitoreoModuleSource.includes("uniqueValues")) {
+  fail("modules/monitoreo debe delegar metricas/filtros a monitorService y conservar una sola lectura de pacientes activos.");
 }
 const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.js"), "utf8");
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {

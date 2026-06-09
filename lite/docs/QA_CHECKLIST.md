@@ -26,6 +26,8 @@
 - Entrar a `#/monitoreo-epidemiologico`.
 - Confirmar que no carga `ronda-paquetes/index.js`, `epi-iaas/index.js`, `reportes/index.js`, `iaas-system-runtime`, `epivida-auth-gate`, Sheets ni XLSX.
 - Filtrar por servicio, sexo, estado, diagnostico epidemiologico y texto.
+- Confirmar conteos separados: IAAS, Riesgo IAAS, No IAAS y Vigilancia.
+- Confirmar que `NO IAAS` no aumenta el conteo de IAAS.
 - Con 300 pacientes sinteticos no debe haber lag perceptible.
 
 ## Censo

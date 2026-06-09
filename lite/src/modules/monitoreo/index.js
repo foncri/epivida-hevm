@@ -1,27 +1,24 @@
 import { badge, el, frameScheduler, pagedTable, selectInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
-import { epidemiologicalDiagnosis, filterPatients, listActivePatients, sortPatientsByServiceBed, uniqueValues } from "../../services/patientService.js";
+import { listActivePatients } from "../../services/patientService.js";
+import { monitorFilterOptions, monitorPatientDiagnosis, monitorStats, visibleMonitorPatients } from "../../services/monitorService.js";
 
 export async function render() {
   const patients = await listActivePatients();
+  const filterOptions = monitorFilterOptions(patients);
   const filters = { query: "", service: "Todos", sex: "Todos", status: "Todos", diagnosis: "Todos" };
   const body = el("div", { class: "stack" });
 
   function redraw() {
-    const visible = sortPatientsByServiceBed(filterPatients(patients, filters));
+    const visible = visibleMonitorPatients(patients, filters);
     body.replaceChildren(
-      stats([
-        [String(visible.length), "Filtrados"],
-        [String(patients.length), "Pacientes activos"],
-        [String(new Set(visible.map(row => row.service).filter(Boolean)).size), "Servicios"],
-        [String(visible.filter(row => String(epidemiologicalDiagnosis(row)).includes("IAAS")).length), "Con texto IAAS"]
-      ]),
+      stats(monitorStats(patients, visible)),
       el("div", { class: "toolbar" }, [
         textInput({ placeholder: "Buscar nombre, cama, diagnostico", oninput: event => { filters.query = event.target.value; scheduleRedraw(); } }),
-        selectInput(uniqueValues(patients, "service"), { onchange: event => { filters.service = event.target.value; redraw(); } }),
-        selectInput(uniqueValues(patients, "diagnosis"), { onchange: event => { filters.diagnosis = event.target.value; redraw(); } }),
-        selectInput(uniqueValues(patients, "sex"), { onchange: event => { filters.sex = event.target.value; redraw(); } }),
-        selectInput(uniqueValues(patients, "status"), { onchange: event => { filters.status = event.target.value; redraw(); } })
+        selectInput(filterOptions.service, { onchange: event => { filters.service = event.target.value; redraw(); } }),
+        selectInput(filterOptions.diagnosis, { onchange: event => { filters.diagnosis = event.target.value; redraw(); } }),
+        selectInput(filterOptions.sex, { onchange: event => { filters.sex = event.target.value; redraw(); } }),
+        selectInput(filterOptions.status, { onchange: event => { filters.status = event.target.value; redraw(); } })
       ]),
       pagedTable(["Servicio", "Cama", "Paciente", "Sexo", "Dx epidemiologico", "Sync"], visible, patient =>
         el("tr", {}, [
@@ -29,7 +26,7 @@ export async function render() {
           el("td", {}, [patient.bed || patient.currentBed || ""]),
           el("td", {}, [patient.patientName || patient.patientId || ""]),
           el("td", {}, [patient.sex || ""]),
-          el("td", {}, [epidemiologicalDiagnosis(patient)]),
+          el("td", {}, [monitorPatientDiagnosis(patient)]),
           el("td", {}, [patient.syncStatus === "local_pending" ? badge("Pendiente", "warn") : patient.syncStatus || ""])
         ])
       )
