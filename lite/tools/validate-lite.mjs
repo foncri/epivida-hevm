@@ -258,6 +258,9 @@ if (!monitorServiceSource.includes("export function monitorMetrics") || !monitor
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
 }
+if (!roundServiceSource.includes("ROUND_HISTORY_LIMIT") || !roundServiceSource.includes('"nursing_rounds", [["patientId", "==", patientId]]') || !roundServiceSource.includes('orderBy: [["date", "desc"]]') || !roundServiceSource.includes("mergePendingForPatient(patientId") || !roundServiceSource.includes(".slice(0, pageSize)")) {
+  fail("roundService debe leer historial de ronda por paciente con limite, orden descendente e indice patientId+date.");
+}
 if (!patientServiceSource.includes("export async function getPatientById") || !patientServiceSource.includes("getDocData(`patients_active/${patientId}`)") || !patientServiceSource.includes("getDocData(`patients_archive/${patientId}`)") || !patientServiceSource.includes('pendingPayloadsForCollection("patients_archive")')) {
   fail("patientService debe leer expediente por ID sin listar todos los pacientes activos y mezclando pendientes de archivo.");
 }
@@ -267,7 +270,7 @@ if (!iaasServiceSource.includes("export async function listIaasForPatient") || !
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
 }
-if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("listIaasForPatient(patientId") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId") || !expedienteServiceSource.includes("listAuditForPatient(patientId")) {
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("listIaasForPatient(patientId") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("listRoundsForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT })") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId") || !expedienteServiceSource.includes("listAuditForPatient(patientId")) {
   fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos/cultivos/antimicrobianos con limites.");
 }
 

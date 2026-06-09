@@ -15,7 +15,7 @@ export async function loadPatientExpediente(patientId) {
     getPatientById(patientId),
     listDevicesForPatient(patientId),
     listArchivedDevicesForPatient(patientId, { limit: DEVICE_HISTORY_LIMIT }),
-    listRoundsForPatient(patientId),
+    listRoundsForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),
     listIaasForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),
     listCulturesForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),
     listAntimicrobialsForPatient(patientId, { limit: CLINICAL_HISTORY_LIMIT }),

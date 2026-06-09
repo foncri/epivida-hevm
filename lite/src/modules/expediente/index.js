@@ -14,7 +14,7 @@ export async function render({ route }) {
   }
 
   const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials, auditRows } = expediente;
-  const latestRound = rounds.at(-1) || {};
+  const latestRound = rounds[0] || {};
   return el("div", { class: "expediente-page stack" }, [
     renderHero(patient),
     stats([

@@ -8,12 +8,26 @@ import { testRounds, testRoundsForPatient } from "./testDataService.js";
 const todayRoundsPromises = new Map();
 const patientRoundsPromises = new Map();
 const roundSessionPromises = new Map();
+const ROUND_HISTORY_LIMIT = 50;
 
 async function mergePending(rows = []) {
   const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
   const pending = await pendingPayloadsForCollection("nursing_rounds");
   pending.forEach(row => map.set(row.roundId || row.id, { ...map.get(row.roundId || row.id), ...row }));
   return [...map.values()];
+}
+
+async function mergePendingForPatient(patientId, rows = []) {
+  const map = rows.reduce((acc, row) => acc.set(row.roundId || row.id, row), new Map());
+  const pending = await pendingPayloadsForCollection("nursing_rounds");
+  pending
+    .filter(row => row.patientId === patientId)
+    .forEach(row => map.set(row.roundId || row.id, { ...map.get(row.roundId || row.id), ...row }));
+  return [...map.values()].sort((a, b) => roundDateValue(b).localeCompare(roundDateValue(a)));
+}
+
+function roundDateValue(round = {}) {
+  return String(round.date || round.roundDate || round.reviewDate || "");
 }
 
 async function loadTodayRounds(date = todayIso()) {
@@ -38,32 +52,45 @@ export async function listTodayRounds(date = todayIso()) {
   return todayRoundsPromises.get(key);
 }
 
-async function loadRoundsForPatient(patientId) {
+async function loadRoundsForPatient(patientId, limit = ROUND_HISTORY_LIMIT) {
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || ROUND_HISTORY_LIMIT));
   if (appConfig().testMode) {
-    return (await mergePending(testRoundsForPatient(patientId)))
+    return (await mergePendingForPatient(patientId, testRoundsForPatient(patientId)))
       .filter(row => row.patientId === patientId)
-      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+      .slice(0, pageSize);
   }
   try {
-    const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]]);
-    return (await mergePending([...testRoundsForPatient(patientId), ...rows]))
+    const rows = await listCollectionWhere("nursing_rounds", [["patientId", "==", patientId]], {
+      orderBy: [["date", "desc"]],
+      limit: pageSize
+    });
+    return (await mergePendingForPatient(patientId, rows))
       .filter(row => row.patientId === patientId)
-      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+      .slice(0, pageSize);
   } catch {
-    return (await mergePending(testRoundsForPatient(patientId)))
+    return (await mergePendingForPatient(patientId, testRoundsForPatient(patientId)))
       .filter(row => row.patientId === patientId)
-      .sort((a, b) => String(a.date || a.roundDate || "").localeCompare(String(b.date || b.roundDate || "")));
+      .slice(0, pageSize);
   }
 }
 
-export async function listRoundsForPatient(patientId) {
+function invalidatePatientRounds(patientId) {
+  if (!patientId) return;
+  for (const key of [...patientRoundsPromises.keys()]) {
+    if (key.startsWith(`${patientId}:`)) patientRoundsPromises.delete(key);
+  }
+}
+
+export async function listRoundsForPatient(patientId, options = {}) {
   if (!patientId) return [];
-  if (!patientRoundsPromises.has(patientId)) {
-    patientRoundsPromises.set(patientId, loadRoundsForPatient(patientId).finally(() => {
-      patientRoundsPromises.delete(patientId);
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || ROUND_HISTORY_LIMIT));
+  const key = `${patientId}:${limit}`;
+  if (!patientRoundsPromises.has(key)) {
+    patientRoundsPromises.set(key, loadRoundsForPatient(patientId, limit).finally(() => {
+      patientRoundsPromises.delete(key);
     }));
   }
-  return patientRoundsPromises.get(patientId);
+  return patientRoundsPromises.get(key);
 }
 
 async function loadRoundSessionForDate(date = todayIso()) {
@@ -108,7 +135,7 @@ export async function saveRoundReview(app, review) {
     entityId: roundId
   });
   todayRoundsPromises.delete(payload.date);
-  if (payload.patientId) patientRoundsPromises.delete(payload.patientId);
+  invalidatePatientRounds(payload.patientId);
   await writeAudit(app, {
     actionType: "round_review",
     module: "ronda-paquetes",
