@@ -11,6 +11,13 @@ const ROUTE_ROLES = {
   admin: ["admin_epidemiologia"]
 };
 
+const KNOWN_ROLES = new Set([
+  "admin_epidemiologia",
+  "epidemiologia",
+  "enfermeria",
+  "lectura"
+]);
+
 const LEGACY_ROLE_MAP = {
   admin: "admin_epidemiologia",
   epidemiologia: "epidemiologia",
@@ -30,7 +37,12 @@ const ROUTE_ALIASES = {
 
 export function normalizeRole(role) {
   const clean = String(role || "").trim();
-  return LEGACY_ROLE_MAP[clean] || clean || "lectura";
+  return LEGACY_ROLE_MAP[clean] || clean;
+}
+
+export function knownRole(role) {
+  const normalized = normalizeRole(role);
+  return KNOWN_ROLES.has(normalized);
 }
 
 function canonicalRouteKey(route) {
@@ -52,5 +64,5 @@ export function canWrite(module, role) {
 }
 
 export function activeProfile(profile) {
-  return Boolean(profile && profile.active !== false);
+  return Boolean(profile && profile.active === true && knownRole(profile.role));
 }

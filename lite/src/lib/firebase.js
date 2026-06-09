@@ -3,6 +3,9 @@ import { FIREBASE_VERSION, firebaseConfig } from "./config.js";
 let baseRuntimePromise = null;
 let authRuntimePromise = null;
 let firestoreRuntimePromise = null;
+let persistenceAttempted = false;
+let firestorePersistenceEnabled = false;
+let firestorePersistenceError = "";
 
 export async function firebaseBaseRuntime() {
   if (baseRuntimePromise) return baseRuntimePromise;
@@ -43,7 +46,29 @@ async function loadFirestoreRuntime() {
   if (!base) return null;
   const fsMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`);
   const db = fsMod.getFirestore(base.app);
+  if (!persistenceAttempted) {
+    persistenceAttempted = true;
+    try {
+      if (typeof fsMod.enableIndexedDbPersistence === "function") {
+        await fsMod.enableIndexedDbPersistence(db);
+        firestorePersistenceEnabled = true;
+        firestorePersistenceError = "";
+      }
+    } catch (error) {
+      firestorePersistenceEnabled = false;
+      firestorePersistenceError = error?.code || error?.message || "unavailable";
+      console.warn("Persistencia Firestore no disponible.", error);
+    }
+  }
   return { ...base, fsMod, db };
+}
+
+export function firestorePersistenceStatus() {
+  return {
+    attempted: persistenceAttempted,
+    enabled: firestorePersistenceEnabled,
+    error: firestorePersistenceError
+  };
 }
 
 export async function firebaseRuntime() {
