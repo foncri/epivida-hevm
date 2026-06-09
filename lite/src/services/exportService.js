@@ -1,5 +1,6 @@
 import { nowIso } from "../lib/date.js";
 import { writeAudit } from "./auditService.js";
+import { addDocOrQueue } from "./offlineQueueService.js";
 
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 
@@ -21,6 +22,7 @@ export function toCsv(rows = []) {
 }
 
 export async function downloadCsv(app, filename, rows, meta = {}) {
+  const createdAt = nowIso();
   const csv = `\uFEFF${toCsv(rows)}`;
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -33,7 +35,21 @@ export async function downloadCsv(app, filename, rows, meta = {}) {
     actionType: "export_csv",
     module: "reportes",
     entityType: "export",
-    entityId: `${filename}:${nowIso()}`,
+    entityId: `${filename}:${createdAt}`,
     metadata: { filename, rows: rows.length, ...meta }
+  }).catch(() => undefined);
+  await addDocOrQueue(app, "exports_log", {
+    createdAt,
+    userId: app.state.auth.user?.uid || "",
+    userEmail: app.state.auth.user?.email || "",
+    role: app.state.auth.profile?.role || "",
+    filename,
+    rows: rows.length,
+    dataset: meta.dataset || "",
+    metadata: meta
+  }, {
+    module: "reportes",
+    entityType: "export",
+    entityId: filename
   }).catch(() => undefined);
 }
