@@ -33,6 +33,9 @@ const offlineQueue = read("src/services/offlineQueueService.js");
 if (/allow\s+read\s*,\s*write\s*:\s*if\s+true/.test(rules) || /allow\s+write\s*:\s*if\s+true/.test(rules)) {
   fail("Firestore rules no deben permitir escrituras abiertas.");
 }
+if (rules.includes("bootstrapAdmin")) {
+  fail("Firestore rules no deben conservar bootstrapAdmin despues de confirmar el primer admin productivo.");
+}
 
 for (const role of ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectura"]) {
   if (!security.includes(role) || !rules.includes(role)) {
@@ -43,6 +46,9 @@ for (const role of ["admin_epidemiologia", "epidemiologia", "enfermeria", "lectu
 const usersBlock = blockFor(rules, "users");
 if (!usersBlock.includes('changedOnlyAllowed(["lastLoginAt", "updatedAt"])')) {
   fail("users self-update debe limitarse a lastLoginAt y updatedAt.");
+}
+if (!usersBlock.includes("allow create: if admin();")) {
+  fail("users create debe estar limitado a admin activo, sin bootstrap temporal.");
 }
 if (usersBlock.includes("allowedModules")) {
   fail("users self-update no debe depender de una lista negativa de campos administrativos.");

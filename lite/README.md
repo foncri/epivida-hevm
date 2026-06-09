@@ -165,9 +165,9 @@ La ronda preventiva usa `round_sessions` para iniciar/cerrar ronda y `nursing_ro
 
 Firestore exige un documento `users/{uid}` activo para cada persona que entra a EPIVIDA Lite. El UID debe venir de Firebase Auth.
 
-Tarea pendiente de produccion: retirar o bloquear manualmente `bootstrapAdmin`
-despues de confirmar el primer administrador real. Ver
-`lite/docs/production-tasks.md`.
+Tarea de produccion: `bootstrapAdmin` ya fue retirado de las reglas Lite
+despues de confirmar el primer administrador real; falta desplegar Firestore
+rules/indexes. Ver `lite/docs/production-tasks.md`.
 
 Preparacion local:
 
