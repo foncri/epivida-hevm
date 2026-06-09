@@ -198,6 +198,9 @@ if (!deviceServiceSource.includes("function activeDevice") || !deviceServiceSour
 if (!deviceServiceSource.includes("devices_archive/${device.episodeId}") || !deviceServiceSource.includes("archivedAt") || !deviceServiceSource.includes("archiveSyncStatus")) {
   fail("deviceService debe archivar episodios retirados en devices_archive sin borrar historial clinico.");
 }
+if (!deviceServiceSource.includes("export async function listArchivedDevicesForPatient") || !deviceServiceSource.includes('"devices_archive", [["patientId", "==", patientId]]') || !deviceServiceSource.includes('orderBy: [["removalDate", "desc"]]') || !deviceServiceSource.includes('pendingPayloadsForCollection("devices_archive")')) {
+  fail("deviceService debe leer devices_archive solo por patientId, con limite/orden y cola offline.");
+}
 
 const iaasServiceSource = readFileSync(join(root, "src/services/iaasService.js"), "utf8");
 if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.includes("filter(activeIaas)")) {
@@ -229,6 +232,7 @@ for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig()
 }
 const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
+const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
   fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
 }
@@ -237,6 +241,9 @@ if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceS
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
+}
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT")) {
+  fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos activos/archivados con limite.");
 }
 
 const appSource = readFileSync(join(root, "src/app.js"), "utf8");
@@ -248,6 +255,11 @@ if (!appSource.includes("preloadRoute") || !appSource.includes("onpointerenter")
 }
 if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-paquetes"') || !appSource.includes("requestIdleCallback")) {
   fail("src/app.js debe diferir la precarga de rutas pesadas como ronda-paquetes hasta idle.");
+}
+
+const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
+if (!expedienteModuleSource.includes("loadPatientExpediente") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
+  fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
 }
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");

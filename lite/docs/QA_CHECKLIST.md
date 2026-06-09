@@ -56,6 +56,7 @@
 - Guardar y siguiente.
 - Retirar dispositivo.
 - Confirmar que el retiro escribe `devices_archive/{episodeId}` y deja el episodio fuera de listados activos.
+- Abrir expediente del paciente y confirmar que el episodio retirado aparece desde historial por paciente, no por lectura global de archivo.
 - Confirmar alta probable.
 - Ver historial solo en expediente/paciente.
 

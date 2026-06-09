@@ -13,7 +13,7 @@
 - Ampliacion de `importService` y `reconciliationService` para excepciones locales.
 - `monitorService`.
 - Mantener `ronda-paquetes` modular despues de separar `bedBoard.js`, `roundPatientUtils.js`, `patientRound.js`, `patientRoundPanels.js`, `preventiveForms.js`, `roundNavigation.js` y `saveRoundFlow.js`; separar `roundPage.js` solo si la pagina/lista principal vuelve a crecer.
-- Usar `devices_archive` en expediente historico paginado; el retiro ya escribe archivo.
+- Ampliar `expedienteService` con cursores visibles por seccion; ya lee primera pagina de `devices_archive` por paciente.
 - IAAS con seguimiento clinico heredado.
 - Reportes basicos con `exports_log`.
 - Auditoria exhaustiva.

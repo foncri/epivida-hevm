@@ -1,28 +1,19 @@
 import { badge, el, link, table } from "../../components/dom.js";
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
-import { listDevicesForPatient } from "../../services/deviceService.js";
-import { listActiveIaas } from "../../services/iaasService.js";
-import { listActivePatients } from "../../services/patientService.js";
-import { listRoundsForPatient } from "../../services/roundService.js";
+import { loadPatientExpediente } from "../../services/expedienteService.js";
 
 export async function render({ route }) {
   const patientId = patientIdFromRoute(route.parts);
   if (!patientId) return emptyModule("Expediente", "Selecciona un paciente desde censo, ronda o seguimiento IAAS.");
 
-  const [patients, devices, rounds, iaasRows] = await Promise.all([
-    listActivePatients(),
-    listDevicesForPatient(patientId),
-    listRoundsForPatient(patientId),
-    listActiveIaas()
-  ]);
-  const patient = patients.find(row => row.patientId === patientId);
+  const expediente = await loadPatientExpediente(patientId);
+  const patient = expediente?.patient;
   if (!patient) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo activo. Los datos clinico-operativos de ronda y paquetes se conservan en sus colecciones.");
   }
 
-  const patientIaas = iaasRows.filter(row => row.patientId === patientId);
-  const activeDevices = devices.filter(device => device.active !== false && !device.removalDate && device.status !== "retirado");
+  const { devices, activeDevices, rounds, iaasRows: patientIaas } = expediente;
   const latestRound = rounds.at(-1) || {};
   return el("div", { class: "expediente-page stack" }, [
     renderHero(patient),

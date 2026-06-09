@@ -8,6 +8,7 @@ import { writeAudit } from "./auditService.js";
 import { testActiveDevices } from "./testDataService.js";
 
 const CACHE_KEY = "devices_active:last";
+const ARCHIVE_PAGE_SIZE = 50;
 let activeDevicesPromise = null;
 const devicePatientPromises = new Map();
 
@@ -34,6 +35,15 @@ async function mergePending(rows = []) {
 
 export function activeDevice(row = {}) {
   return row.active !== false && !row.removalDate && row.status !== "retirado";
+}
+
+async function mergeArchivePending(patientId, rows = []) {
+  const map = byEpisodeId(rows);
+  const pending = await pendingPayloadsForCollection("devices_archive");
+  pending
+    .filter(row => row.patientId === patientId)
+    .forEach(row => map.set(row.episodeId || row.id, { ...map.get(row.episodeId || row.id), ...row }));
+  return [...map.values()];
 }
 
 async function loadActiveDevices() {
@@ -79,6 +89,29 @@ export async function listDevicesForPatient(patientId) {
     }));
   }
   return devicePatientPromises.get(patientId);
+}
+
+export async function listArchivedDevicesForPatient(patientId, options = {}) {
+  if (!patientId) return [];
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || ARCHIVE_PAGE_SIZE));
+  try {
+    const rows = await listCollectionWhere("devices_archive", [["patientId", "==", patientId]], {
+      orderBy: [["removalDate", "desc"]],
+      limit
+    });
+    return mergeArchivePending(patientId, rows);
+  } catch {
+    return mergeArchivePending(patientId, []);
+  }
+}
+
+export function mergeDeviceHistory(activeRows = [], archivedRows = []) {
+  const map = byEpisodeId(activeRows);
+  archivedRows.forEach(row => map.set(row.episodeId || row.id, { ...map.get(row.episodeId || row.id), ...row }));
+  return [...map.values()].sort((a, b) =>
+    String(b.removalDate || b.updatedAt || "").localeCompare(String(a.removalDate || a.updatedAt || ""))
+    || String(b.installationDate || "").localeCompare(String(a.installationDate || ""))
+  );
 }
 
 export function devicesByPatient(devices = []) {
