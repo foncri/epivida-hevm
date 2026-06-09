@@ -390,6 +390,14 @@ if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.
 if (!exportServiceSource.includes('addDocOrQueue(app, "exports_log"') || !exportServiceSource.includes('actionType: "export_csv"')) {
   fail("exportService debe registrar audit log y exports_log al exportar CSV.");
 }
+const reportServiceSource = readFileSync(join(root, "src/services/reportService.js"), "utf8");
+const reportesModuleSource = readFileSync(join(root, "src/modules/reportes/index.js"), "utf8");
+if (!reportServiceSource.includes("dailySnapshotRowsForRange") || !reportServiceSource.includes("MAX_DAILY_SNAPSHOT_DAYS") || !reportServiceSource.includes("getDocData(`daily_snapshots/${date}`)") || reportServiceSource.includes("listCollection(")) {
+  fail("reportService debe exportar rangos desde daily_snapshots acotados, sin listar historicos completos.");
+}
+if (!reportesModuleSource.includes("dailySnapshotRowsForRange") || !reportesModuleSource.includes("Exportar snapshots CSV") || reportesModuleSource.includes("xlsx") || reportesModuleSource.includes("XLSX")) {
+  fail("modules/reportes debe usar reportService bajo demanda y no cargar XLSX.");
+}
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");
 const coreMatch = serviceWorkerSource.match(/const CORE = \[(.*?)\];/s);

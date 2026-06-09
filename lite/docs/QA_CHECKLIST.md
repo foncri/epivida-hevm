@@ -64,6 +64,7 @@
 
 - Entrar a `#/reportes`.
 - Exportar CSV.
+- Exportar snapshots diarios por rango y confirmar limite de seguridad para rangos largos.
 - Confirmar proteccion contra formulas.
 - Confirmar `exports_log` y `audit_logs` para cada CSV.
 - Confirmar que XLSX no carga al inicio.
