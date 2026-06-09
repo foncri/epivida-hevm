@@ -246,6 +246,7 @@ const patientServiceSource = readFileSync(join(root, "src/services/patientServic
 const monitorServiceSource = readFileSync(join(root, "src/services/monitorService.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
 const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
+const iaasCriteriaServiceSource = readFileSync(join(root, "src/services/iaasCriteriaService.js"), "utf8");
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
   fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
 }
@@ -269,6 +270,9 @@ if (!iaasServiceSource.includes("export async function listIaasForPatient") || !
 }
 if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan")) {
   fail("iaasService debe normalizar seguimiento IAAS clinico estructurado: criterios, vitales, labs y plan.");
+}
+if (!iaasCriteriaServiceSource.includes("IAAS_CRITERIA_VERSION") || !iaasCriteriaServiceSource.includes("buildCriteriaTemplate") || !iaasCriteriaServiceSource.includes("criteriaVersionForType") || !iaasCriteriaServiceSource.includes('"ITS - CC"') || !iaasCriteriaServiceSource.includes('"ITU - CU"') || !iaasCriteriaServiceSource.includes("NAVM") || !iaasCriteriaServiceSource.includes("ISQ")) {
+  fail("iaasCriteriaService debe exponer cedulas IAAS versionadas sin cargar runtime legacy.");
 }
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
@@ -300,7 +304,7 @@ const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
   fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
 }
-if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes("followUpSummary")) {
+if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes("followUpSummary")) {
   fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
 }
 

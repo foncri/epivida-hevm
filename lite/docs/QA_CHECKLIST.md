@@ -79,9 +79,10 @@
 ## IAAS, Cultivos Y Antimicrobianos
 
 - Entrar a `#/epi-iaas`.
+- Seleccionar cada tipo IAAS principal y confirmar que aparece la cedula Lite versionada sin cargar runtime legacy.
 - Crear/editar IAAS con cultivo inicial.
 - Crear/editar IAAS con antimicrobiano inicial.
-- Guardar criterios, signos vitales, biometria/EGO/otros estudios, evolucion y plan; confirmar que aparecen en expediente del paciente.
+- Guardar criterios, `criteriaVersion`, signos vitales, biometria/EGO/otros estudios, evolucion y plan; confirmar que aparecen en expediente del paciente.
 - Abrir expediente del paciente y confirmar cultivos/antimicrobianos sin lecturas globales.
 - Confirmar que el expediente muestra IAAS del paciente sin cargar `iaas_active` completo.
 - Confirmar que `Cargar mas IAAS`, cultivos y antimicrobianos no re-renderiza toda la app ni consulta pacientes globales.

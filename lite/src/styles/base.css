@@ -102,6 +102,17 @@ button:disabled { opacity: .55; cursor: not-allowed; }
   background: #fff;
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .7rem; }
+.criteria-guide {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .75rem;
+  display: grid;
+  gap: .45rem;
+  background: #f9fafb;
+}
+.criteria-guide-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.criteria-guide ul { margin: 0; padding-left: 1.1rem; color: #374151; }
+.criteria-guide li { margin: .18rem 0; }
 .notice {
   margin: 0;
   border: 1px solid var(--line);

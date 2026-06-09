@@ -126,6 +126,7 @@ export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
   const previousLabs = previous.labs || {};
   return stripUndefined({
     criteria: cleanText(source.criteria ?? previous.criteria ?? "", 1200),
+    criteriaVersion: cleanText(source.criteriaVersion ?? previous.criteriaVersion ?? "", 80),
     deviceEpisodeId: cleanText(source.deviceEpisodeId ?? previous.deviceEpisodeId ?? "", 160),
     vitalSigns: stripUndefined({
       temperature: cleanText(source.vitalTemperature ?? previousVitals.temperature ?? "", 40),
