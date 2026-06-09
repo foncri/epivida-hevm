@@ -263,7 +263,7 @@ if (!iaasServiceSource.includes("export async function listIaasForPatient") || !
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
 }
-if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("listIaasForPatient(patientId") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId")) {
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("listIaasForPatient(patientId") || !expedienteServiceSource.includes("listArchivedDevicesForPatient(patientId") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("listCulturesForPatient(patientId") || !expedienteServiceSource.includes("listAntimicrobialsForPatient(patientId") || !expedienteServiceSource.includes("listAuditForPatient(patientId")) {
   fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos/cultivos/antimicrobianos con limites.");
 }
 
@@ -279,7 +279,7 @@ if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-p
 }
 
 const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
-if (!expedienteModuleSource.includes("loadPatientExpediente") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
+if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModuleSource.includes("renderAuditTable") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
 }
 const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/index.js"), "utf8");
@@ -414,6 +414,10 @@ if (!reportServiceSource.includes("dailySnapshotRowsForRange") || !reportService
 }
 if (!reportesModuleSource.includes("dailySnapshotRowsForRange") || !reportesModuleSource.includes("Exportar snapshots CSV") || reportesModuleSource.includes("xlsx") || reportesModuleSource.includes("XLSX")) {
   fail("modules/reportes debe usar reportService bajo demanda y no cargar XLSX.");
+}
+const auditServiceSource = readFileSync(join(root, "src/services/auditService.js"), "utf8");
+if (!auditServiceSource.includes("export async function listAuditForPatient") || !auditServiceSource.includes('"audit_logs", [["patientId", "==", patientId]]') || !auditServiceSource.includes('orderBy: [["createdAt", "desc"]]') || !auditServiceSource.includes('pendingPayloadsForCollection("audit_logs")')) {
+  fail("auditService debe leer auditoria por paciente con limite/orden y cola offline, sin listar audit_logs completo.");
 }
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");

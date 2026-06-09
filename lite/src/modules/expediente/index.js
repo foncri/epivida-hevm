@@ -13,7 +13,7 @@ export async function render({ route }) {
     return emptyModule("Paciente no encontrado", "El paciente pudo eliminarse del censo activo. Los datos clinico-operativos de ronda y paquetes se conservan en sus colecciones.");
   }
 
-  const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials } = expediente;
+  const { devices, activeDevices, rounds, iaasRows: patientIaas, cultures, antimicrobials, auditRows } = expediente;
   const latestRound = rounds.at(-1) || {};
   return el("div", { class: "expediente-page stack" }, [
     renderHero(patient),
@@ -34,7 +34,8 @@ export async function render({ route }) {
     renderCultureTable(cultures),
     renderAntimicrobialTable(antimicrobials),
     renderRoundTable(rounds),
-    renderIaasPanel(patientIaas)
+    renderIaasPanel(patientIaas),
+    renderAuditTable(auditRows)
   ]);
 }
 
@@ -206,6 +207,21 @@ function renderIaasPanel(rows) {
         el("td", {}, [row.onsetDate || ""]),
         el("td", {}, [row.probableOrigin || ""]),
         el("td", {}, [truncate(row.notes || "", 170)])
+      ])
+    ))
+  ]);
+}
+
+function renderAuditTable(rows = []) {
+  return el("section", { class: "iaas-panel expediente-history-panel" }, [
+    el("h2", {}, ["Auditoria relacionada"]),
+    table(["Fecha", "Modulo", "Accion", "Usuario", "Entidad"], rows.map(row =>
+      el("tr", {}, [
+        el("td", {}, [row.createdAt || "NA"]),
+        el("td", {}, [row.module || ""]),
+        el("td", {}, [row.actionType || ""]),
+        el("td", {}, [row.userEmail || row.userId || ""]),
+        el("td", {}, [row.entityType || row.entityId || ""])
       ])
     ))
   ]);

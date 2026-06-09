@@ -62,6 +62,7 @@
 - Confirmar alta probable.
 - Ver historial solo en expediente/paciente.
 - Abrir expediente y confirmar que carga `patients_active/{id}` o `patients_archive/{id}` e IAAS por `patientId`, no listados globales de pacientes/IAAS.
+- Confirmar que auditoria relacionada del expediente consulta `audit_logs` por `patientId` y no carga auditoria global.
 
 ## Reportes
 
