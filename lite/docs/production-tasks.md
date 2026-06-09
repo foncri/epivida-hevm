@@ -3,6 +3,7 @@
 ## Remove bootstrapAdmin after initial production setup
 
 Status: pending external confirmation.
+GitHub issue: https://github.com/foncri/epivida-hevm/issues/5
 
 Context: `lite/firebase/firestore.rules` currently allows one temporary
 `bootstrapAdmin` path for initial setup of the first production admin profile.
