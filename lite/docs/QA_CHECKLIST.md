@@ -51,6 +51,7 @@
 - Filtrar servicio.
 - Abrir paciente.
 - Confirmar que el mapa de camas se renderiza desde `bedBoard.js` y no depende de consultas DOM.
+- Confirmar que guardar/retirar/alta rapida sigue pasando por `saveRoundFlow.js` sin recargar la app.
 - Agregar paquete/dispositivo.
 - Guardar y siguiente.
 - Retirar dispositivo.

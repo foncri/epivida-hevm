@@ -29,6 +29,7 @@ const {
   truncate
 } = await import("../src/modules/ronda-paquetes/roundPatientUtils.js");
 const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js");
+const { draftFromRound, reviewDraft, roundState } = await import("../src/modules/ronda-paquetes/saveRoundFlow.js");
 
 const patients = [
   {
@@ -94,6 +95,19 @@ requireValue(isNavDevice({ deviceType: "CET" }), "CET debe contar como NAVM.");
 requireValue(deviceActiveOnDate({ installationDate: "2026-06-01", removalDate: "2026-06-05" }, "2026-06-04"), "Dispositivo debe estar activo dentro del rango.");
 requireValue(isSurgicalSignal({ hospitalDiagnosis: "Post operatorio por fractura" }), "Diagnostico quirurgico debe activar senal ISQ.");
 requireValue(bedTileState({ patientId: "p_mi_01" }, new Map([["p_mi_01", { status: "reviewed" }]])).status === "reviewed", "Estado de cama revisada debe vivir en bedBoard.js.");
+
+const app = { state: { moduleState: {} } };
+const local = roundState(app);
+const draft = reviewDraft(local, "2026-06-04", "p_mi_01", {
+  roundId: "r_1",
+  patientId: "p_mi_01",
+  date: "2026-06-04",
+  status: "reviewed",
+  packageReviews: [{ packageType: "ITS - CC", preventiveChecks: { handHygiene: "SI" } }]
+});
+requireValue(local.drafts["2026-06-04:p_mi_01"] === draft, "roundState y reviewDraft deben administrar drafts fuera del orquestador principal.");
+requireValue(draft.deviceDrafts.length === 1 && draft.deviceDrafts[0].packageType === "ITS - CC", "draftFromRound debe reconstruir revisiones preventivas guardadas.");
+requireValue(draftFromRound(null, "2026-06-04", "p_new").quickDischarge.enabled === false, "draftFromRound debe crear draft vacio seguro.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite round helper validation failed (${failures.length})`);

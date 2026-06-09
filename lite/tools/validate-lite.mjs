@@ -263,6 +263,7 @@ for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.j
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
+const saveRoundFlowSource = readFileSync(join(root, "src/modules/ronda-paquetes/saveRoundFlow.js"), "utf8");
 if (
   roundModuleSource.includes("document.querySelectorAll") ||
   !roundPatientUtilsSource.includes("navigationPatientId(patient, patients = [], direction)") ||
@@ -278,10 +279,10 @@ if (
 ) {
   fail("ronda-paquetes debe evitar pasadas repetidas para conteos de filtros y senales ISQ.");
 }
-if (!roundModuleSource.includes("createdEpisodeTasks") || !roundModuleSource.includes("removalTasks") || !roundModuleSource.includes("patientActionTask") || !roundModuleSource.includes("Promise.all(createdEpisodeTasks)") || !roundModuleSource.includes("activeDeviceById")) {
+if (!saveRoundFlowSource.includes("createdEpisodeTasks") || !saveRoundFlowSource.includes("removalTasks") || !saveRoundFlowSource.includes("patientActionTask") || !saveRoundFlowSource.includes("Promise.all(createdEpisodeTasks)") || !saveRoundFlowSource.includes("activeDeviceById")) {
   fail("ronda-paquetes debe paralelizar escrituras independientes de dispositivos durante el guardado de ronda.");
 }
-if ((roundModuleSource.match(/activeDeviceById/g) || []).length < 2) {
+if ((saveRoundFlowSource.match(/activeDeviceById/g) || []).length < 2) {
   fail("ronda-paquetes debe reutilizar mapas por episodeId para validar y guardar retiros sin busquedas lineales repetidas.");
 }
 if (!deviceServiceSource.includes("export function activeDevice") || !roundModuleSource.includes("patientDevices.filter(activeDevice)") || !roundModuleSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
