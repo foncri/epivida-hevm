@@ -90,6 +90,25 @@ const DEVICES = [
   }
 ];
 
+const ARCHIVED_DEVICES = [
+  {
+    episodeId: "d_cvc_history_removed",
+    patientId: "p_history",
+    patientName: "Paciente QA Historial",
+    service: "MEDICINA INTERNA",
+    bed: "12",
+    deviceType: "CVC",
+    preventivePackage: "ITS - CC",
+    anatomicalSite: "Yugular derecha",
+    installationDate: "2026-05-29",
+    removalDate: "2026-06-02",
+    careStatus: "retirado",
+    infectionSigns: false,
+    active: false,
+    status: "retirado"
+  }
+];
+
 const ROUNDS = [
   {
     roundId: "2026-06-03_p_history",
@@ -132,6 +151,78 @@ const ROUNDS = [
     ],
     activePendingIssues: ["Revisar necesidad diaria de CVC"],
     syncStatus: "server_synced"
+  }
+];
+
+const IAAS_CASES = [
+  {
+    iaasId: "iaas_history_its",
+    patientId: "p_history",
+    patientName: "Paciente QA Historial",
+    service: "MEDICINA INTERNA",
+    bed: "12",
+    iaasType: "ITS-CVC",
+    status: "sospecha",
+    onsetDate: "2026-06-04",
+    probableOrigin: "Cateter venoso central",
+    criteria: "Fiebre persistente con CVC en seguimiento y cultivo pendiente.",
+    criteriaVersion: "IAAS-LITE-2026-06",
+    deviceEpisodeId: "d_cvc_history",
+    vitalSigns: { temperature: "38.2 C", heartRate: "104", respiratoryRate: "22", bloodPressure: "110/70", spo2: "95%" },
+    labs: { biometry: "Leucocitosis leve", ego: "Sin datos", otherStudies: "Procalcitonina pendiente" },
+    followUp: { reviewDate: "2026-06-05", evolution: "Sin deterioro hemodinamico.", carePlan: "Revalorar retiro de CVC y cultivo." },
+    active: true,
+    syncStatus: "server_synced"
+  }
+];
+
+const CULTURES = [
+  {
+    cultureId: "culture_history_01",
+    patientId: "p_history",
+    iaasId: "iaas_history_its",
+    sampleType: "Hemocultivo central y periferico",
+    requestedAt: "2026-06-04",
+    resultAt: "",
+    organism: "Pendiente",
+    susceptibility: "Pendiente",
+    status: "solicitado"
+  }
+];
+
+const ANTIMICROBIALS = [
+  {
+    antimicrobialId: "atb_history_01",
+    patientId: "p_history",
+    iaasId: "iaas_history_its",
+    drug: "Vancomicina",
+    startDate: "2026-06-04",
+    endDate: "",
+    indication: "Cobertura empirica por sospecha ITS-CVC",
+    status: "activo"
+  }
+];
+
+const AUDIT_LOGS = [
+  {
+    auditId: "audit_history_round_01",
+    patientId: "p_history",
+    actionType: "round_review",
+    module: "ronda-paquetes",
+    entityType: "nursing_round",
+    entityId: "2026-06-04_p_history",
+    userEmail: "test@epivida.local",
+    createdAt: "2026-06-04T14:00:00.000Z"
+  },
+  {
+    auditId: "audit_history_iaas_01",
+    patientId: "p_history",
+    actionType: "iaas_update",
+    module: "epi-iaas",
+    entityType: "iaas_case",
+    entityId: "iaas_history_its",
+    userEmail: "test@epivida.local",
+    createdAt: "2026-06-05T09:20:00.000Z"
   }
 ];
 
@@ -210,6 +301,11 @@ export function testActiveDevices() {
   return testDataEnabled() ? DEVICES.map(row => ({ ...row })) : [];
 }
 
+export function testArchivedDevicesForPatient(patientId = "") {
+  if (!testDataEnabled() || !patientId) return [];
+  return ARCHIVED_DEVICES.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
 export function testRounds(date = "") {
   if (!testDataEnabled()) return [];
   return ROUNDS.filter(row => !date || row.date === date).map(row => ({ ...row }));
@@ -218,4 +314,38 @@ export function testRounds(date = "") {
 export function testRoundsForPatient(patientId = "") {
   if (!testDataEnabled() || !patientId) return [];
   return ROUNDS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testActiveIaas() {
+  return testDataEnabled() ? IAAS_CASES.filter(row => row.active !== false).map(row => ({ ...row })) : [];
+}
+
+export function testIaasForPatient(patientId = "") {
+  if (!testDataEnabled() || !patientId) return [];
+  return IAAS_CASES.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testCulturesForPatient(patientId = "") {
+  if (!testDataEnabled() || !patientId) return [];
+  return CULTURES.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testCulturesForIaas(iaasId = "") {
+  if (!testDataEnabled() || !iaasId) return [];
+  return CULTURES.filter(row => row.iaasId === iaasId).map(row => ({ ...row }));
+}
+
+export function testAntimicrobialsForPatient(patientId = "") {
+  if (!testDataEnabled() || !patientId) return [];
+  return ANTIMICROBIALS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testAntimicrobialsForIaas(iaasId = "") {
+  if (!testDataEnabled() || !iaasId) return [];
+  return ANTIMICROBIALS.filter(row => row.iaasId === iaasId).map(row => ({ ...row }));
+}
+
+export function testAuditForPatient(patientId = "") {
+  if (!testDataEnabled() || !patientId) return [];
+  return AUDIT_LOGS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
 }

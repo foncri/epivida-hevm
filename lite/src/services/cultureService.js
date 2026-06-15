@@ -1,8 +1,10 @@
 import { nowIso } from "../lib/date.js";
+import { appConfig } from "../lib/config.js";
 import { cleanText, stripUndefined } from "../lib/validators.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
+import { testCulturesForIaas, testCulturesForPatient } from "./testDataService.js";
 
 const CULTURE_PAGE_SIZE = 50;
 
@@ -33,6 +35,9 @@ async function mergePending(collectionRows = [], filter = () => true) {
 export async function listCulturesForPatient(patientId, options = {}) {
   if (!patientId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || CULTURE_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return mergePending(testCulturesForPatient(patientId).slice(0, limit), row => row.patientId === patientId);
+  }
   try {
     const rows = await listCollectionWhere("cultures", [["patientId", "==", patientId]], {
       orderBy: [["requestedAt", "desc"]],
@@ -47,6 +52,9 @@ export async function listCulturesForPatient(patientId, options = {}) {
 export async function pageCulturesForPatient(patientId, cursorState = {}) {
   if (!patientId) return emptyCursorPage([], cursorState.pageSize || CULTURE_PAGE_SIZE);
   const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || CULTURE_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listCulturesForPatient(patientId, { limit: pageSize }), pageSize);
+  }
   try {
     const page = await paginateQuery("cultures", [["patientId", "==", patientId]], [["requestedAt", "desc"]], pageSize, cursorState, cursorState.direction || "next");
     const rows = (await mergePending(page.rows, row => row.patientId === patientId))
@@ -61,6 +69,9 @@ export async function pageCulturesForPatient(patientId, cursorState = {}) {
 export async function listCulturesForIaas(iaasId, options = {}) {
   if (!iaasId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || CULTURE_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return mergePending(testCulturesForIaas(iaasId).slice(0, limit), row => row.iaasId === iaasId);
+  }
   try {
     const rows = await listCollectionWhere("cultures", [["iaasId", "==", iaasId]], {
       orderBy: [["requestedAt", "desc"]],

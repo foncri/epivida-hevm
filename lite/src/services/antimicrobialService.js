@@ -1,8 +1,10 @@
 import { nowIso } from "../lib/date.js";
+import { appConfig } from "../lib/config.js";
 import { cleanText, stripUndefined } from "../lib/validators.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
+import { testAntimicrobialsForIaas, testAntimicrobialsForPatient } from "./testDataService.js";
 
 const ANTIMICROBIAL_PAGE_SIZE = 50;
 
@@ -33,6 +35,9 @@ async function mergePending(collectionRows = [], filter = () => true) {
 export async function listAntimicrobialsForPatient(patientId, options = {}) {
   if (!patientId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || ANTIMICROBIAL_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return mergePending(testAntimicrobialsForPatient(patientId).slice(0, limit), row => row.patientId === patientId);
+  }
   try {
     const rows = await listCollectionWhere("antimicrobials", [["patientId", "==", patientId]], {
       orderBy: [["startDate", "desc"]],
@@ -47,6 +52,9 @@ export async function listAntimicrobialsForPatient(patientId, options = {}) {
 export async function pageAntimicrobialsForPatient(patientId, cursorState = {}) {
   if (!patientId) return emptyCursorPage([], cursorState.pageSize || ANTIMICROBIAL_PAGE_SIZE);
   const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || ANTIMICROBIAL_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listAntimicrobialsForPatient(patientId, { limit: pageSize }), pageSize);
+  }
   try {
     const page = await paginateQuery("antimicrobials", [["patientId", "==", patientId]], [["startDate", "desc"]], pageSize, cursorState, cursorState.direction || "next");
     const rows = (await mergePending(page.rows, row => row.patientId === patientId))
@@ -61,6 +69,9 @@ export async function pageAntimicrobialsForPatient(patientId, cursorState = {}) 
 export async function listAntimicrobialsForIaas(iaasId, options = {}) {
   if (!iaasId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || ANTIMICROBIAL_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return mergePending(testAntimicrobialsForIaas(iaasId).slice(0, limit), row => row.iaasId === iaasId);
+  }
   try {
     const rows = await listCollectionWhere("antimicrobials", [["iaasId", "==", iaasId]], {
       orderBy: [["startDate", "desc"]],

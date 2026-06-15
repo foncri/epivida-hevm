@@ -1,6 +1,8 @@
 import { nowIso } from "../lib/date.js";
+import { appConfig } from "../lib/config.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+import { testAuditForPatient } from "./testDataService.js";
 
 const AUDIT_PATIENT_LIMIT = 50;
 
@@ -49,6 +51,9 @@ async function mergePendingAuditForPatient(patientId, rows = []) {
 export async function listAuditForPatient(patientId, options = {}) {
   if (!patientId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || AUDIT_PATIENT_LIMIT));
+  if (appConfig().testMode) {
+    return mergePendingAuditForPatient(patientId, testAuditForPatient(patientId).slice(0, limit));
+  }
   try {
     const rows = await listCollectionWhere("audit_logs", [["patientId", "==", patientId]], {
       orderBy: [["createdAt", "desc"]],
@@ -63,6 +68,9 @@ export async function listAuditForPatient(patientId, options = {}) {
 export async function pageAuditForPatient(patientId, cursorState = {}) {
   if (!patientId) return emptyCursorPage([], cursorState.pageSize || AUDIT_PATIENT_LIMIT);
   const pageSize = Math.min(100, Math.max(1, Number(cursorState.pageSize) || AUDIT_PATIENT_LIMIT));
+  if (appConfig().testMode) {
+    return emptyCursorPage(await listAuditForPatient(patientId, { limit: pageSize }), pageSize);
+  }
   try {
     const page = await paginateQuery("audit_logs", [["patientId", "==", patientId]], [["createdAt", "desc"]], pageSize, cursorState, cursorState.direction || "next");
     const rows = (await mergePendingAuditForPatient(patientId, page.rows))

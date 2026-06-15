@@ -5,6 +5,7 @@ import { cleanText, stripUndefined, validIaasCase } from "../lib/validators.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
+import { testActiveIaas, testIaasForPatient } from "./testDataService.js";
 
 const CACHE_KEY = "iaas_active:last";
 const IAAS_PATIENT_LIMIT = 50;
@@ -39,7 +40,7 @@ function activeIaas(row = {}) {
 
 async function loadActiveIaas() {
   if (appConfig().testMode) {
-    return (await mergePending([])).filter(activeIaas);
+    return (await mergePending(testActiveIaas())).filter(activeIaas);
   }
   try {
     const rows = await listCollectionWhere("iaas_active", [["active", "==", true]]);
@@ -62,7 +63,7 @@ export async function listActiveIaas() {
 async function loadIaasForPatient(patientId, limit = IAAS_PATIENT_LIMIT) {
   const pageSize = Math.min(100, Math.max(1, Number(limit) || IAAS_PATIENT_LIMIT));
   if (appConfig().testMode) {
-    return (await mergePending([])).filter(row => row.patientId === patientId && activeIaas(row));
+    return (await mergePending(testIaasForPatient(patientId))).filter(row => row.patientId === patientId && activeIaas(row)).slice(0, pageSize);
   }
   try {
     const rows = await listCollectionWhere("iaas_active", [["patientId", "==", patientId], ["active", "==", true]], { limit: pageSize });

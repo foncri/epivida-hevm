@@ -5,7 +5,7 @@ import { cleanText, stripUndefined, validDevice } from "../lib/validators.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { setDocMergeOrQueue, pendingPayloadsForCollection } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
-import { testActiveDevices } from "./testDataService.js";
+import { testActiveDevices, testArchivedDevicesForPatient } from "./testDataService.js";
 
 const CACHE_KEY = "devices_active:last";
 const ARCHIVE_PAGE_SIZE = 50;
@@ -94,6 +94,9 @@ export async function listDevicesForPatient(patientId) {
 export async function listArchivedDevicesForPatient(patientId, options = {}) {
   if (!patientId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || ARCHIVE_PAGE_SIZE));
+  if (appConfig().testMode) {
+    return mergeArchivePending(patientId, testArchivedDevicesForPatient(patientId).slice(0, limit));
+  }
   try {
     const rows = await listCollectionWhere("devices_archive", [["patientId", "==", patientId]], {
       orderBy: [["removalDate", "desc"]],
