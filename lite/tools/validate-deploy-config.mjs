@@ -84,6 +84,7 @@ for (const expected of [
   "Referrer-Policy: strict-origin-when-cross-origin",
   "Permissions-Policy: camera=(), microphone=(), geolocation=()",
   "X-Frame-Options: DENY",
+  "/",
   "/index.html",
   "/*.html",
   "/src/*",
@@ -110,6 +111,9 @@ if (/\/\*\.css[\s\S]*immutable/.test(headers) && /\/src\/\*[\s\S]*Cache-Control:
 }
 if (headerSection(headers, "/epivida-lite-config.js").includes("immutable")) {
   fail("epivida-lite-config.js no puede recibir immutable.");
+}
+if (!/\/\n\s+Cache-Control:\s*no-cache/.test(headers)) {
+  fail("lite/_headers debe marcar / con Cache-Control: no-cache.");
 }
 for (const expected of [
   "Cache-Control: public, max-age=31536000, immutable"
