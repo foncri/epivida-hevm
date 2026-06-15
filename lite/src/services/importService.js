@@ -1,5 +1,5 @@
 import { normalizeDate } from "../lib/date.js";
-import { normalizeBed, normalizeEpidemiologicalDiagnosis, normalizeService, normalizeSex, normalizeStatus, normalizedPatientName, normalizeText } from "../lib/normalize.js";
+import { normalizeEpidemiologicalDiagnosis, normalizeImportLocation, normalizeSex, normalizeStatus, normalizedPatientName, normalizeText } from "../lib/normalize.js";
 import { cleanText, stripUndefined } from "../lib/validators.js";
 
 const HEADER_ALIASES = {
@@ -8,6 +8,7 @@ const HEADER_ALIASES = {
   patientName: ["paciente", "nombre", "nombre paciente", "nombre completo"],
   service: ["servicio", "area", "unidad", "piso"],
   bed: ["cama", "habitacion", "ubicacion", "cubiculo"],
+  serviceBed: ["servicio cama", "servicio/cama", "ubicacion cama", "cama servicio"],
   sector: ["sector"],
   sex: ["sexo", "genero"],
   age: ["edad"],
@@ -100,8 +101,9 @@ export function normalizeImportRow(cells = [], headers = [], sourceRow = 1) {
     if (field?.startsWith("extra_")) return;
     raw[field] = cells[index] || "";
   });
-  const service = normalizeService(raw.service);
-  const bed = normalizeBed(raw.bed);
+  const location = normalizeImportLocation(raw.service, raw.bed, raw.serviceBed);
+  const service = location.service;
+  const bed = location.bed;
   const patientName = cleanText(raw.patientName, 240);
   const admissionDate = normalizeDate(raw.admissionDate);
   const birthDate = normalizeDate(raw.birthDate);

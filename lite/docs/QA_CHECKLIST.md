@@ -42,9 +42,10 @@
 
 - Entrar a `#/importar-censo`.
 - Pegar CSV/TSV anonimo con encabezados.
+- Probar columna `Servicio/Cama` con camas `AIS P`, `HEM`, `ONCO` y `UCIA` para confirmar inferencia de servicio.
 - Confirmar preview antes de guardar.
 - Confirmar nuevos, movidos/actualizados, duplicados y ausentes.
-- Confirmar que ausentes no se archivan sin marcar confirmacion.
+- Confirmar que ausentes no se archivan sin marcar confirmacion y que hemodialisis/oncologia/ambulatorio quedan como protegidos para revision.
 - Guardar y verificar `census_days/{date}`, `patients_active`, `patients_search`, `daily_snapshots` y auditoria.
 
 ## Ronda

@@ -9,7 +9,7 @@ function requireValue(condition, message) {
 }
 
 const { parseCensusInput } = await import("../src/services/importService.js");
-const { reconcileCensusRows } = await import("../src/services/reconciliationService.js");
+const { canArchiveAbsentPatient, reconcileCensusRows } = await import("../src/services/reconciliationService.js");
 
 const input = [
   "Paciente\tServicio\tCama\tEdad\tSexo\tDx epidemiologico\tDiagnostico hospitalario\tFecha ingreso",
@@ -25,6 +25,17 @@ requireValue(parsed.rows[0].bed === "12", "Parser debe normalizar cama.");
 requireValue(parsed.rows[0].sex === "F", "Parser debe normalizar sexo.");
 requireValue(parsed.rows[0].epidemiologicalDiagnosis === "RIESGO IAAS", "Parser debe normalizar diagnostico epidemiologico.");
 requireValue(parsed.rows[0].admissionDate === "2026-06-01", "Parser debe normalizar fechas dd/mm/yyyy.");
+
+const locationInput = [
+  "Paciente\tServicio/Cama\tEdad\tSexo\tDx epidemiologico",
+  "Paciente Urgencias\tAIS P 4\t30\tF\tNO IAAS",
+  "Paciente Hemo\tHEM 12\t70\tM\tRIESGO IAAS",
+  "Paciente Onco\tONCO 7\t55\tF\tNO IAAS"
+].join("\n");
+const locationParsed = parseCensusInput(locationInput);
+requireValue(locationParsed.rows[0].service === "URGENCIAS", "Parser debe inferir URGENCIAS desde AIS P.");
+requireValue(locationParsed.rows[1].service === "HEMODIALISIS", "Parser debe inferir HEMODIALISIS desde cama HEM.");
+requireValue(locationParsed.rows[2].service === "ONCOLOGIA", "Parser debe inferir ONCOLOGIA desde cama ONCO.");
 
 const active = [
   {
@@ -44,6 +55,14 @@ const active = [
     service: "CIRUGIA Y TRAUMATOLOGIA",
     bed: "18",
     active: true
+  },
+  {
+    patientId: "p_hemo_absent",
+    patientName: "Paciente Hemo Ausente",
+    normalizedPatientName: "PACIENTE HEMO AUSENTE",
+    service: "HEMODIALISIS",
+    bed: "HEM 3",
+    active: true
   }
 ];
 
@@ -52,9 +71,11 @@ requireValue(preview.summary.totalRows === 3, "Conciliacion debe conservar total
 requireValue(preview.summary.changedPatients === 1, "Conciliacion debe detectar paciente movido/actualizado.");
 requireValue(preview.summary.newPatients === 1, "Conciliacion debe detectar paciente nuevo.");
 requireValue(preview.summary.duplicateRows === 1, "Conciliacion debe detectar duplicado.");
-requireValue(preview.summary.absentPatients === 1, "Conciliacion debe detectar ausente.");
+requireValue(preview.summary.absentPatients === 2, "Conciliacion debe detectar ausentes.");
 requireValue(preview.entries.some(entry => entry.patientId === "p_ana" && entry.changes.some(change => change.includes("servicio"))), "Paciente existente debe conservar patientId y cambios.");
-requireValue(preview.absent[0].patientId === "p_absent", "Ausente debe conservar patientId activo.");
+requireValue(preview.absent.some(item => item.patientId === "p_absent" && item.canArchive === true), "Ausente no protegido debe ser archivable.");
+requireValue(preview.absent.some(item => item.patientId === "p_hemo_absent" && item.canArchive === false), "Ausente de hemodialisis debe quedar protegido para revision.");
+requireValue(canArchiveAbsentPatient({ service: "ONCOLOGIA", active: true }) === false, "Oncologia ausente no debe archivarse automaticamente.");
 
 if (failures.length) {
   console.error(`EPIVIDA Lite census import validation failed (${failures.length})`);

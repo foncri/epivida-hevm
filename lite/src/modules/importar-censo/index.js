@@ -35,7 +35,8 @@ export async function render({ app }) {
   async function savePreview() {
     if (!state.preview?.entries?.length || state.saving) return;
     const absentCount = state.preview.absent?.length || 0;
-    const archiveText = state.archiveAbsent && absentCount ? ` Tambien se archivaran ${absentCount} ausente(s).` : "";
+    const archivableAbsent = (state.preview.absent || []).filter(item => item.canArchive !== false).length;
+    const archiveText = state.archiveAbsent && archivableAbsent ? ` Tambien se archivaran ${archivableAbsent} ausente(s) elegible(s).` : "";
     if (!globalThis.confirm(`Guardar censo del ${state.date}?${archiveText}`)) return;
     state.saving = true;
     redraw();
@@ -134,13 +135,15 @@ function renderPreview(state, onSave) {
   const summary = state.preview.summary;
   const entries = state.preview.entries;
   const absent = sortPatientsByServiceBed(state.preview.absent.map(item => item.patient));
+  const absentByPatient = new Map(state.preview.absent.map(item => [item.patientId, item]));
+  const archivableAbsent = state.preview.absent.filter(item => item.canArchive !== false).length;
   return el("section", { class: "stack" }, [
     el("section", { class: "row-card" }, [
       el("strong", {}, ["Conciliacion"]),
       el("span", {}, [`${summary.newPatients} nuevo(s), ${summary.changedPatients} movido(s)/actualizado(s), ${summary.unchangedPatients} sin cambio, ${summary.duplicateRows} duplicado(s), ${summary.absentPatients} ausente(s).`]),
-      absent.length ? field("Archivar ausentes confirmados", checkboxInput({
+      absent.length ? field(`Archivar ausentes confirmados (${archivableAbsent} elegible(s))`, checkboxInput({
         checked: state.archiveAbsent,
-        disabled: state.saving,
+        disabled: state.saving || !archivableAbsent,
         onchange: event => { state.archiveAbsent = event.target.checked; }
       })) : "",
       button(state.saving ? "Guardando" : "Guardar importacion", onSave, {
@@ -157,14 +160,16 @@ function renderPreview(state, onSave) {
         el("td", {}, [entry.changes.join("; ") || (entry.duplicate ? "Duplicado en archivo" : "")])
       ])
     ),
-    absent.length ? pagedTable(["Ausente", "Servicio", "Cama", "Estado"], absent, patient =>
-      el("tr", {}, [
+    absent.length ? pagedTable(["Ausente", "Servicio", "Cama", "Estado", "Conciliacion"], absent, patient => {
+      const item = absentByPatient.get(patient.patientId || patient.id) || {};
+      return el("tr", {}, [
         el("td", {}, [patient.patientName || patient.patientId || ""]),
         el("td", {}, [patient.service || patient.currentService || ""]),
         el("td", {}, [patient.bed || patient.currentBed || ""]),
-        el("td", {}, [patient.status || patient.currentState || ""])
-      ])
-    ) : ""
+        el("td", {}, [patient.status || patient.currentState || ""]),
+        el("td", {}, [item.canArchive === false ? badge("Revisar protegido", "warn") : badge("Archivable", "ok")])
+      ]);
+    }) : ""
   ]);
 }
 

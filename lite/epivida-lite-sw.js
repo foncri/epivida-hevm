@@ -1,4 +1,4 @@
-const APP_VERSION = "2026-06-09-release04";
+const APP_VERSION = "2026-06-15-release05";
 const CACHE_NAME = `epivida-lite-shell-${APP_VERSION}`;
 const CORE = ["./index.html", "./src/styles/base.css", "./src/main.js"];
 const NEVER_CACHE = new Set(["/lite/epivida-lite-config.js", "/epivida-lite-config.js"]);

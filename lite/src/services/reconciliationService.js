@@ -6,6 +6,8 @@ import { setDocMergeOrQueue } from "./offlineQueueService.js";
 import { archivePatient, savePatient } from "./patientService.js";
 import { writeAudit } from "./auditService.js";
 
+const PROTECTED_ABSENT_SERVICES = new Set(["HEMODIALISIS", "ONCOLOGIA", "AMBULATORIO"]);
+
 function stableIdFromText(value = "") {
   let hash = 5381;
   const text = String(value || "");
@@ -43,6 +45,17 @@ function changeList(existing = {}, row = {}) {
   return changes;
 }
 
+function patientService(patient = {}) {
+  return patient.service || patient.currentService || "";
+}
+
+export function canArchiveAbsentPatient(patient = {}) {
+  const service = patientService(patient);
+  if (PROTECTED_ABSENT_SERVICES.has(service)) return false;
+  const status = String(patient.status || patient.currentState || "").toUpperCase();
+  return !/AMBULATORIO|HEMODIALISIS|ONCOLOGIA/.test(status);
+}
+
 export function reconcileCensusRows(rows = [], activePatients = []) {
   const index = new Map();
   activePatients.forEach(patient => {
@@ -75,6 +88,8 @@ export function reconcileCensusRows(rows = [], activePatients = []) {
     .map(patient => ({
       action: "absent",
       patientId: patient.patientId || patient.id,
+      canArchive: canArchiveAbsentPatient(patient),
+      reason: canArchiveAbsentPatient(patient) ? "not_seen_in_import" : "protected_service_review_required",
       patient
     }));
 
@@ -105,7 +120,9 @@ export async function applyCensusImport(app, preview, options = {}) {
 
   let archived = [];
   if (options.archiveAbsent === true) {
-    archived = await Promise.all((preview.absent || []).map(item => archivePatient(app, item.patient, "egreso_por_conciliacion_censo")));
+    archived = await Promise.all((preview.absent || [])
+      .filter(item => item.canArchive !== false)
+      .map(item => archivePatient(app, item.patient, "egreso_por_conciliacion_censo")));
   }
 
   const hash = hashImportRows(importedRows);
