@@ -67,7 +67,7 @@ if (firebase) {
 const packageJson = parseJson("package.json");
 if (packageJson) {
   const scripts = packageJson.scripts || {};
-  if (scripts["deploy:pages"] !== "wrangler pages deploy lite --project-name epivida-hevm") {
+  if (scripts["deploy:pages"] !== "npx --yes wrangler@latest pages deploy lite --project-name epivida-hevm") {
     fail("package.json debe conservar deploy:pages para Cloudflare Pages epivida-hevm.");
   }
   if (scripts["deploy:firestore"] !== "firebase deploy --only firestore:rules,firestore:indexes") {
@@ -89,6 +89,7 @@ for (const expected of [
   "/*.html",
   "/src/*",
   "/epivida-lite-config.js",
+  "/epivida-lite-build.json",
   "/epivida-lite-sw.js",
   "/assets/*",
   "/manifest.webmanifest",
@@ -111,6 +112,9 @@ if (/\/\*\.css[\s\S]*immutable/.test(headers) && /\/src\/\*[\s\S]*Cache-Control:
 }
 if (headerSection(headers, "/epivida-lite-config.js").includes("immutable")) {
   fail("epivida-lite-config.js no puede recibir immutable.");
+}
+if (!/\/epivida-lite-build\.json[\s\S]*?Cache-Control:\s*no-cache/.test(headers)) {
+  fail("epivida-lite-build.json debe publicarse con Cache-Control: no-cache.");
 }
 if (!/\/\n\s+Cache-Control:\s*no-cache/.test(headers)) {
   fail("lite/_headers debe marcar / con Cache-Control: no-cache.");

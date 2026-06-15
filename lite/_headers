@@ -16,6 +16,9 @@
 /epivida-lite-config.js
   Cache-Control: no-cache
 
+/epivida-lite-build.json
+  Cache-Control: no-cache
+
 /epivida-lite-sw.js
   Cache-Control: no-cache
 
