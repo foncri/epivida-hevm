@@ -25,6 +25,7 @@ function requireIncludes(source, expected, label) {
 const inventory = readDoc("LEGACY_FEATURE_INVENTORY.md");
 const parity = readDoc("FUNCTIONAL_PARITY_MATRIX.md");
 const migration = readDoc("MIGRATION_PLAN.md");
+const audit = readDoc("LEGACY_VS_LITE_AUDIT_2026-06-15.md");
 
 requireIncludes(
   inventory,
@@ -98,6 +99,40 @@ for (const domain of [
 
 for (const priority of ["P0", "P1", "P2"]) {
   requireIncludes(parity + migration, priority, "Documentacion de paridad/migracion");
+}
+
+for (const expected of [
+  "EPIVIDA Antiguo vs EPIVIDA Lite",
+  "Dictamen Ejecutivo",
+  "Evidencia De Tamano Y Riesgo Legacy",
+  "Paridad Por Dominio",
+  "Brechas Que Aun No Pueden Declararse Cerradas",
+  "Cloudflare build marker",
+  "2026-06-15-cloudflare02"
+]) {
+  requireIncludes(audit, expected, "LEGACY_VS_LITE_AUDIT_2026-06-15.md");
+}
+
+for (const domain of [
+  "Auth",
+  "Censo",
+  "Importacion",
+  "Monitoreo",
+  "Ronda",
+  "Dispositivos",
+  "IAAS",
+  "Cultivos",
+  "Antimicrobianos",
+  "Expediente",
+  "Reportes",
+  "Offline",
+  "Auditoria",
+  "Seguridad",
+  "Cloudflare"
+]) {
+  if (!new RegExp(`\\| ${domain} \\|`).test(audit)) {
+    fail(`LEGACY_VS_LITE_AUDIT_2026-06-15.md debe auditar el dominio ${domain}.`);
+  }
 }
 
 if (failures.length) {
