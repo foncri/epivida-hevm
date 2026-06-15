@@ -26,7 +26,7 @@ The command starts two local static servers, opens each route in Playwright Chro
 Latest evidence file:
 
 ```text
-C:\Users\super\AppData\Local\Temp\epivida-ui-audit-oc7PMF\interface-comparison.json
+C:\Users\super\AppData\Local\Temp\epivida-ui-audit-78go2z\interface-comparison.json
 ```
 
 ## Headline Result
@@ -35,9 +35,9 @@ EPIVIDA Lite is objectively superior in web architecture and route-level perform
 
 | Metric | Legacy full app average | Lite 300-patient route average | Result |
 |---|---:|---:|---|
-| Transfer | 1466.8 KB | 128.0 KB | 91.3% less transfer |
+| Transfer | 1466.8 KB | 130.0 KB | 91.1% less transfer |
 | Requests | 50.8 | 26.1 | 48.6% fewer requests |
-| Load time | 8854 ms | 2017 ms | 77.2% faster |
+| Load time | 8855 ms | 2014 ms | 77.3% faster |
 | Legacy markers in Lite | N/A | 0 | Clean |
 | Page errors in Lite | N/A | 0 | Clean |
 | Console errors in Lite | N/A | 0 | Clean |
@@ -57,11 +57,11 @@ Forced local legacy routes loaded the monolithic stack even when testing one cli
 
 | Route | Requests | Transfer | Load time | Legacy monolith markers |
 |---|---:|---:|---:|---:|
-| Dashboard | 52 | 1586.6 KB | 8945 ms | 4 |
-| Censo | 49 | 1341.1 KB | 8831 ms | 4 |
-| Ronda | 54 | 1664.6 KB | 8799 ms | 4 |
-| Seguimiento IAAS | 50 | 1400.7 KB | 8868 ms | 4 |
-| Reportes | 49 | 1341.1 KB | 8826 ms | 4 |
+| Dashboard | 52 | 1586.6 KB | 8937 ms | 4 |
+| Censo | 49 | 1341.1 KB | 8818 ms | 4 |
+| Ronda | 54 | 1664.6 KB | 8811 ms | 4 |
+| Seguimiento IAAS | 50 | 1400.7 KB | 8887 ms | 4 |
+| Reportes | 49 | 1341.1 KB | 8822 ms | 4 |
 
 Largest repeated legacy resources included:
 
@@ -77,16 +77,16 @@ This confirms the legacy interface still behaves as a heavy accumulated runtime.
 
 | Route | Requests | Transfer | Load time | Errors | Console errors | Legacy markers |
 |---|---:|---:|---:|---:|---:|---:|
-| Inicio | 21 | 81.3 KB | 1902 ms | 0 | 0 | 0 |
-| Censo | 24 | 111.6 KB | 1883 ms | 0 | 0 | 0 |
-| Importar censo | 26 | 128.6 KB | 1884 ms | 0 | 0 | 0 |
-| Monitoreo | 24 | 107.1 KB | 2411 ms | 0 | 0 | 0 |
-| Ronda | 35 | 210.2 KB | 2736 ms | 0 | 0 | 0 |
-| EPI-IAAS | 27 | 136.4 KB | 1870 ms | 0 | 0 | 0 |
-| Dispositivos | 24 | 117.2 KB | 1873 ms | 0 | 0 | 0 |
-| Expediente | 29 | 155.3 KB | 1877 ms | 0 | 0 | 0 |
-| Reportes | 27 | 127.1 KB | 1870 ms | 0 | 0 | 0 |
-| Admin | 24 | 105.0 KB | 1868 ms | 0 | 0 | 0 |
+| Inicio | 21 | 81.3 KB | 1903 ms | 0 | 0 | 0 |
+| Censo | 24 | 113.3 KB | 1877 ms | 0 | 0 | 0 |
+| Importar censo | 26 | 130.4 KB | 1871 ms | 0 | 0 | 0 |
+| Monitoreo | 24 | 108.9 KB | 2408 ms | 0 | 0 | 0 |
+| Ronda | 35 | 211.9 KB | 2738 ms | 0 | 0 | 0 |
+| EPI-IAAS | 27 | 140.4 KB | 1868 ms | 0 | 0 | 0 |
+| Dispositivos | 24 | 119.0 KB | 1873 ms | 0 | 0 | 0 |
+| Expediente | 29 | 159.0 KB | 1862 ms | 0 | 0 | 0 |
+| Reportes | 27 | 130.8 KB | 1868 ms | 0 | 0 | 0 |
+| Admin | 24 | 104.9 KB | 1875 ms | 0 | 0 | 0 |
 
 ## Interaction Checks
 

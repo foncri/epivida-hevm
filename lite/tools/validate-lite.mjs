@@ -268,6 +268,12 @@ if (!patientServiceSource.includes("export async function getPatientById") || !p
 if (!iaasServiceSource.includes("export async function listIaasForPatient") || !iaasServiceSource.includes('["patientId", "==", patientId]') || !iaasServiceSource.includes('["active", "==", true]')) {
   fail("iaasService debe exponer lectura IAAS filtrada por paciente para expediente.");
 }
+if (!iaasServiceSource.includes("patientClassificationForIaasStatus") || !iaasServiceSource.includes("syncPatientClassificationFromIaas") || !iaasServiceSource.includes("patientClassificationSyncStatus")) {
+  fail("iaasService debe sincronizar clasificacion IAAS/riesgo/no IAAS hacia patients_active al guardar seguimiento.");
+}
+if (!patientServiceSource.includes("syncPatientIaasClassification") || !patientServiceSource.includes("patient_iaas_classification_sync") || !patientServiceSource.includes("currentEpidemiologicalDiagnosis")) {
+  fail("patientService debe exponer sincronizacion auditada de clasificacion epidemiologica desde IAAS.");
+}
 if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan")) {
   fail("iaasService debe normalizar seguimiento IAAS clinico estructurado: criterios, vitales, labs y plan.");
 }

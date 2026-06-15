@@ -88,7 +88,8 @@ const syntaxFiles = [
   join(root, "tools/validate-offline-queue.mjs"),
   join(root, "tools/validate-patient-filters.mjs"),
   join(root, "tools/validate-round-helpers.mjs"),
-  join(root, "tools/validate-security-config.mjs")
+  join(root, "tools/validate-security-config.mjs"),
+  join(root, "tools/audit-legacy-surface.mjs")
 ];
 
 for (const file of syntaxFiles) {

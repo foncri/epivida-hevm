@@ -30,9 +30,7 @@ export async function render({ app }) {
       editing ? iaasForm(app, editing, patients, saved => {
         rows = upsertIaas(rows, saved);
         editing = null;
-        message = saved.syncStatus === "local_pending"
-          ? "IAAS guardada localmente; queda pendiente de sincronizar."
-          : "IAAS sincronizada.";
+        message = syncMessage(saved, "IAAS guardada");
         redraw();
       }, () => { editing = null; redraw(); }) : "",
       pagedTable(["Paciente", "Servicio", "Cama", "Tipo", "Estado", "Seguimiento", ...(writable ? ["Acciones"] : [])], rows, row =>
@@ -48,9 +46,7 @@ export async function render({ app }) {
             button("Cerrar", async () => {
               const saved = await closeIaasCase(app, row, "cierre_manual_lite");
               rows = rows.filter(item => item.iaasId !== saved.iaasId);
-              message = saved.syncStatus === "local_pending"
-                ? "Cierre guardado localmente; queda pendiente de sincronizar."
-                : "Cierre sincronizado.";
+              message = syncMessage(saved, "Cierre guardado");
               redraw();
             }, { class: "small ghost" })
           ]) : ""
@@ -141,6 +137,14 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       button("Cancelar", onCancel, { class: "ghost" })
     ])
   ]);
+}
+
+function syncMessage(saved = {}, label = "IAAS guardada") {
+  const pending = saved.syncStatus === "local_pending" || saved.patientClassificationSyncStatus === "local_pending";
+  if (saved.patientClassificationSyncStatus === "error") return `${label}, pero no se pudo sincronizar la clasificacion del paciente.`;
+  return pending
+    ? `${label} localmente; IAAS y clasificacion del paciente quedan pendientes de sincronizar.`
+    : `${label}; IAAS y clasificacion del paciente sincronizadas.`;
 }
 
 async function saveLinkedCulture(app, iaas, data) {

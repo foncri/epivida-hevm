@@ -38,6 +38,27 @@ function activeIaas(row = {}) {
   return row.active !== false && !["closed", "cerrada", "archived"].includes(status);
 }
 
+export function patientClassificationForIaasStatus(status = "") {
+  const normalized = cleanText(status).toLowerCase();
+  if (["confirmada", "confirmed", "iaas"].includes(normalized)) return "IAAS";
+  if (["sospecha", "probable", "riesgo", "riesgo iaas"].includes(normalized)) return "RIESGO IAAS";
+  if (["descartada", "closed", "cerrada", "archived", "no iaas"].includes(normalized)) return "NO IAAS";
+  return "";
+}
+
+function strongestClassification(rows = []) {
+  if (rows.some(row => patientClassificationForIaasStatus(row.status) === "IAAS")) return "IAAS";
+  if (rows.some(row => patientClassificationForIaasStatus(row.status) === "RIESGO IAAS")) return "RIESGO IAAS";
+  return "NO IAAS";
+}
+
+async function syncPatientClassificationFromIaas(app, iaas, fallbackClassification = "") {
+  const classification = fallbackClassification || patientClassificationForIaasStatus(iaas.status);
+  if (!iaas?.patientId || !classification) return null;
+  const { syncPatientIaasClassification } = await import("./patientService.js");
+  return syncPatientIaasClassification(app, iaas.patientId, classification, iaas);
+}
+
 async function loadActiveIaas() {
   if (appConfig().testMode) {
     return (await mergePending(testActiveIaas())).filter(activeIaas);
@@ -177,7 +198,11 @@ export async function saveIaasCase(app, iaas) {
     patientId: iaas.patientId,
     after: saved
   });
-  return saved;
+  const patientSync = await syncPatientClassificationFromIaas(app, saved).catch(error => ({
+    syncStatus: "error",
+    error: error?.message || "No se pudo sincronizar clasificacion del paciente."
+  }));
+  return { ...saved, patientClassificationSyncStatus: patientSync?.syncStatus || "", patientClassification: patientSync?.epidemiologicalDiagnosis || "" };
 }
 
 export async function closeIaasCase(app, iaas, closedReason = "") {
@@ -207,5 +232,12 @@ export async function closeIaasCase(app, iaas, closedReason = "") {
     before: iaas,
     after: saved
   });
-  return saved;
+  const remainingRows = (await listIaasForPatient(payload.patientId, { limit: IAAS_PATIENT_LIMIT }).catch(() => []))
+    .filter(row => (row.iaasId || row.id) !== payload.iaasId)
+    .filter(activeIaas);
+  const patientSync = await syncPatientClassificationFromIaas(app, saved, strongestClassification(remainingRows)).catch(error => ({
+    syncStatus: "error",
+    error: error?.message || "No se pudo sincronizar clasificacion del paciente."
+  }));
+  return { ...saved, patientClassificationSyncStatus: patientSync?.syncStatus || "", patientClassification: patientSync?.epidemiologicalDiagnosis || "" };
 }

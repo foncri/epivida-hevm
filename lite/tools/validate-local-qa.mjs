@@ -21,6 +21,8 @@ function requireValue(condition, message) {
 const testData = await import("../src/services/testDataService.js");
 const monitor = await import("../src/services/monitorService.js");
 const router = await import("../src/router.js");
+const iaasService = await import("../src/services/iaasService.js");
+const offlineQueue = await import("../src/services/offlineQueueService.js");
 
 const patients = testData.testActivePatients();
 const devices = testData.testActiveDevices();
@@ -56,6 +58,33 @@ globalThis.location.hash = "#/ronda/2026-06-04/paciente/p_uci_02";
 const parsedPatient = router.parseRoute();
 requireValue(parsedPatient.key === "ronda-paquetes", "Ruta legacy por paciente debe resolver a ronda-paquetes.");
 requireValue(parsedPatient.parts[3] === "p_uci_02", "Ruta legacy por paciente debe preservar patientId.");
+
+const app = {
+  state: {
+    auth: {
+      user: { uid: "qa-user", email: "qa@epivida.local" },
+      profile: { role: "admin_epidemiologia" }
+    }
+  }
+};
+requireValue(iaasService.patientClassificationForIaasStatus("confirmada") === "IAAS", "IAAS confirmada debe sincronizar paciente como IAAS.");
+requireValue(iaasService.patientClassificationForIaasStatus("sospecha") === "RIESGO IAAS", "IAAS sospecha debe sincronizar paciente como RIESGO IAAS.");
+requireValue(iaasService.patientClassificationForIaasStatus("descartada") === "NO IAAS", "IAAS descartada debe sincronizar paciente como NO IAAS.");
+const savedIaas = await iaasService.saveIaasCase(app, {
+  patientId: "p_history",
+  patientName: "Paciente QA Historial",
+  service: "MEDICINA INTERNA",
+  bed: "12",
+  iaasType: "ITS-CVC",
+  status: "confirmada",
+  onsetDate: "2026-06-05",
+  probableOrigin: "Cateter venoso central",
+  criteria: "Validacion QA de sincronizacion IAAS",
+  active: true
+});
+const pendingPatientSync = await offlineQueue.pendingPayloadsForCollection("patients_active");
+requireValue(savedIaas.patientClassification === "IAAS", "saveIaasCase debe devolver clasificacion de paciente sincronizada.");
+requireValue(pendingPatientSync.some(row => row.patientId === "p_history" && row.epidemiologicalDiagnosis === "IAAS"), "Guardar IAAS debe encolar sincronizacion de clasificacion en patients_active.");
 
 globalThis.window.__EPIVIDA_LITE_TEST_MODE__ = false;
 globalThis.location.search = "";

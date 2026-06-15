@@ -196,6 +196,54 @@ export async function archivePatient(app, patient, reason = "") {
   return saved;
 }
 
+export async function syncPatientIaasClassification(app, patientId, classification, source = {}) {
+  if (!patientId || !classification) return null;
+  const patient = await getPatientById(patientId);
+  if (!patient) return null;
+  const payload = stripUndefined({
+    ...patient,
+    patientId,
+    active: patient.active !== false,
+    epidemiologicalDiagnosis: classification,
+    currentEpidemiologicalDiagnosis: classification,
+    iaasSummary: stripUndefined({
+      ...(patient.iaasSummary || {}),
+      currentClassification: classification,
+      currentIaasId: source.iaasId || patient.iaasSummary?.currentIaasId || "",
+      currentIaasType: source.iaasType || patient.iaasSummary?.currentIaasType || "",
+      currentIaasStatus: source.status || patient.iaasSummary?.currentIaasStatus || "",
+      updatedAt: nowIso()
+    }),
+    updatedAt: nowIso(),
+    updatedBy: app.state.auth.user?.uid || ""
+  });
+  const saved = await setDocMergeOrQueue(app, `patients_active/${patientId}`, payload, {
+    module: "epi-iaas",
+    entityType: "patient",
+    entityId: patientId,
+    sourceAction: "iaas_classification_sync"
+  });
+  activePatientsPromise = null;
+  await writeAudit(app, {
+    actionType: "patient_iaas_classification_sync",
+    module: "epi-iaas",
+    entityType: "patient",
+    entityId: patientId,
+    patientId,
+    before: {
+      epidemiologicalDiagnosis: patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis || "",
+      iaasSummary: patient.iaasSummary || null
+    },
+    after: {
+      epidemiologicalDiagnosis: classification,
+      iaasSummary: payload.iaasSummary || null
+    }
+  });
+  const cached = await listActivePatients().catch(() => []);
+  cacheSet(CACHE_KEY, [...byPatientId(cached).set(patientId, saved).values()]).catch(() => undefined);
+  return saved;
+}
+
 export function uniqueValues(rows, field) {
   const valueFor = row => {
     if (field === "service") return row.service || row.currentService;
