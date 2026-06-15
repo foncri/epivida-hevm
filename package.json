@@ -18,6 +18,7 @@
     "validate:performance": "node lite/tools/validate-performance-budget.mjs",
     "validate:indexes": "node lite/tools/validate-firestore-index-coverage.mjs",
     "validate:scalability": "node lite/tools/validate-scalability.mjs",
+    "generate:test-patients": "node lite/tools/generate-test-patients.mjs",
     "prepare:user-seed": "node lite/tools/prepare-user-seed.mjs",
     "deploy:pages": "wrangler pages deploy lite --project-name epivida-hevm",
     "deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes"

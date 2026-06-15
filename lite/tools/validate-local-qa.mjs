@@ -19,6 +19,7 @@ function requireValue(condition, message) {
 }
 
 const testData = await import("../src/services/testDataService.js");
+const monitor = await import("../src/services/monitorService.js");
 const router = await import("../src/router.js");
 
 const patients = testData.testActivePatients();
@@ -36,6 +37,17 @@ requireValue(devices.some(row => row.patientId === "p_history" && row.deviceType
 requireValue(roundsToday.some(row => row.patientId === "p_history" && row.status === "reviewed"), "QA local debe incluir ronda revisada del dia.");
 requireValue(historyRounds.some(row => row.date === "2026-06-03"), "QA local debe incluir historial preventivo del dia previo.");
 requireValue(historyRounds.some(row => (row.packageReviews || []).some(review => review.packageType === "P.E. Y P.B.M.T.")), "QA local debe conservar P.E. Y P.B.M.T. en historial.");
+
+globalThis.location.search = "?epividaTest=1&seedPatients=300";
+const seededPatients = testData.testActivePatients();
+const startedAt = Date.now();
+const seededVisible = monitor.visibleMonitorPatients(seededPatients, { query: "sintetico riesgo", diagnosis: "RIESGO IAAS" });
+const elapsed = Date.now() - startedAt;
+const seededMetrics = monitor.monitorMetrics(seededPatients, seededVisible);
+requireValue(seededPatients.length === 300, "QA local debe generar 300 pacientes sinteticos anonimos con seedPatients=300.");
+requireValue(seededVisible.length > 0, "Monitoreo QA debe filtrar pacientes sinteticos por busqueda y diagnostico.");
+requireValue(seededMetrics.active === 300 && seededMetrics.riskIaas === seededVisible.length, "Metricas de monitoreo deben calcularse sobre 300 pacientes sin Firebase.");
+requireValue(elapsed < 75, `Filtro local de 300 pacientes debe ser rapido; tomo ${elapsed} ms.`);
 
 const parsedRound = router.parseRoute();
 requireValue(parsedRound.key === "ronda-paquetes", "Alias legacy #/ronda/YYYY-MM-DD debe resolver a ronda-paquetes.");
