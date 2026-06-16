@@ -1,3 +1,5 @@
+import { normalizeBed, serviceFromBed } from "../../lib/normalize.js";
+
 export const ROUND_SERVICE_FILTERS = [
   { value: "Todos", label: "Todos" },
   { value: "MEDICINA INTERNA", label: "Medicina Interna" },
@@ -161,11 +163,15 @@ export function patientLabel(patient = {}) {
 }
 
 export function patientService(patient = {}) {
-  return patient.service || patient.currentService || "SIN SERVICIO";
+  const explicit = patient.service || patient.currentService || "";
+  const explicitKey = normalizeRoundText(explicit);
+  if (explicit && !["SIN SERVICIO", "SIN DATO", "SD", "S/D"].includes(explicitKey)) return explicit;
+  return serviceFromBed(patientBed(patient)) || "SIN SERVICIO";
 }
 
 export function patientBed(patient = {}) {
-  return patient.bed || patient.currentBed || "S/C";
+  const raw = patient.bed || patient.currentBed || "";
+  return normalizeBed(raw) || raw || "S/C";
 }
 
 export function patientDiagnosis(patient = {}) {
@@ -227,6 +233,8 @@ export function normalizeServiceKey(value) {
   if (text.includes("GINECO") || text.includes("OBSTETRIC")) return rememberNormalized(serviceKeyCache, key, "GINECOLOGIA Y OBSTETRICIA");
   if (text.includes("URGENCIA") || text === "URG") return rememberNormalized(serviceKeyCache, key, "URGENCIAS");
   if (text.includes("AMBULATOR")) return rememberNormalized(serviceKeyCache, key, "AMBULATORIO");
+  const inferredFromBed = serviceFromBed(text);
+  if (inferredFromBed) return rememberNormalized(serviceKeyCache, key, inferredFromBed);
   return rememberNormalized(serviceKeyCache, key, text);
 }
 

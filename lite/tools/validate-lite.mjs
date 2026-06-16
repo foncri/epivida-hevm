@@ -405,6 +405,7 @@ const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/in
 const patientRoundSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRound.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
+const roundHelpersSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundHelpers.js"), "utf8");
 const patientRoundPanelsSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRoundPanels.js"), "utf8");
 const preventiveFormsSource = readFileSync(join(root, "src/modules/ronda-paquetes/preventiveForms.js"), "utf8");
 const roundNavigationSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundNavigation.js"), "utf8");
@@ -481,6 +482,14 @@ if (
   roundNavigationSource.includes("const items = bedBoardItems(rows, service);")
 ) {
   fail("ronda-paquetes debe evitar renderizar camas vacias no navegables en la ronda individual de paciente.");
+}
+if (
+  !roundHelpersSource.includes("serviceFromBed(patientBed(patient))") ||
+  !roundHelpersSource.includes("normalizeBed(raw)") ||
+  !roundHelpersSource.includes("const inferredFromBed = serviceFromBed(text)") ||
+  !roundHelpersSource.includes("\"AIS P\"")
+) {
+  fail("roundHelpers debe migrar iaas-urgencias-aisp-system-preloader: AIS P canonico, servicio Urgencias inferido y cama conocida permanente sin eval.");
 }
 
 const cacheSource = readFileSync(join(root, "src/lib/cache.js"), "utf8");

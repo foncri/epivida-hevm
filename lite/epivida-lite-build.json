@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-16-parity09",
+  "release": "2026-06-16-parity10",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-16T19:05:00Z",
-  "notes": "Paridad Lite ampliada: import-urgencias-aisp-fix-2026-06-01.js migrado a censusRepairService para AISLADO P, filas partidas y orden fecha/RFC/edad sin listener DOM. No clinical data."
+  "updatedAt": "2026-06-16T19:32:00Z",
+  "notes": "Paridad Lite ampliada: iaas-urgencias-aisp-system-preloader-2026-06-01.js migrado a roundHelpers/catalogService para AIS P permanente en Urgencias, inferencia de servicio desde cama y normalizacion AIS-P/AISLADO P sin eval. No clinical data."
 }

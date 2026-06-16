@@ -14,6 +14,8 @@ const {
   knownBedsForService,
   normalizeRoundText,
   normalizeServiceKey,
+  patientBed,
+  patientService,
   roundPatientSearchText,
   upsertOrRemovePatient
 } = await import("../src/modules/ronda-paquetes/roundHelpers.js");
@@ -62,6 +64,13 @@ const patients = [
     active: true
   },
   {
+    patientId: "p_urg_aisp",
+    patientName: "Paciente Aislamiento",
+    currentBed: "AIS-P",
+    currentDiagnosis: "Observacion en urgencias",
+    active: true
+  },
+  {
     patientId: "p_inactive",
     patientName: "Paciente Egresado",
     service: "Medicina Interna",
@@ -73,10 +82,19 @@ const patients = [
 requireValue(normalizeRoundText("  cateter venoso central  ") === "CATETER VENOSO CENTRAL", "normalizeRoundText debe quitar espacios, acentos y normalizar mayusculas.");
 requireValue(normalizeServiceKey("MI") === "MEDICINA INTERNA", "MI debe mapearse a Medicina Interna.");
 requireValue(normalizeServiceKey("UTIP") === "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS", "UTIP debe mapearse a UCIP/UTIP legacy.");
+requireValue(normalizeServiceKey("AIS-P") === "URGENCIAS", "AIS-P debe mapearse a Urgencias como el preloader legacy.");
 requireValue(knownBedsForService("MI").includes("30"), "Camas conocidas de MI deben estar disponibles para movimientos de cama.");
+requireValue(knownBedsForService("URGENCIAS").includes("AIS P"), "Catalogo legacy debe conservar AIS P como cama conocida de Urgencias.");
+
+const urgAisPatient = patients.find(row => row.patientId === "p_urg_aisp");
+requireValue(patientBed(urgAisPatient) === "AIS P", "patientBed debe normalizar AIS-P a AIS P para tablero de Urgencias.");
+requireValue(patientService(urgAisPatient) === "URGENCIAS", "patientService debe inferir Urgencias desde cama AIS P si el servicio legacy viene vacio.");
 
 const miRows = filterAndSortRoundPatients(patients, { service: "MEDICINA INTERNA", query: "" });
 requireValue(miRows.map(row => row.patientId).join(",") === "p_mi_01,p_mi_02", "Filtro de Medicina Interna debe excluir inactivos y ordenar por cama.");
+
+const urgRows = filterAndSortRoundPatients(patients, { service: "URGENCIAS", query: "" });
+requireValue(urgRows.length === 1 && urgRows[0].patientId === "p_urg_aisp", "Filtro de Urgencias debe incluir paciente AIS P aunque no tenga servicio explicito.");
 
 const queryRows = filterAndSortRoundPatients(patients, { service: "Todos", query: "cateter" });
 requireValue(queryRows.length === 1 && queryRows[0].patientId === "p_mi_01", "Busqueda debe normalizar acentos y encontrar diagnostico.");
@@ -93,6 +111,9 @@ const bedBoard = bedBoardItems(miRows, "MEDICINA INTERNA");
 const occupiedBeds = bedBoard.filter(item => item.patient).map(item => `${item.bed}:${item.patient.patientId}`);
 requireValue(occupiedBeds.includes("1:p_mi_01") && occupiedBeds.includes("2:p_mi_02"), "Mapa de camas debe conservar pacientes en camas ocupadas.");
 requireValue(bedBoard.some(item => item.bed === "30" && !item.patient), "Mapa de Medicina Interna debe incluir camas conocidas vacias.");
+const urgBedBoard = bedBoardItems(urgRows, "URGENCIAS");
+requireValue(urgBedBoard.some(item => item.bed === "AIS P" && item.patient?.patientId === "p_urg_aisp"), "Mapa de Urgencias debe ubicar paciente AIS P en cama canonica.");
+requireValue(bedBoardItems([], "URGENCIAS").some(item => item.bed === "AIS P" && !item.patient), "Mapa de Urgencias debe mostrar AIS P vacia aunque no haya pacientes.");
 requireValue(navigationPatientId(patients[0], patients, "previous") === "p_mi_01", "Navegacion previa debe calcularse desde datos, no desde DOM.");
 requireValue(daysBetween("2026-06-01", "2026-06-04") === 3, "daysBetween debe calcular dias de estancia por fecha ISO.");
 requireValue(validIsoDate("2026-06-04") && normalizeDate("04/06/2026") === "2026-06-04", "date.js debe aceptar fechas reales ISO y dd/mm/yyyy.");
