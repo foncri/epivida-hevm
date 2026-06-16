@@ -89,6 +89,7 @@ Rutas legacy detectadas:
 | P1 | Loader IAAS followup sin `eval`. | `legacyClinicalCatalogs` conserva el catalogo antimicrobiano/cultivos del loader `iaas-system-followup-loader-2026-05-20.js`; `iaasService` normaliza otros estudios como nombre/valor; `clinicalFollowUp` preserva Otro cultivo/Otro farmaco y expediente muestra estudios adicionales. | `npm run validate:lite`. |
 | P1 | Cedulas preventivas sin Sheets. | `preventiveCedulaService` reemplaza `iaas-system-cedulas-loader-2026-05-21.js` generando CSV diario ITS/ITU/NAVM/ISQ/P.E. y mensual por servicio desde `nursing_rounds`; `#/reportes` exporta bajo demanda con auditoria. | `npm run validate`; prueba QA del servicio con `epividaTest`. |
 | P0 | Flujo preventivo ISQ/quirofano. | `preventivePackageService`, `preventiveForms`, `saveRoundFlow` y `patientRoundPanels` reemplazan `preventive-round-workflow-hotfix-2026-06-02.js`: pendientes sanitizados, `pendiente` explicito, autoconfirmacion sin invasivos y campo `surgeryRoom` estructurado en `nursing_rounds`. | `npm run validate:round`; `npm run validate:lite`. |
+| P0 | Pendientes y alertas del runtime. | `operationalAlertService` reemplaza paneles de `iaas-system-runtime-2026-06-04.js` para altas por investigar, movimientos, rondas pendientes, senales ISQ, IAAS/riesgo con invasivos, cultivos vencidos, OPD y sync, sin store global ni historicos completos; `#/inicio` muestra los avisos. | `npm run validate:alerts`; `npm run validate:lite`. |
 
 ## Omision P0 Migrada En Esta Fase
 

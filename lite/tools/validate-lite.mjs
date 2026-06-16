@@ -272,6 +272,7 @@ for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig()
 }
 const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
 const monitorServiceSource = readFileSync(join(root, "src/services/monitorService.js"), "utf8");
+const operationalAlertServiceSource = readFileSync(join(root, "src/services/operationalAlertService.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
 const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
 const iaasCriteriaServiceSource = readFileSync(join(root, "src/services/iaasCriteriaService.js"), "utf8");
@@ -286,6 +287,11 @@ if (!monitorServiceSource.includes("export function monitorMetrics") || !monitor
 }
 if (!monitorServiceSource.includes("monitorOpdStatus") || !monitorServiceSource.includes("opdPending") || !monitorServiceSource.includes("opdEligibilityForPatient")) {
   fail("monitorService debe mostrar pendientes OPD derivados localmente, sin consultas adicionales.");
+}
+for (const expected of ["OPERATIONAL_ALERTS_VERSION", "loadOperationalAlerts", "buildOperationalAlerts", "listTodayRounds", "listActiveDevices", "listCulturesByStatus", "syncQueueSummary", "risk-device", "culture"]) {
+  if (!operationalAlertServiceSource.includes(expected)) {
+    fail("operationalAlertService debe migrar pendientes y alertas del runtime legacy como servicio ligero.");
+  }
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
@@ -337,11 +343,15 @@ if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModu
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
 }
 const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/index.js"), "utf8");
+const inicioModuleSource = readFileSync(join(root, "src/modules/inicio/index.js"), "utf8");
 if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.includes("visibleMonitorPatients") || !monitoreoModuleSource.includes("monitorFilterOptions") || monitoreoModuleSource.includes("filterPatients") || monitoreoModuleSource.includes("uniqueValues")) {
   fail("modules/monitoreo debe delegar metricas/filtros a monitorService y conservar una sola lectura de pacientes activos.");
 }
 if (!monitoreoModuleSource.includes("monitorOpdStatus") || !monitoreoModuleSource.includes('"OPD"')) {
   fail("modules/monitoreo debe exponer estado OPD sin cargar seguimiento IAAS completo.");
+}
+if (!inicioModuleSource.includes("loadOperationalAlerts") || !inicioModuleSource.includes("renderOperationalAlertPanels") || !inicioModuleSource.includes("Alertas operativas")) {
+  fail("modules/inicio debe exponer alertas operativas legacy sin cargar runtime ni reportes historicos.");
 }
 const censoModuleSource = readFileSync(join(root, "src/modules/censo/index.js"), "utf8");
 if (!censoModuleSource.includes("renderOpdFields") || !censoModuleSource.includes("opdFromFormData") || !censoModuleSource.includes("MORBIMORTALIDAD MATERNA/PERINATAL")) {
@@ -587,6 +597,9 @@ if (!packageSource.includes("validate:security") || !packageSource.includes("val
 }
 if (!packageSource.includes("validate:offline") || !packageSource.includes("validate-offline-queue.mjs")) {
   fail("package.json debe exponer validate:offline para cola offline.");
+}
+if (!packageSource.includes("validate:alerts") || !packageSource.includes("validate-operational-alerts.mjs")) {
+  fail("package.json debe exponer validate:alerts para pendientes y alertas operativas.");
 }
 if (!packageSource.includes("validate:round") || !packageSource.includes("validate-round-helpers.mjs")) {
   fail("package.json debe exponer validate:round para filtros y mapa de camas de ronda.");

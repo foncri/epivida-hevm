@@ -10,6 +10,7 @@
     "validate:deploy": "node lite/tools/validate-deploy-config.mjs",
     "validate:security": "node lite/tools/validate-security-config.mjs",
     "validate:offline": "node lite/tools/validate-offline-queue.mjs",
+    "validate:alerts": "node lite/tools/validate-operational-alerts.mjs",
     "validate:round": "node lite/tools/validate-round-helpers.mjs",
     "validate:patients": "node lite/tools/validate-patient-filters.mjs",
     "validate:import": "node lite/tools/validate-census-import.mjs",

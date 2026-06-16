@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-16-parity06",
+  "release": "2026-06-16-parity07",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-16T18:30:09Z",
-  "notes": "Paridad Lite ampliada: flujo preventivo ISQ/quirofano migrado desde hotfix legacy con pendientes limpios, estado pendiente explicito y surgeryRoom en nursing_rounds. No clinical data."
+  "updatedAt": "2026-06-16T18:37:25Z",
+  "notes": "Paridad Lite ampliada: pendientes y alertas del runtime legacy migrados a operationalAlertService e Inicio sin store global ni historicos completos. No clinical data."
 }

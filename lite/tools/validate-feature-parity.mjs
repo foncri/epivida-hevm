@@ -108,7 +108,7 @@ for (const expected of [
   "Paridad Por Dominio",
   "Brechas Que Aun No Pueden Declararse Cerradas",
   "Cloudflare build marker",
-  "2026-06-16-parity06"
+  "2026-06-16-parity07"
 ]) {
   requireIncludes(audit, expected, "LEGACY_VS_LITE_AUDIT_2026-06-15.md");
 }
