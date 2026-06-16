@@ -188,6 +188,38 @@ export async function saveDeviceEpisode(app, device) {
   return saved;
 }
 
+export async function saveArchivedDeviceEpisode(app, device) {
+  if (!validDevice(device) || !device.removalDate) throw new Error("Historico sin paciente, tipo, instalacion o retiro.");
+  const episodeId = device.episodeId || makeEpisodeId();
+  const payload = stripUndefined({
+    ...device,
+    episodeId,
+    active: false,
+    status: "retirado",
+    careStatus: cleanText(device.careStatus || "retirado"),
+    updatedAt: nowIso(),
+    updatedBy: app.state.auth.user?.uid || "",
+    archivedAt: device.archivedAt || nowIso(),
+    archivedBy: device.archivedBy || app.state.auth.user?.uid || "",
+    source: device.source || "lite_device_archive_editor"
+  });
+  const saved = await setDocMergeOrQueue(app, `devices_archive/${episodeId}`, payload, {
+    module: "dispositivos",
+    entityType: "device_archive",
+    entityId: episodeId
+  });
+  if (payload.patientId) devicePatientPromises.delete(payload.patientId);
+  await writeAudit(app, {
+    actionType: device.episodeId ? "device_archive_update" : "device_archive_create",
+    module: "dispositivos",
+    entityType: "device_archive",
+    entityId: episodeId,
+    patientId: device.patientId,
+    after: saved
+  });
+  return saved;
+}
+
 export async function removeDeviceEpisode(app, device, removalDate) {
   if (!device?.episodeId) throw new Error("Dispositivo sin identificador.");
   const timestamp = nowIso();

@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-15-cloudflare02",
+  "release": "2026-06-16-parity01",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-15T17:09:30Z",
-  "notes": "Public build marker only. No clinical data."
+  "updatedAt": "2026-06-16T13:55:00Z",
+  "notes": "Paridad Lite ampliada: catalogos/camas, microbiologia, backup restore e historicos editables. No clinical data."
 }

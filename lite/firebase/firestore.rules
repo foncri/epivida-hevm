@@ -111,7 +111,7 @@ service cloud.firestore {
     }
 
     match /devices_archive/{episodeId} {
-      allow read: if reportReader();
+      allow read: if nursing() || reportReader();
       allow create, update: if nursing();
       allow delete: if false;
     }

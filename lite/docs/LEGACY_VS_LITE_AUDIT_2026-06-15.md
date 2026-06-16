@@ -8,7 +8,7 @@ Alcance: raiz legacy del repositorio contra `lite/`, con verificacion local, val
 
 EPIVIDA Lite ya reemplaza la arquitectura critica de EPIVIDA antiguo: carga inicial minima, router modular, Firestore como fuente principal, reglas por roles, service worker minimo, cache sin conflictos, tablas paginadas, expediente con cargas incrementales y modulos clinicos separados.
 
-No es correcto declarar paridad clinica total. La auditoria confirma paridad funcional critica en Auth, censo basico, importacion CSV/TSV con conciliacion, monitoreo, ronda preventiva, dispositivos activos/archivo, IAAS base, expediente incremental, reportes CSV/snapshots, auditoria, offline queue, seguridad y despliegue Cloudflare. Persisten brechas P0/P1 en conciliacion avanzada hospitalaria, catalogos editables, seguimiento IAAS avanzado por secciones, cultivos/antimicrobianos como UI completa, export historico crudo por chunks, backup JSON controlado y pruebas manuales por rol contra Firebase real.
+No es correcto declarar paridad clinica total. La auditoria confirma paridad funcional critica en Auth, censo basico, importacion CSV/TSV con conciliacion, monitoreo, ronda preventiva, dispositivos activos/archivo, IAAS base, expediente incremental, reportes CSV/snapshots, auditoria, offline queue, seguridad y despliegue Cloudflare. Avance del 2026-06-16: ya se agregaron prioridad clinica en monitoreo, catalogos editables con `known_beds`, UI de cultivos/antimicrobianos por caso IAAS, tablero microbiologico agregado, respaldo JSON operativo con restauracion administrativa, reportes historicos por cursor/bloque, IAAS cerradas en `iaas_archive` y edicion de dispositivos retirados. Persisten brechas P0/P1 en conciliacion avanzada hospitalaria, validacion clinica formal de cedulas, pruebas manuales por rol contra Firebase real, reinstalacion guiada y drills reales de restauracion.
 
 ## Evidencia De Tamano Y Riesgo Legacy
 
@@ -47,7 +47,7 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | `src/app.js` | Shell minimo, navegacion por rol, precarga hover/focus y rutas pesadas diferidas. |
 | `lite/_headers` | `/`, HTML, config, SW, build marker y `src/*` con `no-cache`; `assets/*` immutable solo para assets. |
 | `epivida-lite-sw.js` | `APP_VERSION`, core minimo y exclusiones para config/legacy/datos clinicos. |
-| Cloudflare | `https://epivida-hevm.pages.dev/epivida-lite-build.json` responde `release: 2026-06-15-cloudflare02`, `Cache-Control: no-cache`. |
+| Cloudflare | `https://epivida-hevm.pages.dev/epivida-lite-build.json` debe responder `release: 2026-06-16-parity01`, `Cache-Control: no-cache`, despues de publicar este bloque. |
 
 ## Paridad Por Dominio
 
@@ -60,13 +60,13 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | Monitoreo | `renderEpidemiologicalMonitoringPage`, filtros, etiquetas IAAS/riesgo/vig. | `monitorService`, `modules/monitoreo`, filtros locales, paginacion y metricas. | Migrado; falta gravedad avanzada/snapshots operativos. |
 | Ronda | `renderRoundPage`, `renderPatientRound`, mapa de camas, guardar/siguiente. | `ronda-paquetes` dividido en `bedBoard`, `patientRound`, `preventiveForms`, `roundNavigation`, `saveRoundFlow`. | Critico migrado; `index.js` aun es grande y debe seguir vigilado. |
 | Paquetes preventivos | ITS-CC, ITU-CU, NAVM, ISQ, PE/PBMT, especiales. | `preventivePackageService` y UI de ronda. | Migrado funcional base; ISQ/especiales deben versionarse en catalogos. |
-| Dispositivos | `deviceEpisodes`, editor invasivo, instalacion/retiro/reinstalacion. | `deviceService`, `devices_active`, `devices_archive`, modulo dispositivos y uso en ronda/expediente. | Migrado base; detalle editable de episodio historico queda P1. |
+| Dispositivos | `deviceEpisodes`, editor invasivo, instalacion/retiro/reinstalacion. | `deviceService`, `devices_active`, `devices_archive`, modulo dispositivos, historial retirado editable y uso en ronda/expediente. | Migrado base; reinstalacion guiada queda P1. |
 | IAAS | Seguimiento completo en runtime: vitales, ventilacion, BH, EGO, estudios, cultivos, tratamientos. | `iaasService`, `iaasCriteriaService`, `modules/epi-iaas`, expediente y servicios de cultivos/antimicrobianos. | Migrado base; seguimiento avanzado por secciones no alcanza aun la profundidad legacy. |
-| Cultivos | Catalogos y alertas mezclados con IAAS/ronda. | `cultureService` por paciente/caso con limite y captura inicial desde IAAS. | Servicio migrado; UI completa pendiente. |
-| Antimicrobianos | Catalogo grande legacy y tratamientos por seguimiento. | `antimicrobialService` por paciente/caso con limite y captura inicial desde IAAS. | Servicio migrado; catalogo y UI completa pendientes. |
+| Cultivos | Catalogos y alertas mezclados con IAAS/ronda. | `cultureService` por paciente/caso/estado con limite, `clinicalFollowUp` para agregar/editar cultivos desde IAAS y tablero agregado por estado. | UI por caso y tablero operativo migrados; faltan reglas clinicas finas de alerta. |
+| Antimicrobianos | Catalogo grande legacy y tratamientos por seguimiento. | `antimicrobialService` por paciente/caso/estado con limite, catalogos versionados, `clinicalFollowUp` y tablero de tratamientos activos. | UI por caso y tablero operativo migrados; faltan reglas clinicas finas de escalamiento. |
 | Expediente | `renderPatientExpediente`, tablas de censo/ronda/dispositivos/IAAS. | `expedienteService` carga por paciente y secciones con cursor; UI con `Cargar mas`. | Migrado y mejorado para escala. |
-| Reportes | Reportes/print/Sheets en runtime. | `reportService`, `exportService`, CSV protegido, snapshots por rango y `exports_log`. | Migrado base; historicos crudos por chunks y Excel opcional pendientes. |
-| Offline | `localStorage`, mirror IndexedDB, writeQueue y SW legacy. | Firestore persistence, IndexedDB cache controlada y `offlineQueueService`. | Reemplazado correctamente; backup/restauracion controlado pendiente. |
+| Reportes | Reportes/print/Sheets en runtime. | `reportService`, `exportService`, CSV/JSON protegido, snapshots por rango, historicos por cursor/bloque y `exports_log`. | Migrado base ampliado; Excel opcional pendiente de decision. |
+| Offline | `localStorage`, mirror IndexedDB, writeQueue y SW legacy. | Firestore persistence, IndexedDB cache controlada, `offlineQueueService`, backup JSON operativo y restauracion admin con previsualizacion/auditoria. | Reemplazado correctamente; falta drill real de restauracion. |
 | Auditoria | `auditLogs` locales y sync a Firestore/Sheets. | `auditService`, reglas `audit_logs`, escrituras criticas. | Migrado base; cobertura exhaustiva debe seguir ampliandose. |
 | Seguridad | Reglas legacy root para modelo anterior. | `lite/firebase/firestore.rules`, roles activos, deletes bloqueados. | Migrado; falta desplegar/probar reglas reales por rol si no se hizo desde Firebase CLI. |
 | Performance | Monolito, CSS global, assets pro y hotfixes DOM. | HTML minimo, imports dinamicos, tablas paginadas, SW minimo, validadores. | Mejorado sustancialmente y verificado con validadores. |
@@ -79,11 +79,9 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | P0 | Conciliacion hospitalaria avanzada de importacion: movidos, ausentes, egresos protegidos y formatos reales anonimizados. | Archivar o mover pacientes incorrectamente. | Agregar bateria de fixtures anonimos por formato real y reglas versionadas. |
 | P0 | Validacion clinica formal de cedulas IAAS Lite contra criterios aprobados. | Seguimiento incompleto o criterio mal clasificado. | Revision clinica y pruebas por tipo IAAS. |
 | P0 | Prueba manual por rol en Firebase real. | Reglas pueden estar correctas en archivo pero no desplegadas. | Ejecutar QA admin/epidemiologia/enfermeria/lectura cuando haya acceso. |
-| P0 | Reportes historicos crudos con cursor/chunk. | Riesgo de memoria si se intenta exportar historico grande. | Implementar export jobs por rango/lote. |
-| P1 | UI completa de cultivos/antimicrobianos. | Seguimiento IAAS menos profundo que legacy. | Formularios lazy por caso/paciente. |
-| P1 | Catalogos editables/versionados. | Reglas duras en codigo y despliegues para cambios operativos. | `catalogs` versionados y Admin controlado. |
-| P1 | Backup JSON/restauracion controlada. | Recuperacion offline limitada. | `migrationService` y export/import administrativo auditado. |
-| P1 | Detalle editable de episodios archivados. | Historial visible pero no completamente operable. | Modulo de episodio por ID bajo demanda. |
+| P1 | Reinstalacion guiada de dispositivos. | El historial retirado ya es editable, pero reinstalar debe crear un episodio nuevo controlado. | Accion explicita de reinstalacion desde historico. |
+| P1 | Drill real de restauracion JSON. | El importador existe; falta probar permisos, cola y resultado contra Firebase de prueba. | Ejecutar simulacro admin con datos anonimizados. |
+| P2 | Importacion masiva de catalogos aprobados. | Admin edita catalogos manualmente; faltaria carga masiva si epidemiologia entrega fuente oficial. | Import controlado de catalogos versionados. |
 
 ## Funcionalidad Legacy Que No Debe Migrarse Como Codigo
 
@@ -104,7 +102,7 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | `git branch --show-current` | `feature/epivida-lite-ultrafast-rework` |
 | `git pull --ff-only origin feature/epivida-lite-ultrafast-rework` | `Already up to date` |
 | `npm run validate` | OK: validacion completa de Lite, seguridad, deploy, offline, pacientes, ronda, importacion, paridad, no-legacy, performance, indices y escalabilidad. |
-| Cloudflare build marker | OK: `2026-06-15-cloudflare02`, `no-cache`. |
+| Cloudflare build marker | Esperado tras publicacion: `2026-06-16-parity01`, `no-cache`. |
 | Cloudflare HTML publico | OK: HTML minimo, sin legacy detectado. |
 | Cloudflare headers | OK: `/`, `src/main.js`, `base.css`, SW y build marker con `no-cache`. |
 | Wrangler deploy directo | Bloqueado: falta `CLOUDFLARE_API_TOKEN` en entorno no interactivo. Cloudflare publico si auto-publico desde GitHub. |

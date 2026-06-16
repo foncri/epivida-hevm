@@ -53,3 +53,35 @@ export async function downloadCsv(app, filename, rows, meta = {}) {
     entityId: filename
   }).catch(() => undefined);
 }
+
+export async function downloadJson(app, filename, payload, meta = {}) {
+  const createdAt = nowIso();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  await writeAudit(app, {
+    actionType: "export_json",
+    module: "reportes",
+    entityType: "export",
+    entityId: `${filename}:${createdAt}`,
+    metadata: { filename, ...meta }
+  }).catch(() => undefined);
+  await addDocOrQueue(app, "exports_log", {
+    createdAt,
+    userId: app.state.auth.user?.uid || "",
+    userEmail: app.state.auth.user?.email || "",
+    role: app.state.auth.profile?.role || "",
+    filename,
+    rows: meta.rows || 0,
+    dataset: meta.dataset || "",
+    metadata: meta
+  }, {
+    module: "reportes",
+    entityType: "export",
+    entityId: filename
+  }).catch(() => undefined);
+}

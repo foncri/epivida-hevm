@@ -1,20 +1,31 @@
 import { badge, button, dateInput, el, field, notice, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
+import { renderClinicalFollowUpPanel } from "../../components/clinicalFollowUp.js";
+import { renderMicrobiologyDashboard } from "../../components/microbiologyDashboard.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
-import { saveAntimicrobial } from "../../services/antimicrobialService.js";
-import { saveCulture } from "../../services/cultureService.js";
+import { listAntimicrobialsForIaas, saveAntimicrobial } from "../../services/antimicrobialService.js";
+import { loadCatalogs } from "../../services/catalogService.js";
+import { listCulturesForIaas, saveCulture } from "../../services/cultureService.js";
 import { canWrite } from "../../lib/security.js";
 import { buildCriteriaTemplate, criteriaVersionForType, defaultAntimicrobialIndication, defaultCultureTypeForIaas, getIaasCriteria, iaasTypeOptions } from "../../services/iaasCriteriaService.js";
 import { closeIaasCase, listActiveIaas, normalizeIaasClinicalFollowUp, saveIaasCase } from "../../services/iaasService.js";
+import { loadMicrobiologyDashboard } from "../../services/microbiologyDashboardService.js";
 import { listActivePatients } from "../../services/patientService.js";
 
 const IAAS_STATUS = [["sospecha", "Sospecha"], ["probable", "Probable"], ["confirmada", "Confirmada"], ["descartada", "Descartada"]];
 
 export async function render({ app }) {
-  let [rows, patients] = await Promise.all([listActiveIaas(), listActivePatients()]);
+  let [rows, patients, catalogs, microSummary] = await Promise.all([
+    listActiveIaas(),
+    listActivePatients(),
+    loadCatalogs(),
+    loadMicrobiologyDashboard().catch(() => null)
+  ]);
   const role = app.state.auth.profile?.role;
   const writable = canWrite("epi-iaas", role);
   let editing = null;
+  let clinical = null;
+  let microLoading = false;
   let message = "";
   const body = el("div", { class: "stack" });
 
@@ -27,12 +38,42 @@ export async function render({ app }) {
         [String(rows.filter(row => row.status === "sospecha").length), "Sospechas"],
         [String(rows.filter(row => row.status === "confirmada").length), "Confirmadas"]
       ]),
+      renderMicrobiologyDashboard({
+        summary: microSummary,
+        loading: microLoading,
+        onRefresh: async () => {
+          microLoading = true;
+          redraw();
+          microSummary = await loadMicrobiologyDashboard().catch(() => null);
+          microLoading = false;
+          redraw();
+        }
+      }),
       editing ? iaasForm(app, editing, patients, saved => {
         rows = upsertIaas(rows, saved);
         editing = null;
         message = syncMessage(saved, "IAAS guardada");
         redraw();
       }, () => { editing = null; redraw(); }) : "",
+      clinical ? renderClinicalFollowUpPanel({
+        app,
+        context: {
+          title: "Cultivos y antimicrobianos del caso",
+          patientId: clinical.iaas.patientId,
+          patientName: clinical.iaas.patientName || patientName(patients, clinical.iaas.patientId),
+          iaasId: clinical.iaas.iaasId,
+          iaasType: clinical.iaas.iaasType
+        },
+        cultures: clinical.cultures,
+        antimicrobials: clinical.antimicrobials,
+        catalogs,
+        writable,
+        onClose: () => { clinical = null; redraw(); },
+        onChanged: change => {
+          if (change?.type === "culture") clinical.cultures = upsertById(clinical.cultures, change.saved, "cultureId");
+          if (change?.type === "antimicrobial") clinical.antimicrobials = upsertById(clinical.antimicrobials, change.saved, "antimicrobialId");
+        }
+      }) : "",
       pagedTable(["Paciente", "Servicio", "Cama", "Tipo", "Estado", "Seguimiento", ...(writable ? ["Acciones"] : [])], rows, row =>
         el("tr", {}, [
           el("td", {}, [row.patientName || patientName(patients, row.patientId)]),
@@ -43,6 +84,7 @@ export async function render({ app }) {
           el("td", {}, [followUpSummary(row)]),
           writable ? el("td", { class: "actions-cell" }, [
             button("Editar", () => { editing = row; redraw(); }, { class: "small ghost" }),
+            button("Micro", () => openClinical(row), { class: "small ghost" }),
             button("Cerrar", async () => {
               const saved = await closeIaasCase(app, row, "cierre_manual_lite");
               rows = rows.filter(item => item.iaasId !== saved.iaasId);
@@ -59,6 +101,15 @@ export async function render({ app }) {
   return modulePage("EPI-IAAS", "Seguimiento IAAS independiente. No carga dashboard, ronda ni exportadores.", [body], [
     writable ? button("Nueva IAAS", () => { editing = {}; redraw(); }, { class: "ghost" }) : ""
   ]);
+
+  async function openClinical(row) {
+    const [cultures, antimicrobials] = await Promise.all([
+      listCulturesForIaas(row.iaasId),
+      listAntimicrobialsForIaas(row.iaasId)
+    ]);
+    clinical = { iaas: row, cultures, antimicrobials };
+    redraw();
+  }
 }
 
 function iaasForm(app, iaas, patients, onSaved, onCancel) {
@@ -216,4 +267,9 @@ function upsertIaas(rows, iaas) {
   const next = rows.filter(row => row.iaasId !== iaas.iaasId);
   if (!["closed", "cerrada", "archived"].includes(String(iaas.status || "").toLowerCase())) next.unshift(iaas);
   return next;
+}
+
+function upsertById(rows = [], saved = {}, field) {
+  const id = saved[field] || saved.id;
+  return [saved, ...rows.filter(row => (row[field] || row.id) !== id)];
 }

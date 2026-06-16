@@ -63,11 +63,26 @@ Rutas legacy detectadas:
 | P0 | Cedulas IAAS con validacion clinica formal por tipo. | Evita clasificaciones incompletas. | Secciones IAAS lazy y reglas versionadas aprobadas. |
 | P0 | Reportes historicos crudos por chunks/cursors. | Evita cargar historicos grandes en memoria. | Exportaciones por rango, lote, cursor y registro en `exports_log`. |
 | P0 | Pruebas manuales multirol en Firebase real. | Confirma que reglas desplegadas coinciden con el archivo. | QA admin/epidemiologia/enfermeria/lectura con usuarios reales de prueba. |
-| P1 | UI completa de cultivos por caso/paciente. | Seguimiento microbiologico profundo. | Formulario lazy en IAAS/expediente sobre `cultures`. |
-| P1 | UI completa de antimicrobianos por caso/paciente. | Seguimiento de tratamientos. | Formulario lazy y catalogo versionado sobre `antimicrobials`. |
-| P1 | Catalogos editables/versionados. | Cambios operativos sin redeploy. | `catalogs` con cache, version, auditoria y Admin. |
-| P1 | Backup JSON/restauracion controlada. | Recuperacion operativa. | `migrationService` auditado, solo admin, sin convertir JSON/local en verdad principal. |
-| P1 | Detalle editable de episodios archivados. | Trazabilidad de dispositivos retirados. | Ruta/modal por `episodeId` bajo demanda. |
+| P1 | Reinstalacion guiada de dispositivos como nuevo episodio. | Evita reactivar historicos retirados y conserva trazabilidad. | Accion explicita desde historial que cree un episodio activo nuevo. |
+| P1 | Timeline visual por episodio. | Facilita auditoria clinica de cambios. | Vista lazy por `episodeId` basada en `audit_logs`. |
+| P1 | Simulacro real de restauracion JSON. | Recuperacion operativa debe probar permisos, cola y rollback humano. | Drill admin con datos anonimizados en Firebase de prueba. |
+| P2 | Importacion masiva de catalogos aprobados. | Cambios grandes de catalogos sin captura manual. | Import controlado solo cuando exista fuente clinica aprobada. |
+
+## Avance 2026-06-16: Omisiones Cerradas En Codigo
+
+| Prioridad | Omision cerrada | Implementacion Lite | Verificacion |
+|---|---|---|---|
+| P0 | Severidad/gravedad avanzada en monitoreo. | `monitorService.monitorSeverity()` calcula prioridad local por estado clinico, IAAS/riesgo, senales microbiologicas y DEIH; `#/monitoreo-epidemiologico` agrega filtro y orden por prioridad. | `npm run validate:lite`; `npm run validate:lite:qa`. |
+| P0 | Reportes historicos crudos por chunks/cursors. | `reportService.pageHistoricalRows()` exporta bloques paginados por rango para rondas, IAAS archivadas, dispositivos archivados, cultivos, antimicrobianos, auditoria y exportaciones; `#/reportes` descarga el siguiente bloque sin listar historicos completos. | `npm run validate:lite`; `npm run validate:indexes`. |
+| P1 | UI completa de cultivos por caso. | `components/clinicalFollowUp.js` agrega/edita tipo, toma, resultado, microorganismo, susceptibilidad, estado y notas desde `#/epi-iaas`, usando `cultureService` y cola offline. | `npm run validate:lite`. |
+| P1 | UI completa de antimicrobianos por caso. | `components/clinicalFollowUp.js` agrega/edita farmaco, inicio, fin, indicacion, estado y notas desde `#/epi-iaas`, usando `antimicrobialService` y cola offline. | `npm run validate:lite`. |
+| P1 | Catalogos editables/versionados. | `catalogService` incluye semillas legacy ligeras, cache, cola offline y `saveCatalogEntry()`; `#/admin` permite crear, editar, activar/desactivar y versionar catalogos. | `npm run validate:lite`. |
+| P1 | Backup JSON controlado. | `exportService.downloadJson()` y `reportService.buildOperationalBackup()` generan respaldo operativo de censo activo, dispositivos activos, IAAS activas, cola y snapshots acotados. | `npm run validate:lite`. |
+| P1 | IAAS cerradas sin archivo dedicado. | `closeIaasCase()` ahora escribe `iaas_archive/{iaasId}` y expediente mezcla IAAS activas/cerradas por paciente con limite. | `npm run validate:lite`; `npm run validate:indexes`. |
+| P1 | Camas conocidas completas fuera de Admin. | `catalogService` ahora siembra `known_beds` legacy completo; `roundHelpers` consume catalogos administrados y mezcla camas conocidas/ocupadas sin lecturas por cama; Admin edita servicio/cama. | `npm run validate:lite`; `npm run validate:round`. |
+| P1 | Tablero agregado de cultivos/antimicrobianos. | `microbiologyDashboardService` consulta por estado con limite e indices existentes; `components/microbiologyDashboard.js` resume pendientes, resultados, positivos y antimicrobianos activos en `#/epi-iaas`. | `npm run validate:lite`. |
+| P1 | Restauracion JSON administrativa. | `backupRestoreService` y `backupRestorePanel` previsualizan respaldo operativo, seleccionan datasets activos restaurables y escriben por `setDocMergeOrQueue` con auditoria. | `npm run validate:lite`. |
+| P1 | Detalle editable de dispositivos retirados. | `saveArchivedDeviceEpisode()` actualiza `devices_archive/{episodeId}`; `#/dispositivos` carga historial por paciente y edita sin reactivar. | `npm run validate:lite`. |
 
 ## Omision P0 Migrada En Esta Fase
 

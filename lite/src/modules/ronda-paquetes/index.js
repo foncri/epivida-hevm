@@ -2,6 +2,7 @@ import { badge, button, dateInput, el, field, frameScheduler, link, notice, sele
 import { stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
+import { loadCatalogs } from "../../services/catalogService.js";
 import { devicesByPatient, listActiveDevices } from "../../services/deviceService.js";
 import { archivePatient, listActivePatients, savePatient } from "../../services/patientService.js";
 import { devicePackageSignal } from "../../services/preventivePackageService.js";
@@ -11,7 +12,6 @@ import { renderBedBoard } from "./bedBoard.js";
 import { renderPatientRound } from "./patientRound.js";
 import { DISCHARGE_SHIFTS, DISCHARGE_TYPES, PROBABLE_DISCHARGE_MESSAGE, REPORTED_DISCHARGE_MESSAGE } from "./roundConstants.js";
 import {
-  bedBoardItems,
   filterAndSortRoundPatients,
   normalizeRoundText,
   normalizeServiceKey,
@@ -45,12 +45,13 @@ export async function render({ app, route }) {
 async function renderRoundPage(app, parsed) {
   const local = roundState(app);
   const date = parsed.date;
-  const [initialPatients, devices, rounds, pending, initialSession] = await Promise.all([
+  const [initialPatients, devices, rounds, pending, initialSession, catalogs] = await Promise.all([
     listActivePatients(),
     listActiveDevices(),
     listTodayRounds(date),
     listPendingWrites().catch(() => []),
-    roundSessionForDate(date)
+    roundSessionForDate(date),
+    loadCatalogs()
   ]);
   let patients = initialPatients;
   const deviceMap = devicesByPatient(devices);
@@ -71,7 +72,7 @@ async function renderRoundPage(app, parsed) {
       }),
       message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
       renderServiceFilters(patients, local, redraw, scheduleRedraw),
-      renderBedBoard(visible, roundMap, date, local.filters.service),
+      renderBedBoard(visible, roundMap, date, local.filters.service, catalogs),
       renderPreventivePackagePanel(roundStats),
       stats([
         [String(roundStats.totalPatients), "Pacientes"],

@@ -330,6 +330,10 @@ export function testCulturesForPatient(patientId = "") {
   return CULTURES.filter(row => row.patientId === patientId).map(row => ({ ...row }));
 }
 
+export function testCultures() {
+  return testDataEnabled() ? CULTURES.map(row => ({ ...row })) : [];
+}
+
 export function testCulturesForIaas(iaasId = "") {
   if (!testDataEnabled() || !iaasId) return [];
   return CULTURES.filter(row => row.iaasId === iaasId).map(row => ({ ...row }));
@@ -338,6 +342,10 @@ export function testCulturesForIaas(iaasId = "") {
 export function testAntimicrobialsForPatient(patientId = "") {
   if (!testDataEnabled() || !patientId) return [];
   return ANTIMICROBIALS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testAntimicrobials() {
+  return testDataEnabled() ? ANTIMICROBIALS.map(row => ({ ...row })) : [];
 }
 
 export function testAntimicrobialsForIaas(iaasId = "") {

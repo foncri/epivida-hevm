@@ -2,8 +2,8 @@ import { el, field, selectInput } from "../../components/dom.js";
 import { bedBoardItems, patientBed, patientLabel } from "./roundHelpers.js";
 import { roundPatientHref, truncate } from "./roundPatientUtils.js";
 
-export function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos") {
-  const items = bedBoardItems(patients, serviceFilter);
+export function renderBedBoard(patients, roundMap, date, serviceFilter = "Todos", catalogs = []) {
+  const items = bedBoardItems(patients, serviceFilter, catalogs);
   let pending = 0;
   let reviewed = 0;
   const boardItems = items.map(item => {

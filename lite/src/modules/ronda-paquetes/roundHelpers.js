@@ -78,13 +78,13 @@ export function roundPatientSearchText(patient = {}) {
   return text;
 }
 
-export function bedBoardItems(patients, serviceFilter = "Todos") {
+export function bedBoardItems(patients, serviceFilter = "Todos", catalogs = []) {
   const sorted = dedupeBedRows(patients).sort(sortByServiceBed);
   const selectedServiceKey = normalizeServiceKey(serviceFilter === "Todos" ? "" : serviceFilter);
   const services = new Set(sorted.map(patient => normalizeServiceKey(patientService(patient))).filter(Boolean));
   const serviceKey = selectedServiceKey || (services.size === 1 ? [...services][0] : "");
   if (!serviceKey) return sorted.map(patient => ({ bed: patientBed(patient), patient }));
-  const knownBeds = knownBedsForService(serviceKey, sorted);
+  const knownBeds = knownBedsForService(serviceKey, sorted, catalogs);
   const numericRows = sorted
     .map(patient => ({ patient, number: bedNumberToken(patientBed(patient)) }))
     .filter(item => Number.isFinite(item.number));
@@ -111,11 +111,30 @@ function dedupeBedRows(patients) {
   return [...map.values()];
 }
 
-export function knownBedsForService(service, patients = []) {
+export function knownBedsForService(service, patients = [], catalogs = []) {
   const serviceKey = normalizeServiceKey(service);
-  const knownBeds = KNOWN_SERVICE_BEDS[serviceKey] || [];
+  const catalogBeds = knownBedsFromCatalog(catalogs, serviceKey);
+  const knownBeds = catalogBeds.length ? catalogBeds : KNOWN_SERVICE_BEDS[serviceKey] || [];
   const occupiedBeds = patients.map(patientBed).filter(Boolean);
   return uniqueValues([...knownBeds, ...occupiedBeds]).sort(compareBeds);
+}
+
+function knownBedsFromCatalog(catalogs = [], serviceKey = "") {
+  return catalogs
+    .filter(row => row?.type === "known_beds" && row.active !== false)
+    .filter(row => normalizeServiceKey(row.service || bedServiceFromValue(row.value)) === serviceKey)
+    .sort((a, b) => Number(a.order || 9990) - Number(b.order || 9990))
+    .map(row => row.bed || bedFromCatalogRow(row))
+    .filter(Boolean);
+}
+
+function bedServiceFromValue(value = "") {
+  return String(value).split("|")[0] || "";
+}
+
+function bedFromCatalogRow(row = {}) {
+  const value = String(row.value || "");
+  return row.label || value.split("|").at(-1) || value;
 }
 
 function mergeKnownBedItems(items, knownBeds = []) {
@@ -199,9 +218,9 @@ export function normalizeServiceKey(value) {
   if (text === "TODOS") return rememberNormalized(serviceKeyCache, key, "TODOS");
   if (text === "MI" || text.includes("MEDICINA INTERNA")) return rememberNormalized(serviceKeyCache, key, "MEDICINA INTERNA");
   if (text.includes("CIRUG") || text.includes("TRAUMATO")) return rememberNormalized(serviceKeyCache, key, "CIRUGIA Y TRAUMATOLOGIA");
-  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text === "UCIN") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES");
-  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text === "UCIP" || text === "UTIP") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS");
-  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text === "UCIA") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS");
+  if ((text.includes("INTENSIVO") && text.includes("NEONAT")) || text.includes("UCIN")) return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS NEONATALES");
+  if ((text.includes("INTENSIVO") && text.includes("PEDIATR")) || text.includes("UCIP") || text.includes("UTIP") || text === "UCI PEDIATRICOS") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS PEDIATRICOS");
+  if ((text.includes("INTENSIVO") && text.includes("ADULTO")) || text.includes("UCIA") || text === "UCI ADULTOS") return rememberNormalized(serviceKeyCache, key, "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS");
   if (text.includes("PEDIATR")) return rememberNormalized(serviceKeyCache, key, "PEDIATRIA");
   if (text.includes("CUNERO") || text === "CUN") return rememberNormalized(serviceKeyCache, key, "CUNEROS");
   if (text.includes("HEMODI") || text === "HD") return rememberNormalized(serviceKeyCache, key, "HEMODIALISIS");

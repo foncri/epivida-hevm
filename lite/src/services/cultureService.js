@@ -4,7 +4,7 @@ import { cleanText, stripUndefined } from "../lib/validators.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
-import { testCulturesForIaas, testCulturesForPatient } from "./testDataService.js";
+import { testCultures, testCulturesForIaas, testCulturesForPatient } from "./testDataService.js";
 
 const CULTURE_PAGE_SIZE = 50;
 
@@ -80,6 +80,25 @@ export async function listCulturesForIaas(iaasId, options = {}) {
     return mergePending(rows, row => row.iaasId === iaasId);
   } catch {
     return mergePending([], row => row.iaasId === iaasId);
+  }
+}
+
+export async function listCulturesByStatus(status = "", options = {}) {
+  const normalizedStatus = String(status || "").toLowerCase();
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || CULTURE_PAGE_SIZE));
+  const matchesStatus = row => String(row.status || "").toLowerCase() === normalizedStatus;
+  if (!normalizedStatus) return [];
+  if (appConfig().testMode) {
+    return mergePending(testCultures().filter(matchesStatus).slice(0, limit), matchesStatus);
+  }
+  try {
+    const rows = await listCollectionWhere("cultures", [["status", "==", normalizedStatus]], {
+      orderBy: [["requestedAt", "desc"]],
+      limit
+    });
+    return mergePending(rows, matchesStatus);
+  } catch {
+    return mergePending([], matchesStatus);
   }
 }
 

@@ -33,6 +33,15 @@ async function mergePending(rows = []) {
   return [...map.values()];
 }
 
+async function mergeArchivePending(patientId, rows = []) {
+  const map = byIaasId(rows);
+  const pending = await pendingPayloadsForCollection("iaas_archive");
+  pending
+    .filter(row => row.patientId === patientId)
+    .forEach(row => map.set(row.iaasId || row.id, { ...map.get(row.iaasId || row.id), ...row }));
+  return [...map.values()];
+}
+
 function activeIaas(row = {}) {
   const status = String(row.status || "").toLowerCase();
   return row.active !== false && !["closed", "cerrada", "archived"].includes(status);
@@ -121,9 +130,17 @@ export async function pageIaasForPatient(patientId, cursorState = {}) {
     return emptyCursorPage(await listIaasForPatient(patientId, { limit: pageSize }), pageSize);
   }
   try {
-    const page = await paginateQuery("iaas_active", [["patientId", "==", patientId], ["active", "==", true]], [], pageSize, cursorState, cursorState.direction || "next");
+    const [page, archived] = await Promise.all([
+      paginateQuery("iaas_active", [["patientId", "==", patientId], ["active", "==", true]], [], pageSize, cursorState, cursorState.direction || "next"),
+      listCollectionWhere("iaas_archive", [["patientId", "==", patientId]], {
+        orderBy: [["closedAt", "desc"]],
+        limit: pageSize
+      }).catch(() => [])
+    ]);
     const rows = (await mergePending(page.rows))
       .filter(row => row.patientId === patientId && activeIaas(row))
+      .concat(await mergeArchivePending(patientId, archived))
+      .sort((a, b) => String(b.closedAt || b.onsetDate || b.updatedAt || "").localeCompare(String(a.closedAt || a.onsetDate || a.updatedAt || "")))
       .slice(0, page.pageSize);
     return { ...page, rows };
   } catch {
@@ -207,20 +224,41 @@ export async function saveIaasCase(app, iaas) {
 
 export async function closeIaasCase(app, iaas, closedReason = "") {
   if (!iaas?.iaasId) throw new Error("IAAS sin identificador.");
+  const timestamp = nowIso();
   const payload = stripUndefined({
     ...iaas,
     status: "closed",
     closedReason,
-    closedAt: nowIso(),
+    closedAt: timestamp,
     active: false,
-    updatedAt: nowIso(),
+    updatedAt: timestamp,
     updatedBy: app.state.auth.user?.uid || ""
   });
-  const saved = await setDocMergeOrQueue(app, `iaas_active/${iaas.iaasId}`, payload, {
-    module: "epi-iaas",
-    entityType: "iaas_case",
-    entityId: iaas.iaasId
+  const archivePayload = stripUndefined({
+    ...payload,
+    archivedAt: timestamp,
+    archivedBy: app.state.auth.user?.uid || "",
+    archiveReason: closedReason || "iaas_closed"
   });
+  const [savedActive, savedArchive] = await Promise.all([
+    setDocMergeOrQueue(app, `iaas_active/${iaas.iaasId}`, payload, {
+      module: "epi-iaas",
+      entityType: "iaas_case",
+      entityId: iaas.iaasId
+    }),
+    setDocMergeOrQueue(app, `iaas_archive/${iaas.iaasId}`, archivePayload, {
+      module: "epi-iaas",
+      entityType: "iaas_case",
+      entityId: iaas.iaasId
+    })
+  ]);
+  const saved = {
+    ...savedActive,
+    archiveSyncStatus: savedArchive.syncStatus || savedActive.syncStatus,
+    syncStatus: [savedActive.syncStatus, savedArchive.syncStatus].includes("local_pending")
+      ? "local_pending"
+      : savedActive.syncStatus
+  };
   activeIaasPromise = null;
   invalidatePatientIaas(payload.patientId);
   await writeAudit(app, {
