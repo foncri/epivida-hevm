@@ -6,6 +6,7 @@ import { listActiveIaas } from "../../services/iaasService.js";
 import { listActivePatients } from "../../services/patientService.js";
 import { downloadCsv, downloadJson } from "../../services/exportService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
+import { preventiveCedulaCsvRows, preventiveCedulaOptions, preventiveMonthlyCsvRows } from "../../services/preventiveCedulaService.js";
 import { buildOperationalBackup, dailySnapshotRowsForRange, historicalExportOptions, pageHistoricalRows } from "../../services/reportService.js";
 
 export async function render({ app }) {
@@ -19,6 +20,11 @@ export async function render({ app }) {
       pageSize: 100,
       cursor: null
     },
+    cedula: {
+      packageKey: "its",
+      date: todayIso(),
+      month: todayIso()
+    },
     message: ""
   };
   const body = el("div", { class: "stack" });
@@ -27,6 +33,7 @@ export async function render({ app }) {
     body.replaceChildren(
       state.message ? notice(state.message, state.message.includes("primeros") ? "warn" : "ok") : "",
       renderDailySnapshotExport(app, state, redraw),
+      renderPreventiveCedulaExport(app, state, redraw),
       renderHistoricalChunkExport(app, state, redraw),
       renderOperationalBackupExport(app, state, redraw),
       el("section", { class: "row-list" }, [
@@ -41,6 +48,50 @@ export async function render({ app }) {
   redraw();
   return modulePage("Reportes", "Exportadores bajo demanda. No se cargan librerias Excel al inicio.", [
     body
+  ]);
+}
+
+function renderPreventiveCedulaExport(app, state, redraw) {
+  const cedula = state.cedula;
+  return el("section", { class: "form-card" }, [
+    el("h2", {}, ["Cedulas preventivas"]),
+    el("p", { class: "muted" }, ["Genera CSV desde rondas guardadas; no carga Google Sheets ni librerias Excel."]),
+    el("div", { class: "form-grid compact" }, [
+      field("Paquete", selectInput(preventiveCedulaOptions(), {
+        value: cedula.packageKey,
+        onchange: event => { cedula.packageKey = event.target.value; }
+      })),
+      field("Dia", dateInput({
+        value: cedula.date,
+        onchange: event => { cedula.date = event.target.value; }
+      })),
+      field("Mes", dateInput({
+        value: cedula.month,
+        onchange: event => { cedula.month = event.target.value; }
+      }))
+    ]),
+    el("div", { class: "toolbar" }, [
+      button("Exportar cedula diaria CSV", async () => {
+        const result = await preventiveCedulaCsvRows(cedula.date, cedula.packageKey);
+        await downloadCsv(app, `epivida-cedula-${result.spec.key}-${result.date}.csv`, result.rows, {
+          dataset: "preventive_cedula",
+          packageType: result.spec.packageType,
+          date: result.date
+        });
+        state.message = `Cedula ${result.spec.defaultTitle} exportada: ${result.rows.length} fila(s).`;
+        redraw();
+      }, { class: "ghost" }),
+      button("Exportar mensual CSV", async () => {
+        const result = await preventiveMonthlyCsvRows(cedula.month, cedula.packageKey);
+        await downloadCsv(app, `epivida-cedula-mensual-${result.spec.key}-${result.month.monthKey}.csv`, result.rows, {
+          dataset: "preventive_cedula_monthly",
+          packageType: result.spec.packageType,
+          month: result.month.monthKey
+        });
+        state.message = `Mensual ${result.spec.defaultTitle} exportado: ${result.rows.length} fila(s).`;
+        redraw();
+      }, { class: "ghost" })
+    ])
   ]);
 }
 

@@ -234,6 +234,12 @@ const antimicrobialServiceSource = readFileSync(join(root, "src/services/antimic
 if (!antimicrobialServiceSource.includes("export async function listAntimicrobialsForPatient") || !antimicrobialServiceSource.includes('"antimicrobials", [["patientId", "==", patientId]]') || !antimicrobialServiceSource.includes("pendingPayloadsForCollection(\"antimicrobials\")") || !antimicrobialServiceSource.includes("export async function saveAntimicrobial")) {
   fail("antimicrobialService debe consultar antimicrobianos por paciente/caso y mezclar cola offline sin lecturas globales.");
 }
+const preventiveCedulaServiceSource = readFileSync(join(root, "src/services/preventiveCedulaService.js"), "utf8");
+for (const expected of ["PREVENTIVE_CEDULA_SPECS", "ITS - CC", "ITU - CU", "NAVM", "ISQ", "P.E. Y P.B.M.T.", "preventiveCedulaCsvRows", "preventiveMonthlyCsvRows", "preventiveCedulaSummaryRow", "listTodayRounds"]) {
+  if (!preventiveCedulaServiceSource.includes(expected)) {
+    fail("preventiveCedulaService debe migrar cedulas preventivas diarias y mensuales desde rondas guardadas.");
+  }
+}
 
 const offlineQueueSource = readFileSync(join(root, "src/services/offlineQueueService.js"), "utf8");
 if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueueSource.includes("sync_blocked")) {
@@ -477,6 +483,9 @@ if (!reportServiceSource.includes("dailySnapshotRowsForRange") || !reportService
 }
 if (!reportesModuleSource.includes("dailySnapshotRowsForRange") || !reportesModuleSource.includes("Exportar snapshots CSV") || reportesModuleSource.includes("xlsx") || reportesModuleSource.includes("XLSX")) {
   fail("modules/reportes debe usar reportService bajo demanda y no cargar XLSX.");
+}
+if (!reportesModuleSource.includes("preventiveCedulaCsvRows") || !reportesModuleSource.includes("preventiveMonthlyCsvRows") || !reportesModuleSource.includes("Exportar cedula diaria CSV")) {
+  fail("modules/reportes debe exponer cedulas preventivas legacy como CSV bajo demanda, sin Sheets ni Excel inicial.");
 }
 const auditServiceSource = readFileSync(join(root, "src/services/auditService.js"), "utf8");
 if (!auditServiceSource.includes("export async function listAuditForPatient") || !auditServiceSource.includes('"audit_logs", [["patientId", "==", patientId]]') || !auditServiceSource.includes('orderBy: [["createdAt", "desc"]]') || !auditServiceSource.includes('pendingPayloadsForCollection("audit_logs")')) {
