@@ -1,4 +1,5 @@
 import { button, checkboxInput, el, field, link, notice, numberInput, pagedTable, selectInput, textInput } from "../../components/dom.js";
+import { renderAdminAuditPanel } from "../../components/adminAuditPanel.js";
 import { renderBackupRestorePanel } from "../../components/backupRestorePanel.js";
 import { firebaseConfigStatus } from "../../lib/config.js";
 import { modulePage } from "../../components/moduleLayout.js";
@@ -40,6 +41,7 @@ export async function render({ app }) {
   let users = initialUsers;
   let editingUser = null;
   let editingCatalog = null;
+  const auditState = { rows: [], module: "", userId: "", loading: false, message: "" };
   let message = "";
   const body = el("div", { class: "stack" });
 
@@ -93,6 +95,7 @@ export async function render({ app }) {
           : "Perfil de usuario sincronizado.";
         redraw();
       }),
+      renderAdminAuditPanel(app, auditState, users, redraw),
       el("section", { class: "row-card" }, [
         el("strong", {}, ["Migracion legacy"]),
         el("span", { class: "muted" }, ["Prepara un paquete JSON desde el store legacy sin subir datos al servidor."]),

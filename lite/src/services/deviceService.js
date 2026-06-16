@@ -158,6 +158,7 @@ export function devicesByPatient(devices = []) {
 export async function saveDeviceEpisode(app, device) {
   if (!validDevice(device)) throw new Error("Dispositivo sin paciente, tipo o fecha de instalacion.");
   const episodeId = device.episodeId || makeEpisodeId();
+  const isNewEpisode = !device.episodeId;
   const payload = stripUndefined({
     ...device,
     episodeId,
@@ -178,7 +179,7 @@ export async function saveDeviceEpisode(app, device) {
   activeDevicesPromise = null;
   if (payload.patientId) devicePatientPromises.delete(payload.patientId);
   await writeAudit(app, {
-    actionType: device.episodeId ? "device_update" : "device_create",
+    actionType: isNewEpisode && payload.isReinstallation ? "device_reinstallation_create" : (isNewEpisode ? "device_create" : "device_update"),
     module: "dispositivos",
     entityType: "device",
     entityId: episodeId,

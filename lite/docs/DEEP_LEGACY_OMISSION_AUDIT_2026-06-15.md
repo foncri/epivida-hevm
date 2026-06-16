@@ -63,7 +63,6 @@ Rutas legacy detectadas:
 | P0 | Cedulas IAAS con validacion clinica formal por tipo. | Evita clasificaciones incompletas. | Secciones IAAS lazy y reglas versionadas aprobadas. |
 | P0 | Reportes historicos crudos por chunks/cursors. | Evita cargar historicos grandes en memoria. | Exportaciones por rango, lote, cursor y registro en `exports_log`. |
 | P0 | Pruebas manuales multirol en Firebase real. | Confirma que reglas desplegadas coinciden con el archivo. | QA admin/epidemiologia/enfermeria/lectura con usuarios reales de prueba. |
-| P1 | Reinstalacion guiada de dispositivos como nuevo episodio. | Evita reactivar historicos retirados y conserva trazabilidad. | Accion explicita desde historial que cree un episodio activo nuevo. |
 | P1 | Timeline visual por episodio. | Facilita auditoria clinica de cambios. | Vista lazy por `episodeId` basada en `audit_logs`. |
 | P1 | Simulacro real de restauracion JSON. | Recuperacion operativa debe probar permisos, cola y rollback humano. | Drill admin con datos anonimizados en Firebase de prueba. |
 | P2 | Importacion masiva de catalogos aprobados. | Cambios grandes de catalogos sin captura manual. | Import controlado solo cuando exista fuente clinica aprobada. |
@@ -83,6 +82,9 @@ Rutas legacy detectadas:
 | P1 | Tablero agregado de cultivos/antimicrobianos. | `microbiologyDashboardService` consulta por estado con limite e indices existentes; `components/microbiologyDashboard.js` resume pendientes, resultados, positivos y antimicrobianos activos en `#/epi-iaas`. | `npm run validate:lite`. |
 | P1 | Restauracion JSON administrativa. | `backupRestoreService` y `backupRestorePanel` previsualizan respaldo operativo, seleccionan datasets activos restaurables y escriben por `setDocMergeOrQueue` con auditoria. | `npm run validate:lite`. |
 | P1 | Detalle editable de dispositivos retirados. | `saveArchivedDeviceEpisode()` actualiza `devices_archive/{episodeId}`; `#/dispositivos` carga historial por paciente y edita sin reactivar. | `npm run validate:lite`. |
+| P1 | Reinstalacion guiada de dispositivos como nuevo episodio. | `#/dispositivos` prepara reinstalacion desde `devices_archive`, conserva tipo/subtipo/French/paquete/sitio, guarda un episodio activo nuevo con `previousEpisodeId`, `reinstallationOf`, `isReinstallation` y auditoria `device_reinstallation_create`. | `npm run validate:lite`. |
+| P1 | Campos de ventilacion IAAS. | `iaasService.normalizeIaasClinicalFollowUp()` y `#/epi-iaas` conservan FiO2 y PEEP en `vitalSigns`, igual que la superficie legacy de ventilacion/NAVM. | `npm run validate:lite`. |
+| P1 | Auditoria reciente en Admin. | `auditService.listRecentAuditLogs()` y `adminAuditPanel` cargan `audit_logs` bajo demanda por usuario o modulo, usando indices existentes y sin listar auditoria global. | `npm run validate:lite`; `npm run validate:indexes`. |
 
 ## Omision P0 Migrada En Esta Fase
 
@@ -119,7 +121,7 @@ Implementacion Lite agregada:
 
 ## Estado Real
 
-EPIVIDA Lite es superior en arquitectura y rendimiento, pero no se debe vender como cierre total de paridad clinica. La ruta correcta es continuar por bloques:
+EPIVIDA Lite es superior en arquitectura y rendimiento, pero no se debe vender como cierre total de paridad clinica. Reinstalacion de dispositivos, FiO2/PEEP y auditoria Admin ya quedaron cerradas en codigo; la ruta correcta es continuar por bloques:
 
 1. Cerrar P0 de censo/conciliacion con fixtures anonimos reales.
 2. Cerrar IAAS avanzado por secciones y cedulas.

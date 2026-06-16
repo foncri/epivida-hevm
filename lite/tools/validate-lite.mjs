@@ -205,10 +205,16 @@ if (!deviceServiceSource.includes("devices_archive/${device.episodeId}") || !dev
 if (!deviceServiceSource.includes("export async function listArchivedDevicesForPatient") || !deviceServiceSource.includes('"devices_archive", [["patientId", "==", patientId]]') || !deviceServiceSource.includes('orderBy: [["removalDate", "desc"]]') || !deviceServiceSource.includes('pendingPayloadsForCollection("devices_archive")')) {
   fail("deviceService debe leer devices_archive solo por patientId, con limite/orden y cola offline.");
 }
+if (!deviceServiceSource.includes("device_reinstallation_create") || !deviceServiceSource.includes("payload.isReinstallation")) {
+  fail("deviceService debe auditar reinstalaciones como episodios nuevos, no como reactivacion de historicos.");
+}
 
 const iaasServiceSource = readFileSync(join(root, "src/services/iaasService.js"), "utf8");
 if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.includes("filter(activeIaas)")) {
   fail("iaasService debe filtrar IAAS activas tanto desde Firestore como desde cache/cola offline.");
+}
+if (!iaasServiceSource.includes("vitalFio2") || !iaasServiceSource.includes("previousVitals.fio2") || !iaasServiceSource.includes("vitalPeep") || !iaasServiceSource.includes("previousVitals.peep")) {
+  fail("iaasService debe conservar campos de ventilacion FiO2/PEEP del seguimiento IAAS legacy.");
 }
 const cultureServiceSource = readFileSync(join(root, "src/services/cultureService.js"), "utf8");
 if (!cultureServiceSource.includes("export async function listCulturesForPatient") || !cultureServiceSource.includes('"cultures", [["patientId", "==", patientId]]') || !cultureServiceSource.includes("pendingPayloadsForCollection(\"cultures\")") || !cultureServiceSource.includes("export async function saveCulture")) {
@@ -310,8 +316,13 @@ const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
   fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
 }
-if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes("followUpSummary")) {
+if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes('name: "vitalFio2"') || !epiIaasModuleSource.includes('name: "vitalPeep"') || !epiIaasModuleSource.includes("followUpSummary")) {
   fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
+}
+const dispositivosModuleSource = readFileSync(join(root, "src/modules/dispositivos/index.js"), "utf8");
+const dispositivosFormsSource = readFileSync(join(root, "src/modules/dispositivos/deviceForms.js"), "utf8");
+if (!dispositivosModuleSource.includes("reinstallationDraft") || !dispositivosFormsSource.includes("previousEpisodeId") || !dispositivosFormsSource.includes("isReinstallation: true") || !dispositivosFormsSource.includes("saveDeviceEpisode(app")) {
+  fail("modules/dispositivos debe exponer reinstalacion guiada como nuevo episodio activo desde historicos.");
 }
 
 const domSource = readFileSync(join(root, "src/components/dom.js"), "utf8");
@@ -441,6 +452,9 @@ if (!reportesModuleSource.includes("dailySnapshotRowsForRange") || !reportesModu
 const auditServiceSource = readFileSync(join(root, "src/services/auditService.js"), "utf8");
 if (!auditServiceSource.includes("export async function listAuditForPatient") || !auditServiceSource.includes('"audit_logs", [["patientId", "==", patientId]]') || !auditServiceSource.includes('orderBy: [["createdAt", "desc"]]') || !auditServiceSource.includes('pendingPayloadsForCollection("audit_logs")')) {
   fail("auditService debe leer auditoria por paciente con limite/orden y cola offline, sin listar audit_logs completo.");
+}
+if (!auditServiceSource.includes("export async function listRecentAuditLogs") || !auditServiceSource.includes('["module", "==", filters.module]') || !auditServiceSource.includes('["userId", "==", filters.userId]')) {
+  fail("auditService debe exponer auditoria reciente filtrada por usuario o modulo, sin lectura global.");
 }
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");

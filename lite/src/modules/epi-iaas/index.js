@@ -171,6 +171,8 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       field("FR", textInput({ name: "vitalRespiratoryRate", value: iaas.vitalSigns?.respiratoryRate || "" })),
       field("TA", textInput({ name: "vitalBloodPressure", value: iaas.vitalSigns?.bloodPressure || "" })),
       field("SpO2", textInput({ name: "vitalSpo2", value: iaas.vitalSigns?.spo2 || "" })),
+      field("FiO2", textInput({ name: "vitalFio2", value: iaas.vitalSigns?.fio2 || "" })),
+      field("PEEP", textInput({ name: "vitalPeep", value: iaas.vitalSigns?.peep || "" })),
       field("Biometria", textInput({ name: "biometry", value: iaas.labs?.biometry || "" })),
       field("EGO", textInput({ name: "ego", value: iaas.labs?.ego || "" })),
       field("Otros estudios", textInput({ name: "otherStudies", value: iaas.labs?.otherStudies || "" }))
@@ -258,6 +260,8 @@ function followUpSummary(row = {}) {
     row.criteria ? "criterios" : "",
     row.followUp?.carePlan ? "plan" : "",
     row.vitalSigns?.temperature ? `T ${row.vitalSigns.temperature}` : "",
+    row.vitalSigns?.fio2 ? `FiO2 ${row.vitalSigns.fio2}` : "",
+    row.vitalSigns?.peep ? `PEEP ${row.vitalSigns.peep}` : "",
     row.labs?.biometry ? "BH" : ""
   ].filter(Boolean);
   return parts.join(" / ") || "Sin seguimiento";

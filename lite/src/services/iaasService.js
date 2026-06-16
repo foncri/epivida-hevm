@@ -172,7 +172,9 @@ export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
       heartRate: cleanText(source.vitalHeartRate ?? previousVitals.heartRate ?? "", 40),
       respiratoryRate: cleanText(source.vitalRespiratoryRate ?? previousVitals.respiratoryRate ?? "", 40),
       bloodPressure: cleanText(source.vitalBloodPressure ?? previousVitals.bloodPressure ?? "", 80),
-      spo2: cleanText(source.vitalSpo2 ?? previousVitals.spo2 ?? "", 40)
+      spo2: cleanText(source.vitalSpo2 ?? previousVitals.spo2 ?? "", 40),
+      fio2: cleanText(source.vitalFio2 ?? previousVitals.fio2 ?? "", 40),
+      peep: cleanText(source.vitalPeep ?? previousVitals.peep ?? "", 40)
     }),
     labs: stripUndefined({
       biometry: cleanText(source.biometry ?? previousLabs.biometry ?? "", 500),

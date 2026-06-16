@@ -67,6 +67,7 @@ const DEVICES = [
     service: "UNIDAD DE CUIDADOS INTENSIVOS ADULTOS",
     bed: "UCIA 2",
     deviceType: "Ventilacion mecanica",
+    deviceSubtype: "Tubo endotraqueal",
     preventivePackage: "NAVM",
     anatomicalSite: "Tubo endotraqueal",
     installationDate: "2026-06-02",
@@ -81,6 +82,8 @@ const DEVICES = [
     service: "MEDICINA INTERNA",
     bed: "12",
     deviceType: "CVC",
+    deviceSubtype: "Mahurkar",
+    french: "12",
     preventivePackage: "ITS - CC",
     anatomicalSite: "Subclavio derecho",
     installationDate: "2026-05-31",
@@ -98,6 +101,8 @@ const ARCHIVED_DEVICES = [
     service: "MEDICINA INTERNA",
     bed: "12",
     deviceType: "CVC",
+    deviceSubtype: "Mahurkar",
+    french: "12",
     preventivePackage: "ITS - CC",
     anatomicalSite: "Yugular derecha",
     installationDate: "2026-05-29",
@@ -168,7 +173,7 @@ const IAAS_CASES = [
     criteria: "Fiebre persistente con CVC en seguimiento y cultivo pendiente.",
     criteriaVersion: "IAAS-LITE-2026-06",
     deviceEpisodeId: "d_cvc_history",
-    vitalSigns: { temperature: "38.2 C", heartRate: "104", respiratoryRate: "22", bloodPressure: "110/70", spo2: "95%" },
+    vitalSigns: { temperature: "38.2 C", heartRate: "104", respiratoryRate: "22", bloodPressure: "110/70", spo2: "95%", fio2: "21%", peep: "" },
     labs: { biometry: "Leucocitosis leve", ego: "Sin datos", otherStudies: "Procalcitonina pendiente" },
     followUp: { reviewDate: "2026-06-05", evolution: "Sin deterioro hemodinamico.", carePlan: "Revalorar retiro de CVC y cultivo." },
     active: true,
@@ -356,4 +361,8 @@ export function testAntimicrobialsForIaas(iaasId = "") {
 export function testAuditForPatient(patientId = "") {
   if (!testDataEnabled() || !patientId) return [];
   return AUDIT_LOGS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testAuditLogs() {
+  return testDataEnabled() ? AUDIT_LOGS.map(row => ({ ...row })) : [];
 }

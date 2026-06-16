@@ -2,9 +2,10 @@ import { nowIso } from "../lib/date.js";
 import { appConfig } from "../lib/config.js";
 import { listCollectionWhere, paginateQuery } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
-import { testAuditForPatient } from "./testDataService.js";
+import { testAuditForPatient, testAuditLogs } from "./testDataService.js";
 
 const AUDIT_PATIENT_LIMIT = 50;
+const AUDIT_RECENT_LIMIT = 50;
 
 function auditId(payload = {}) {
   const base = [
@@ -48,6 +49,35 @@ async function mergePendingAuditForPatient(patientId, rows = []) {
   return [...map.values()].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }
 
+function auditMap(rows = []) {
+  return rows.reduce((acc, row) => {
+    const id = row.auditId || row.id;
+    if (!id) return acc;
+    acc.set(id, { ...row, auditId: id });
+    return acc;
+  }, new Map());
+}
+
+function matchesAuditFilters(row = {}, filters = {}) {
+  if (filters.userId && row.userId !== filters.userId) return false;
+  if (filters.module && row.module !== filters.module) return false;
+  return true;
+}
+
+async function mergePendingAuditRows(rows = [], filters = {}) {
+  const map = auditMap(rows);
+  const pending = await pendingPayloadsForCollection("audit_logs");
+  pending
+    .filter(row => matchesAuditFilters(row, filters))
+    .forEach(row => {
+      const id = row.auditId || row.id;
+      if (id) map.set(id, { ...map.get(id), ...row, auditId: id });
+    });
+  return [...map.values()]
+    .filter(row => matchesAuditFilters(row, filters))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
 export async function listAuditForPatient(patientId, options = {}) {
   if (!patientId) return [];
   const limit = Math.min(100, Math.max(1, Number(options.limit) || AUDIT_PATIENT_LIMIT));
@@ -62,6 +92,30 @@ export async function listAuditForPatient(patientId, options = {}) {
     return mergePendingAuditForPatient(patientId, rows);
   } catch {
     return mergePendingAuditForPatient(patientId, []);
+  }
+}
+
+export async function listRecentAuditLogs(options = {}) {
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || AUDIT_RECENT_LIMIT));
+  const filters = {
+    module: options.module || "",
+    userId: options.userId || ""
+  };
+  if (!filters.module && !filters.userId) return [];
+  if (appConfig().testMode) {
+    return (await mergePendingAuditRows(testAuditLogs(), filters)).slice(0, limit);
+  }
+  try {
+    const clauses = filters.userId
+      ? [["userId", "==", filters.userId]]
+      : [["module", "==", filters.module]];
+    const rows = await listCollectionWhere("audit_logs", clauses, {
+      orderBy: [["createdAt", "desc"]],
+      limit
+    });
+    return (await mergePendingAuditRows(rows, filters)).slice(0, limit);
+  } catch {
+    return (await mergePendingAuditRows([], filters)).slice(0, limit);
   }
 }
 
