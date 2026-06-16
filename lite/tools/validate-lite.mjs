@@ -273,6 +273,8 @@ for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig()
 const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
 const monitorServiceSource = readFileSync(join(root, "src/services/monitorService.js"), "utf8");
 const operationalAlertServiceSource = readFileSync(join(root, "src/services/operationalAlertService.js"), "utf8");
+const importServiceSource = readFileSync(join(root, "src/services/importService.js"), "utf8");
+const censusRepairServiceSource = readFileSync(join(root, "src/services/censusRepairService.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
 const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
 const iaasCriteriaServiceSource = readFileSync(join(root, "src/services/iaasCriteriaService.js"), "utf8");
@@ -291,6 +293,16 @@ if (!monitorServiceSource.includes("monitorOpdStatus") || !monitorServiceSource.
 for (const expected of ["OPERATIONAL_ALERTS_VERSION", "loadOperationalAlerts", "buildOperationalAlerts", "listTodayRounds", "listActiveDevices", "listCulturesByStatus", "syncQueueSummary", "risk-device", "culture"]) {
   if (!operationalAlertServiceSource.includes(expected)) {
     fail("operationalAlertService debe migrar pendientes y alertas del runtime legacy como servicio ligero.");
+  }
+}
+for (const expected of ["CENSUS_REPAIR_VERSION", "repairHospitalCensusInput", "repairedHospitalCensusTsv", "mergeContinuationRows", "findHeaderInfo", "rowFromSignals", "looksLikeHospitalCensus"]) {
+  if (!censusRepairServiceSource.includes(expected)) {
+    fail("censusRepairService debe migrar import-census-repair.js como reparador puro de censos hospitalarios.");
+  }
+}
+for (const expected of ["repairHospitalCensusInput", "shouldUseRepair", "normalizeImportRecord", "repairVersion", "sourceName"]) {
+  if (!importServiceSource.includes(expected)) {
+    fail("importService debe usar censusRepairService antes del parser tabular cuando detecta formato hospitalario legacy.");
   }
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
@@ -556,6 +568,7 @@ for (const file of [
   join(root, "tools/prepare-user-seed.mjs"),
   join(root, "tools/validate-all.mjs"),
   join(root, "tools/validate-deploy-config.mjs"),
+  join(root, "tools/validate-census-import.mjs"),
   join(root, "tools/validate-local-qa.mjs"),
   join(root, "tools/validate-offline-queue.mjs"),
   join(root, "tools/validate-patient-filters.mjs"),

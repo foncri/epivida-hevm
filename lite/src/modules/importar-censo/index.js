@@ -13,6 +13,7 @@ export async function render({ app }) {
   const state = {
     date: todayIso(),
     raw: "",
+    sourceName: "",
     parsed: null,
     preview: null,
     message: "",
@@ -23,7 +24,7 @@ export async function render({ app }) {
   const body = el("div", { class: "stack" });
 
   function parseAndPreview() {
-    state.parsed = parseCensusInput(state.raw);
+    state.parsed = parseCensusInput(state.raw, { date: state.date, sourceName: state.sourceName });
     state.preview = reconcileCensusRows(state.parsed.rows, activePatients);
     state.message = state.parsed.rows.length
       ? `Preview listo: ${state.parsed.rows.length} fila(s) validas.`
@@ -51,6 +52,7 @@ export async function render({ app }) {
         : `Importacion sincronizada: ${result.savedPatients.length} paciente(s).`;
       state.tone = result.syncStatus === "local_pending" ? "warn" : "ok";
       state.raw = "";
+      state.sourceName = "";
       state.parsed = null;
       state.preview = null;
     } catch (error) {
@@ -100,6 +102,7 @@ function renderInputPanel(state, writable, schedulePreview, parseAndPreview) {
       if (!selected) return;
       selected.text().then(text => {
         state.raw = text;
+        state.sourceName = selected.name || "";
         parseAndPreview();
       });
     }
@@ -114,6 +117,7 @@ function renderInputPanel(state, writable, schedulePreview, parseAndPreview) {
       button("Generar preview", parseAndPreview, { disabled: !writable || state.saving || !state.raw.trim() }),
       button("Limpiar", () => {
         state.raw = "";
+        state.sourceName = "";
         state.parsed = null;
         state.preview = null;
         state.message = "";
