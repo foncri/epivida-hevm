@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-16-parity08",
+  "release": "2026-06-16-parity09",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-16T18:56:59Z",
-  "notes": "Paridad Lite ampliada: import-census-repair.js migrado como censusRepairService para reparar censos hospitalarios legacy sin DOM global ni store monolitico. No clinical data."
+  "updatedAt": "2026-06-16T19:05:00Z",
+  "notes": "Paridad Lite ampliada: import-urgencias-aisp-fix-2026-06-01.js migrado a censusRepairService para AISLADO P, filas partidas y orden fecha/RFC/edad sin listener DOM. No clinical data."
 }

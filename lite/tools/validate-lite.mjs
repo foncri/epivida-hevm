@@ -295,7 +295,7 @@ for (const expected of ["OPERATIONAL_ALERTS_VERSION", "loadOperationalAlerts", "
     fail("operationalAlertService debe migrar pendientes y alertas del runtime legacy como servicio ligero.");
   }
 }
-for (const expected of ["CENSUS_REPAIR_VERSION", "repairHospitalCensusInput", "repairedHospitalCensusTsv", "mergeContinuationRows", "findHeaderInfo", "rowFromSignals", "looksLikeHospitalCensus"]) {
+for (const expected of ["CENSUS_REPAIR_VERSION", "repairHospitalCensusInput", "repairedHospitalCensusTsv", "repairUrgenciasAisPImportText", "mergeContinuationRows", "findHeaderInfo", "rowFromSignals", "looksLikeHospitalCensus", "normalizeUrgenciasLegacyColumnOrder", "isUnfinishedUrgenciasLine", "isUrgenciasContinuationCells"]) {
   if (!censusRepairServiceSource.includes(expected)) {
     fail("censusRepairService debe migrar import-census-repair.js como reparador puro de censos hospitalarios.");
   }

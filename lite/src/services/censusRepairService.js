@@ -41,11 +41,13 @@ const LOCATION_RX = /^(TUXTLA|TUXTLA\s+GUTIERREZ|TUXLTA\s+GUTIERREZ|SAN\s+CRISTO
 const FILE_REFERENCE_RX = new RegExp("\\.(DOCX?|XL" + "SX?|PDF|CSV|TXT)\\b", "i");
 
 export function repairHospitalCensusInput(input = "", options = {}) {
-  const lines = String(input || "").replace(/\r/g, "").split("\n").filter(line => line.trim());
+  const original = String(input || "").replace(/\r/g, "");
+  const repairedInput = repairUrgenciasAisPImportText(original);
+  const lines = repairedInput.split("\n").filter(line => line.trim());
   if (!lines.length) return { attempted: false, rows: [], issues: ["No hay datos para reparar."], version: CENSUS_REPAIR_VERSION };
   const delimiter = detectDelimiter(lines);
   const matrix = mergeContinuationRows(lines.map(line => splitLine(line, delimiter)));
-  if (!looksLikeHospitalCensus(matrix, `${options.sourceName || ""} ${input}`)) {
+  if (!looksLikeHospitalCensus(matrix, `${options.sourceName || ""} ${repairedInput}`)) {
     return { attempted: false, rows: [], issues: [], version: CENSUS_REPAIR_VERSION };
   }
 
@@ -72,8 +74,34 @@ export function repairHospitalCensusInput(input = "", options = {}) {
     rows,
     delimiter,
     version: CENSUS_REPAIR_VERSION,
-    issues: rows.length ? [`Se aplico reparacion legacy de censo hospitalario (${rows.length} paciente(s)).`] : ["No se reconocieron pacientes importables en el censo hospitalario."]
+    issues: [
+      repairedInput !== original ? "Se aplico reparacion legacy de Urgencias/AIS P." : "",
+      rows.length ? `Se aplico reparacion legacy de censo hospitalario (${rows.length} paciente(s)).` : "No se reconocieron pacientes importables en el censo hospitalario."
+    ].filter(Boolean)
   };
+}
+
+export function repairUrgenciasAisPImportText(input = "") {
+  const rawLines = String(input || "").replace(/\r/g, "").split("\n").filter(line => line.trim());
+  if (!rawLines.length) return String(input || "");
+  const delimiter = detectDelimiter(rawLines);
+  const stitched = [];
+  rawLines.forEach(rawLine => {
+    const cells = normalizeAisPCells(splitLine(rawLine, delimiter));
+    const previous = stitched[stitched.length - 1] || "";
+    if (previous && isUnfinishedUrgenciasLine(previous, delimiter) && isUrgenciasContinuationCells(cells)) {
+      const previousCells = splitLine(previous, delimiter);
+      const merged = normalizeUrgenciasLegacyColumnOrder([...previousCells, ...cells.filter(cell => cleanText(cell))]);
+      stitched[stitched.length - 1] = joinLine(merged, delimiter);
+      return;
+    }
+    const firstCell = cells.find(cell => cleanText(cell)) || "";
+    if (isAisP(firstCell) && normalizeText(stitched[stitched.length - 1] || "") !== "URGENCIAS") {
+      stitched.push("URGENCIAS");
+    }
+    stitched.push(joinLine(normalizeUrgenciasLegacyColumnOrder(cells), delimiter));
+  });
+  return stitched.join("\n");
 }
 
 export function repairedHospitalCensusTsv(input = "", options = {}) {
@@ -105,6 +133,10 @@ function splitLine(line, delimiter) {
   }
   cells.push(current);
   return cells.map(cell => cleanText(cell, 1000));
+}
+
+function joinLine(cells = [], delimiter = "\t") {
+  return cells.join(delimiter);
 }
 
 function detectDelimiter(lines = []) {
@@ -142,10 +174,16 @@ function mergeContinuationRows(matrix = []) {
 function looksLikeHospitalCensus(matrix = [], text = "") {
   const joined = normalizeText(text);
   if (/\b(NOMBRE\s+DEL\s+PACIENTE|NOMBRE|SERVICIO\s*:|GUARDIA|FECHA\s+INGRESO|PENDIENTES|E\s*C\s*D|HORA|DX\s+ACTUAL|DIAGNOSTICO\s+ACTUAL)\b/.test(joined)) return true;
-  return matrixLooksLikeCensus(matrix);
+  const candidates = censusCandidateCount(matrix);
+  if (candidates >= 2) return true;
+  return candidates >= 1 && /\b(AIS\s*P|AISLADO\s*P|URGENCIAS)\b/.test(joined);
 }
 
 function matrixLooksLikeCensus(matrix = []) {
+  return censusCandidateCount(matrix) >= 2;
+}
+
+function censusCandidateCount(matrix = []) {
   let candidates = 0;
   matrix.forEach(values => {
     const patientIndex = findPatientIndex(values);
@@ -155,7 +193,7 @@ function matrixLooksLikeCensus(matrix = []) {
     const hasClinicalText = values.some((value, index) => index > patientIndex && isDiagnosisCell(value));
     if ((hasBed || dates >= 1) && hasClinicalText) candidates += 1;
   });
-  return candidates >= 2;
+  return candidates;
 }
 
 function headerKey(value) {
@@ -399,7 +437,46 @@ function looksLikeBedCell(value = "") {
   const bed = normalizeBed(value);
   if (!bed) return false;
   if (/^\d{1,3}(?:\s|-)?[A-Z]{0,4}(?:\s+[A-Z]{1,4})?$/.test(bed)) return true;
-  return /^(CAMA|CAM|SILLON|AIS|OBS|AMB|A|B|C|UCIA|UCIN|UCIP|UTIP|CUN|ESC|CUBICULO|CAMILLA|UX|URX|F|P|HEM|ALOJ|CHOQUE)[\s:-]*[A-Z0-9-]+/.test(bed);
+  if (/^(A|B|C|F|P)\s*-?\s*\d+\b/.test(bed)) return true;
+  return /^(CAMA|CAM|SILLON|AIS|OBS|AMB|UCIA|UCIN|UCIP|UTIP|CUN|ESC|CUBICULO|CAMILLA|UX|URX|HEM|ALOJ|CHOQUE)[\s:-]*[A-Z0-9-]+/.test(bed);
+}
+
+function isAisP(value = "") {
+  return /^AIS(?:LADO)?\s*P$/.test(normalizeText(value));
+}
+
+function normalizeAisPCells(cells = []) {
+  return cells.map(cell => isAisP(cell) ? "AIS P" : cell);
+}
+
+function normalizeUrgenciasLegacyColumnOrder(cells = []) {
+  const next = [...cells];
+  for (let index = 0; index < next.length - 2; index += 1) {
+    if (normalizeDate(next[index]) && looksLikeRfc(next[index + 1]) && normalizeAge(next[index + 2])) {
+      const rfc = next[index + 1];
+      next[index + 1] = next[index + 2];
+      next[index + 2] = rfc;
+      break;
+    }
+  }
+  return next;
+}
+
+function isUnfinishedUrgenciasLine(line = "", delimiter = "\t") {
+  const cells = splitLine(line, delimiter).filter(cell => cleanText(cell));
+  if (!cells.length || cells.length > 6) return false;
+  return cells.some(looksLikeBedCell)
+    && cells.some(looksLikeName)
+    && !cells.some(normalizeDate)
+    && !cells.some(looksLikeRfc);
+}
+
+function isUrgenciasContinuationCells(cells = []) {
+  const filled = cells.filter(cell => cleanText(cell));
+  if (filled.length < 3) return false;
+  const first = filled[0] || "";
+  if (knownServiceFromText(first) || looksLikeBedCell(first)) return false;
+  return filled.some(normalizeDate) || filled.some(looksLikeRfc) || filled.some(normalizeSex);
 }
 
 function looksLikeRfc(value = "") {

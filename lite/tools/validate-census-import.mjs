@@ -9,7 +9,7 @@ function requireValue(condition, message) {
 }
 
 const { parseCensusInput } = await import("../src/services/importService.js");
-const { CENSUS_REPAIR_VERSION, repairedHospitalCensusTsv, repairHospitalCensusInput } = await import("../src/services/censusRepairService.js");
+const { CENSUS_REPAIR_VERSION, repairedHospitalCensusTsv, repairHospitalCensusInput, repairUrgenciasAisPImportText } = await import("../src/services/censusRepairService.js");
 const { canArchiveAbsentPatient, reconcileCensusRows } = await import("../src/services/reconciliationService.js");
 
 const input = [
@@ -68,6 +68,26 @@ requireValue(repairedSignal.rows[1].hospitalDiagnosis === "Dolor abdominal", "Re
 
 const repairedTsv = repairedHospitalCensusTsv(repairedSignalInput, { date: "2026-06-16", sourceName: "urgencias.tsv" });
 requireValue(repairedTsv.text.startsWith("Servicio\tCama\tPaciente"), "Reparador debe poder emitir TSV canonico compatible con el importador Lite.");
+
+const aispBrokenInput = [
+  "AISLADO P\tCarlos Morales Vega",
+  "\t01/03/1988\tAIMC880301H1\t38\tMasculino\t16/06/2026\tCrisis hipertensiva\tLaboratorio pendiente"
+].join("\n");
+const aispPrepared = repairUrgenciasAisPImportText(aispBrokenInput);
+requireValue(aispPrepared.startsWith("URGENCIAS\nAIS P\tCarlos Morales Vega"), "Fix Urgencias/AISP debe insertar contexto URGENCIAS y normalizar AISLADO P.");
+const aispParsed = parseCensusInput(aispBrokenInput, { date: "2026-06-16", sourceName: "guardia.txt" });
+requireValue(aispParsed.repaired === true, "Parser debe activar reparacion para AISP legado con fila partida.");
+requireValue(aispParsed.issues.some(issue => issue.includes("Urgencias/AIS P")), "Parser debe informar reparacion Urgencias/AIS P.");
+requireValue(aispParsed.rows.length === 1, "AISP partido debe producir un solo paciente.");
+requireValue(aispParsed.rows[0].service === "URGENCIAS", "AISP partido debe importar como URGENCIAS.");
+requireValue(aispParsed.rows[0].bed === "AIS P", "AISP partido debe conservar cama AIS P canonica.");
+requireValue(aispParsed.rows[0].patientName === "CARLOS MORALES VEGA", "AISP partido debe conservar nombre del paciente.");
+requireValue(aispParsed.rows[0].birthDate === "1988-03-01", "AISP partido debe leer fecha de nacimiento de continuacion.");
+requireValue(aispParsed.rows[0].rfc === "AIMC880301H1", "AISP partido debe conservar RFC aun cuando venia antes de edad.");
+requireValue(String(aispParsed.rows[0].age) === "38", "AISP partido debe reordenar edad/RFC legado.");
+requireValue(aispParsed.rows[0].sex === "M", "AISP partido debe leer sexo de continuacion.");
+requireValue(aispParsed.rows[0].admissionDate === "2026-06-16", "AISP partido debe leer ingreso de continuacion.");
+requireValue(aispParsed.rows[0].hospitalDiagnosis === "Crisis hipertensiva", "AISP partido debe conservar diagnostico de continuacion.");
 
 const active = [
   {
