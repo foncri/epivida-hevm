@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-16-parity03",
+  "release": "2026-06-16-parity04",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-16T15:43:03Z",
-  "notes": "Paridad Lite ampliada: OPD base migrado sin loader legacy, con captura en Censo/EPI-IAAS y estado en Monitoreo. No clinical data."
+  "updatedAt": "2026-06-16T15:57:38Z",
+  "notes": "Paridad Lite ampliada: loader IAAS followup migrado sin eval, con catalogo antimicrobiano legacy y otros estudios estructurados. No clinical data."
 }

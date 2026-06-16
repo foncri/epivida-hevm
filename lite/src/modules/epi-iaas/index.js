@@ -100,7 +100,7 @@ export async function render({ app }) {
   }
 
   redraw();
-  return modulePage("EPI-IAAS", "Seguimiento IAAS independiente. No carga dashboard, ronda ni exportadores.", [body], [
+  return modulePage("EPI-IAAS", "Seguimiento IAAS ligero e independiente.", [body], [
     writable ? button("Nueva IAAS", () => { editing = {}; redraw(); }, { class: "ghost" }) : ""
   ]);
 
@@ -192,7 +192,7 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       field("PEEP", textInput({ name: "vitalPeep", value: iaas.vitalSigns?.peep || "" })),
       field("Biometria", textInput({ name: "biometry", value: iaas.labs?.biometry || "" })),
       field("EGO", textInput({ name: "ego", value: iaas.labs?.ego || "" })),
-      field("Otros estudios", textInput({ name: "otherStudies", value: iaas.labs?.otherStudies || "" }))
+      field("Otros estudios", textareaInput({ name: "otherStudies", rows: 2, value: iaas.labs?.otherStudies || "" }))
     ]),
     el("div", { class: "form-grid compact" }, [
       field("Cultivo muestra", textInput({ name: "cultureSampleType", value: "" })),
@@ -286,7 +286,8 @@ function followUpSummary(row = {}) {
     row.vitalSigns?.fio2 ? `FiO2 ${row.vitalSigns.fio2}` : "",
     row.vitalSigns?.peep ? `PEEP ${row.vitalSigns.peep}` : "",
     opdStatus(row.opd, opdEligibilityForIaasCase(row)).pending ? "OPD pendiente" : "",
-    row.labs?.biometry ? "BH" : ""
+    row.labs?.biometry ? "BH" : "",
+    row.labs?.customStudies?.length ? "otros estudios" : ""
   ].filter(Boolean);
   return parts.join(" / ") || "Sin seguimiento";
 }

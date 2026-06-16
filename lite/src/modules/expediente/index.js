@@ -2,6 +2,7 @@ import { badge, button, el, link, notice, table } from "../../components/dom.js"
 import { emptyModule, stats } from "../../components/moduleLayout.js";
 import { todayIso, normalizeDate } from "../../lib/date.js";
 import { loadExpedienteSectionPage, loadPatientExpediente } from "../../services/expedienteService.js";
+import { summarizeIaasCustomStudies } from "../../services/iaasService.js";
 
 export async function render({ route }) {
   const patientId = patientIdFromRoute(route.parts);
@@ -246,6 +247,7 @@ function iaasFollowUpText(row = {}) {
     row.vitalSigns?.temperature ? `Temp ${row.vitalSigns.temperature}` : "",
     row.labs?.biometry ? `BH ${row.labs.biometry}` : "",
     row.labs?.ego ? `EGO ${row.labs.ego}` : "",
+    row.labs?.otherStudies || summarizeIaasCustomStudies(row.labs?.customStudies),
     row.notes || ""
   ].filter(Boolean).join(" | ");
 }

@@ -86,6 +86,7 @@ Rutas legacy detectadas:
 | P1 | Campos de ventilacion IAAS. | `iaasService.normalizeIaasClinicalFollowUp()` y `#/epi-iaas` conservan FiO2 y PEEP en `vitalSigns`, igual que la superficie legacy de ventilacion/NAVM. | `npm run validate:lite`. |
 | P1 | Auditoria reciente en Admin. | `auditService.listRecentAuditLogs()` y `adminAuditPanel` cargan `audit_logs` bajo demanda por usuario o modulo, usando indices existentes y sin listar auditoria global. | `npm run validate:lite`; `npm run validate:indexes`. |
 | P1 | OPD sin loader legacy. | `opdService` reemplaza `iaas-system-opd-loader-2026-05-20.js`; Censo captura OPD para vigilancia/morbimortalidad, EPI-IAAS captura OPD para IAAS confirmada y Monitoreo muestra pendientes OPD sin consultas adicionales. | `npm run validate:lite`. |
+| P1 | Loader IAAS followup sin `eval`. | `legacyClinicalCatalogs` conserva el catalogo antimicrobiano/cultivos del loader `iaas-system-followup-loader-2026-05-20.js`; `iaasService` normaliza otros estudios como nombre/valor; `clinicalFollowUp` preserva Otro cultivo/Otro farmaco y expediente muestra estudios adicionales. | `npm run validate:lite`. |
 
 ## Omision P0 Migrada En Esta Fase
 

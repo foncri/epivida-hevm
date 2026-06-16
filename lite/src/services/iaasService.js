@@ -163,6 +163,10 @@ export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
   const previousFollowUp = previous.followUp || {};
   const previousVitals = previous.vitalSigns || {};
   const previousLabs = previous.labs || {};
+  const otherStudiesText = source.otherStudies ?? previousLabs.otherStudies ?? "";
+  const customStudies = source.customStudies ?? (String(otherStudiesText || "").trim()
+    ? customStudiesFromText(otherStudiesText)
+    : previousLabs.customStudies);
   return stripUndefined({
     criteria: cleanText(source.criteria ?? previous.criteria ?? "", 1200),
     criteriaVersion: cleanText(source.criteriaVersion ?? previous.criteriaVersion ?? "", 80),
@@ -179,7 +183,8 @@ export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
     labs: stripUndefined({
       biometry: cleanText(source.biometry ?? previousLabs.biometry ?? "", 500),
       ego: cleanText(source.ego ?? previousLabs.ego ?? "", 500),
-      otherStudies: cleanText(source.otherStudies ?? previousLabs.otherStudies ?? "", 700)
+      otherStudies: cleanText(otherStudiesText, 700),
+      customStudies: normalizeIaasCustomStudies(customStudies, previousLabs.customStudies)
     }),
     followUp: stripUndefined({
       reviewDate: cleanText(source.followUpDate ?? previousFollowUp.reviewDate ?? "", 40),
@@ -187,6 +192,34 @@ export function normalizeIaasClinicalFollowUp(source = {}, previous = {}) {
       carePlan: cleanText(source.carePlan ?? previousFollowUp.carePlan ?? "", 1000)
     })
   });
+}
+
+export function normalizeIaasCustomStudies(value = [], fallback = []) {
+  const source = Array.isArray(value) ? value : Array.isArray(fallback) ? fallback : [];
+  return source
+    .map(row => ({
+      name: cleanText(row.name || row.study || row.test || "", 120),
+      value: cleanText(row.value || row.result || "", 240)
+    }))
+    .filter(row => row.name || row.value)
+    .slice(0, 20);
+}
+
+export function summarizeIaasCustomStudies(rows = []) {
+  return normalizeIaasCustomStudies(rows)
+    .map(row => `${row.name || "Otro estudio"}${row.value ? `: ${row.value}` : ""}`)
+    .join(" / ");
+}
+
+function customStudiesFromText(value = "") {
+  return String(value || "")
+    .split(/\r?\n|;/)
+    .map(item => {
+      const [name, ...rest] = item.split(":");
+      const result = rest.join(":");
+      return rest.length ? { name, value: result } : { name: item, value: "" };
+    })
+    .filter(row => cleanText(row.name || row.value));
 }
 
 export async function saveIaasCase(app, iaas) {

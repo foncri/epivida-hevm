@@ -44,7 +44,7 @@
 
 `nursing_rounds/{roundId}` debe tener fecha, paciente, servicio, cama, estado, revisiones de paquetes, pendientes, notas, usuario y timestamps.
 
-`iaas_active/{iaasId}` debe representar caso activo con tipo, estado, fecha de sospecha/confirmacion, criterios, cultivos, antimicrobianos, seguimiento y relacion con dispositivos.
+`iaas_active/{iaasId}` debe representar caso activo con tipo, estado, fecha de sospecha/confirmacion, criterios, cultivos, antimicrobianos, seguimiento, `labs.customStudies` para otros estudios nombre/valor y relacion con dispositivos.
 
 `audit_logs/{logId}` es append-only. No se actualiza ni se borra.
 

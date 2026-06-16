@@ -5,6 +5,7 @@ import { cleanText, stripUndefined } from "../lib/validators.js";
 import { listCollection } from "./firestoreService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
 import { writeAudit } from "./auditService.js";
+import { LEGACY_ANTIMICROBIALS, LEGACY_CULTURE_TYPES } from "./legacyClinicalCatalogs.js";
 
 const CACHE_KEY = "catalogs:last";
 let catalogsPromise = null;
@@ -74,77 +75,9 @@ const DEFAULT_CATALOGS = [
     "Nutricion parenteral",
     "Otro"
   ]),
-  ...rows("culture_types", [
-    "Hemocultivo central y periferico",
-    "Hemocultivo central",
-    "Hemocultivo periferico",
-    "Hemocultivo periferico ambos brazos",
-    "Hemocultivo central y periferico de ambos brazos",
-    "Cultivo de punta de CVC",
-    "Cultivo de secrecion orificio de salida CVC",
-    "Cultivo de secrecion de insercion CVC",
-    "Urocultivo",
-    "Cultivo de secrecion bronquial",
-    "Cultivo de expectoracion",
-    "Cultivo de esputo",
-    "Cultivo de herida",
-    "Coprocultivo",
-    "Coproparasitoscopico",
-    "Otro cultivo"
-  ]),
+  ...rows("culture_types", LEGACY_CULTURE_TYPES),
   ...rows("culture_status", ["solicitado", "pendiente", "resultado", "negativo", "positivo", "contaminado"]),
-  ...rows("antimicrobials", [
-    "Amikacina",
-    "Ampicilina",
-    "Ampicilina-sulbactam",
-    "Anfotericina B",
-    "Anidulafungina",
-    "Aztreonam",
-    "Caspofungina",
-    "Cefazolina",
-    "Cefepime",
-    "Cefotaxima",
-    "Cefotetan",
-    "Cefotixina",
-    "Ceftarolina",
-    "Ceftazidima",
-    "Ceftazidima-avibactam",
-    "Ceftolozane-tazobactam",
-    "Ceftriaxona",
-    "Ciprofloxacino",
-    "Claritromicina",
-    "Clindamicina",
-    "Colistina",
-    "Daptomicina",
-    "Eritromicina",
-    "Ertapenem",
-    "Fluconazol",
-    "Fosfomicina",
-    "Gentamicina",
-    "Imipenem",
-    "Itraconazol",
-    "Levofloxacino",
-    "Linezolid",
-    "Meropenem",
-    "Metronidazol",
-    "Micafungina",
-    "Miconazol",
-    "Nitrofurantoina",
-    "Oxacilina",
-    "Penicilina",
-    "Piperacilina-tazobactam",
-    "Posaconazol",
-    "Rifampicina",
-    "Rifaximina",
-    "Tetraciclina",
-    "Tigeciclina",
-    "Trimetoprim-sulfametoxazol",
-    "Voriconazol",
-    "Vancomicina",
-    "Cefalotina",
-    "Norfloxacino",
-    "Otro farmaco"
-  ]),
+  ...rows("antimicrobials", LEGACY_ANTIMICROBIALS),
   ...rows("antimicrobial_status", ["activo", "suspendido", "completado", "profilaxis", "ajustado"])
 ];
 

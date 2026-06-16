@@ -221,6 +221,12 @@ if (!opdServiceSource.includes("export function opdEligibilityForPatient") || !o
   fail("opdService debe migrar OPD legacy como servicio puro para vigilancia e IAAS, sin loader ni eval.");
 }
 const cultureServiceSource = readFileSync(join(root, "src/services/cultureService.js"), "utf8");
+const legacyClinicalCatalogsSource = readFileSync(join(root, "src/services/legacyClinicalCatalogs.js"), "utf8");
+for (const expected of ["ABACAVIR", "AMOXICILINA/ACIDO CLAVULANICO", "CEFTAZIDIMA/AVIBACTAM", "PIPERACILINA/TAZOBACTAM", "VANCOMICINA", "OTRO FARMACO", "Coproparasitoscopico", "Otro cultivo"]) {
+  if (!legacyClinicalCatalogsSource.includes(expected)) {
+    fail("legacyClinicalCatalogs debe conservar catalogos clinicos del loader IAAS followup legacy.");
+  }
+}
 if (!cultureServiceSource.includes("export async function listCulturesForPatient") || !cultureServiceSource.includes('"cultures", [["patientId", "==", patientId]]') || !cultureServiceSource.includes("pendingPayloadsForCollection(\"cultures\")") || !cultureServiceSource.includes("export async function saveCulture")) {
   fail("cultureService debe consultar cultivos por paciente/caso y mezclar cola offline sin lecturas globales.");
 }
@@ -290,6 +296,9 @@ if (!patientServiceSource.includes("syncPatientIaasClassification") || !patientS
 if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan")) {
   fail("iaasService debe normalizar seguimiento IAAS clinico estructurado: criterios, vitales, labs y plan.");
 }
+if (!iaasServiceSource.includes("normalizeIaasCustomStudies") || !iaasServiceSource.includes("summarizeIaasCustomStudies") || !iaasServiceSource.includes("customStudiesFromText")) {
+  fail("iaasService debe migrar Otros estudios del followup legacy como lista estructurada nombre/valor.");
+}
 if (!iaasCriteriaServiceSource.includes("IAAS_CRITERIA_VERSION") || !iaasCriteriaServiceSource.includes("buildCriteriaTemplate") || !iaasCriteriaServiceSource.includes("criteriaVersionForType") || !iaasCriteriaServiceSource.includes('"ITS - CC"') || !iaasCriteriaServiceSource.includes('"ITU - CU"') || !iaasCriteriaServiceSource.includes("NAVM") || !iaasCriteriaServiceSource.includes("ISQ")) {
   fail("iaasCriteriaService debe exponer cedulas IAAS versionadas sin cargar runtime legacy.");
 }
@@ -332,6 +341,9 @@ if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.i
 }
 if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes('name: "vitalFio2"') || !epiIaasModuleSource.includes('name: "vitalPeep"') || !epiIaasModuleSource.includes("followUpSummary")) {
   fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
+}
+if (!epiIaasModuleSource.includes('textareaInput({ name: "otherStudies"') || !expedienteModuleSource.includes("summarizeIaasCustomStudies")) {
+  fail("modules/epi-iaas y expediente deben capturar/mostrar Otros estudios del seguimiento legacy.");
 }
 if (!epiIaasModuleSource.includes("renderOpdFields") || !epiIaasModuleSource.includes("opdEligibilityForIaasCase") || !epiIaasModuleSource.includes("opdFromFormData")) {
   fail("modules/epi-iaas debe capturar OPD para IAAS confirmada sin loader legacy.");

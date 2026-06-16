@@ -146,7 +146,7 @@ function cultureForm(app, context, state, catalogs, onSaved, onCancel) {
     }
   }, [
     el("div", { class: "form-grid compact" }, [
-      field("Tipo de cultivo", selectInput(catalogOptions(catalogs, "culture_types"), { name: "sampleType", required: true, value: selectedSample })),
+      field("Tipo de cultivo", selectInput(optionsWithCurrent(catalogOptions(catalogs, "culture_types"), selectedSample), { name: "sampleType", required: true, value: selectedSample })),
       field("Otro cultivo", textInput({ name: "customSampleType", value: isOtherCulture(culture.sampleType) ? culture.sampleType : "" })),
       field("Fecha de toma", dateInput({ name: "requestedAt", required: true, value: culture.requestedAt || todayIso() })),
       field("Fecha de resultado", dateInput({ name: "resultDate", value: culture.resultDate || "" })),
@@ -194,7 +194,7 @@ function antimicrobialForm(app, context, state, catalogs, onSaved, onCancel) {
     }
   }, [
     el("div", { class: "form-grid compact" }, [
-      field("Farmaco", selectInput(catalogOptions(catalogs, "antimicrobials"), { name: "drug", required: true, value: selectedDrug })),
+      field("Farmaco", selectInput(optionsWithCurrent(catalogOptions(catalogs, "antimicrobials"), selectedDrug), { name: "drug", required: true, value: selectedDrug })),
       field("Otro farmaco", textInput({ name: "customDrug", value: isOtherDrug(antimicrobial.drug) ? antimicrobial.drug : "" })),
       field("Inicio", dateInput({ name: "startDate", required: true, value: antimicrobial.startDate || todayIso() })),
       field("Fin", dateInput({ name: "endDate", value: antimicrobial.endDate || "" })),
@@ -270,6 +270,11 @@ function isOtherCulture(value = "") {
 
 function isOtherDrug(value = "") {
   return String(value || "").toLowerCase().includes("otro");
+}
+
+function optionsWithCurrent(options = [], current = "") {
+  if (!current || options.some(([value]) => value === current)) return options;
+  return [...options, [current, current]];
 }
 
 function truncate(value, length) {

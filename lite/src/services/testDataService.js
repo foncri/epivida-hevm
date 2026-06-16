@@ -182,7 +182,12 @@ const IAAS_CASES = [
     criteriaVersion: "IAAS-LITE-2026-06",
     deviceEpisodeId: "d_cvc_history",
     vitalSigns: { temperature: "38.2 C", heartRate: "104", respiratoryRate: "22", bloodPressure: "110/70", spo2: "95%", fio2: "21%", peep: "" },
-    labs: { biometry: "Leucocitosis leve", ego: "Sin datos", otherStudies: "Procalcitonina pendiente" },
+    labs: {
+      biometry: "Leucocitosis leve",
+      ego: "Sin datos",
+      otherStudies: "Procalcitonina: pendiente",
+      customStudies: [{ name: "Procalcitonina", value: "pendiente" }]
+    },
     followUp: { reviewDate: "2026-06-05", evolution: "Sin deterioro hemodinamico.", carePlan: "Revalorar retiro de CVC y cultivo." },
     active: true,
     syncStatus: "server_synced"
