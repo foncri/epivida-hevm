@@ -1,5 +1,9 @@
+import { normalizeDate } from "../lib/date.js";
+
+export const PREVENTIVE_ROUND_WORKFLOW_VERSION = "lite-preventive-round-workflow-2026-06-16-v1";
 export const PREVENTIVE_PACKAGE_TYPES = ["ITS - CC", "ITU - CU", "NAVM", "ISQ", "P.E. Y P.B.M.T.", "ESPECIAL"];
 export const YES_NO_NA = ["SI", "NO", "NA"];
+export const SURGERY_ROOM_VALUES = ["SI", "NO"];
 export const FRENCH_OPTIONS = ["3 Fr", "4 Fr", "5 Fr", "6 Fr", "7 Fr", "8 Fr", "9 Fr", "10 Fr", "12 Fr", "14 Fr", "16 Fr", "18 Fr", "20 Fr", "22 Fr", "24 Fr"];
 export const ITS_DEVICE_TYPES = ["CVPC", "CVC", "PICC", "CATT HD", "C. PUERTO", "ONFALOCLISIS"];
 export const ITU_MATERIAL_TYPES = ["SILICON", "LATEX"];
@@ -56,6 +60,51 @@ export const PREVENTIVE_CHECKS = {
 
 export function normalizeValue(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+export function sanitizePreventiveRoundText(value) {
+  const text = String(value || "")
+    .replace(/\s*(?:\/|\||;)+\s*/g, " / ")
+    .replace(/(?:^|\s)\/+(?=\s|$)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/^(?:\/|\||;|\s)*$/.test(text)) return "";
+  return text
+    .replace(/^\s*(?:\/|\||;)+\s*/, "")
+    .replace(/\s*(?:\/|\||;)+\s*$/, "")
+    .trim();
+}
+
+export function normalizeSurgeryRoomDraft(value = {}, fallbackDate = "") {
+  const selected = normalizeValue(value.inOperatingRoom);
+  const inOperatingRoom = SURGERY_ROOM_VALUES.includes(selected) ? selected : "";
+  return {
+    inOperatingRoom,
+    date: normalizeDate(value.date) || normalizeDate(fallbackDate) || "",
+    time: normalizeSurgeryRoomTime(value.time),
+    _dirty: Boolean(value._dirty)
+  };
+}
+
+export function surgeryRoomPayload(draft = {}, fallbackDate = "") {
+  const source = draft.surgeryRoom || {};
+  const room = normalizeSurgeryRoomDraft(source, fallbackDate);
+  if (room.inOperatingRoom === "SI") {
+    return {
+      inOperatingRoom: "SI",
+      date: room.date || normalizeDate(fallbackDate) || "",
+      time: room.time
+    };
+  }
+  if (room.inOperatingRoom === "NO" && (source._dirty || source.inOperatingRoom)) {
+    return { inOperatingRoom: "NO" };
+  }
+  return null;
+}
+
+function normalizeSurgeryRoomTime(value) {
+  const text = String(value || "").trim();
+  return /^\d{2}:\d{2}$/.test(text) ? text : "";
 }
 
 export function packageCreatesDevice(device) {

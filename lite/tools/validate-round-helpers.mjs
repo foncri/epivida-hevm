@@ -33,6 +33,7 @@ const { bedTileState } = await import("../src/modules/ronda-paquetes/bedBoard.js
 const { peSummaryItems, preventiveHistoryRounds, roundReviewDate, savedRoundActionLines, upsertRoundById } = await import("../src/modules/ronda-paquetes/patientRoundPanels.js");
 const { ensurePatientActionDraft, patientMovementChanged } = await import("../src/modules/ronda-paquetes/preventiveForms.js");
 const { draftFromRound, reviewDraft, roundState } = await import("../src/modules/ronda-paquetes/saveRoundFlow.js");
+const { normalizeSurgeryRoomDraft, sanitizePreventiveRoundText, surgeryRoomPayload } = await import("../src/services/preventivePackageService.js");
 const { normalizeDate, validIsoDate } = await import("../src/lib/date.js");
 
 const patients = [
@@ -117,15 +118,23 @@ const draft = reviewDraft(local, "2026-06-04", "p_mi_01", {
 requireValue(local.drafts["2026-06-04:p_mi_01"] === draft, "roundState y reviewDraft deben administrar drafts fuera del orquestador principal.");
 requireValue(draft.deviceDrafts.length === 1 && draft.deviceDrafts[0].packageType === "ITS - CC", "draftFromRound debe reconstruir revisiones preventivas guardadas.");
 requireValue(draftFromRound(null, "2026-06-04", "p_new").quickDischarge.enabled === false, "draftFromRound debe crear draft vacio seguro.");
+const loadedSurgeryDraft = draftFromRound({ surgeryRoom: { inOperatingRoom: "SI", date: "04/06/2026", time: "07:30" } }, "2026-06-04", "p_new");
+requireValue(loadedSurgeryDraft.surgeryRoom.inOperatingRoom === "SI" && loadedSurgeryDraft.surgeryRoom.date === "2026-06-04", "draftFromRound debe reconstruir senal de quirofano/ISQ guardada.");
 
 const actionDraft = {};
 ensurePatientActionDraft(actionDraft, patients[0], "2026-06-04");
 requireValue(actionDraft.patientMovement.service === "MI" && actionDraft.patientMovement.bed === "2", "preventiveForms debe inicializar movimiento desde servicio/cama actuales.");
 requireValue(actionDraft.quickDischarge.enabled === false && actionDraft.quickDischarge.date === "2026-06-04", "preventiveForms debe inicializar alta rapida desactivada y fechada.");
+requireValue(actionDraft.surgeryRoom.date === "2026-06-04" && actionDraft.surgeryRoom.inOperatingRoom === "", "preventiveForms debe inicializar quirofano sin marcarlo por defecto.");
 requireValue(!patientMovementChanged(patients[0], actionDraft.patientMovement), "Movimiento sin dirty flag no debe marcar cambio de cama.");
 actionDraft.patientMovement._dirty = true;
 actionDraft.patientMovement.bed = "4";
 requireValue(patientMovementChanged(patients[0], actionDraft.patientMovement), "Cambio de cama preparado debe detectarse sin consultar DOM.");
+requireValue(sanitizePreventiveRoundText(" / revisar | cultivo ; ") === "revisar cultivo", "Pendientes preventivos deben limpiarse igual que el hotfix legacy.");
+requireValue(sanitizePreventiveRoundText(" / | ; ") === "", "Pendientes compuestos solo por separadores deben quedar vacios.");
+const normalizedSurgery = normalizeSurgeryRoomDraft({ inOperatingRoom: "si", date: "04/06/2026", time: "07:30", _dirty: true }, "2026-06-04");
+requireValue(normalizedSurgery.inOperatingRoom === "SI" && normalizedSurgery.date === "2026-06-04" && normalizedSurgery.time === "07:30", "Quirofano debe normalizar SI, fecha y hora.");
+requireValue(surgeryRoomPayload({ surgeryRoom: normalizedSurgery }, "2026-06-04").inOperatingRoom === "SI", "Payload de ronda debe conservar quirofano/ISQ cuando esta marcado.");
 
 const sortedRounds = upsertRoundById([
   { roundId: "old", patientId: "p_mi_01", date: "2026-06-01" },
@@ -136,8 +145,9 @@ requireValue(preventiveHistoryRounds([{ roundId: "empty" }, { roundId: "with_not
 requireValue(savedRoundActionLines({
   patientMovement: { fromService: "MI", fromBed: "1", toService: "MI", toBed: "2" },
   quickDischarge: { enabled: true, date: "2026-06-04", type: "MEJORIA", shift: "MATUTINO" },
+  surgeryRoom: { inOperatingRoom: "SI", date: "2026-06-04", time: "07:30" },
   generalObservations: "Observacion de prueba"
-}).length === 3, "Paneles de paciente deben conservar acciones guardadas de movimiento, alta y observaciones.");
+}).length === 4, "Paneles de paciente deben conservar acciones guardadas de movimiento, alta, quirofano y observaciones.");
 const peItems = peSummaryItems("p_mi_01", "2026-06-04", [{
   patientId: "p_mi_01",
   date: "2026-06-03",

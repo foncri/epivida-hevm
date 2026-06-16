@@ -4,9 +4,13 @@ import { removeDeviceEpisode, saveDeviceEpisode } from "../../services/deviceSer
 import { archivePatient, savePatient } from "../../services/patientService.js";
 import {
   defaultPreventiveDevice,
+  normalizeSurgeryRoomDraft,
   deviceDisplayName,
   packageCreatesDevice,
   packageReviewSummary,
+  PREVENTIVE_ROUND_WORKFLOW_VERSION,
+  sanitizePreventiveRoundText,
+  surgeryRoomPayload,
   preventiveCompliance
 } from "../../services/preventivePackageService.js";
 import { saveRoundReview } from "../../services/roundService.js";
@@ -15,12 +19,23 @@ import { normalizeRoundText, patientBed, patientService } from "./roundHelpers.j
 import { navigationPatientId, normalizeStatusKey, roundPatientHref } from "./roundPatientUtils.js";
 
 export async function savePatientRound(app, date, patient, patients, activeDevices, draft, requestedStatus, direction) {
+  if (
+    requestedStatus === "revisado"
+    && !draft.noInvasivesConfirmed
+    && !activeDevices.length
+    && !(draft.deviceDrafts || []).some(packageCreatesDevice)
+  ) {
+    draft.noInvasivesConfirmed = true;
+  }
   const errors = validateDraft(draft, activeDevices, requestedStatus);
   if (errors.length) return errors.join(" ");
   const createdEpisodeTasks = [];
   const packageReviews = [];
+  const cleanPendingText = sanitizePreventiveRoundText(draft.pendingText || "");
+  const cleanNotes = sanitizePreventiveRoundText(draft.notes || "");
+  const surgeryRoom = surgeryRoomPayload(draft, date);
 
-  for (const device of draft.deviceDrafts) {
+  for (const device of draft.deviceDrafts || []) {
     const reviewId = device.packageReviewId || device.draftId || `${patient.patientId}|${date}|${device.packageType || device.deviceType}`;
     packageReviews.push({
       ...packageReviewSummary(device),
@@ -57,7 +72,7 @@ export async function savePatientRound(app, date, patient, patients, activeDevic
     if (device) removalTasks.push(removeDeviceEpisode(app, device, removalDate));
   }
 
-  const patientActionTask = applyPreventivePatientActions(app, date, patient, draft);
+  const patientActionTask = applyPreventivePatientActions(app, date, patient, draft, cleanPendingText);
   const [createdEpisodes, patientForRound] = await Promise.all([
     Promise.all(createdEpisodeTasks),
     patientActionTask,
@@ -66,10 +81,11 @@ export async function savePatientRound(app, date, patient, patients, activeDevic
   const patientMovement = patientMovementPayload(patient, draft);
   const quickDischarge = quickDischargePayload(draft);
   const hasNoCheck = packageReviews.some(review => Object.values(review.preventiveChecks || {}).some(value => normalizeRoundText(value) === "NO"));
-  const status = requestedStatus === "incompleto" ? "incompleto" : hasNoCheck ? "alerta" : requestedStatus;
+  const status = requestedStatus === "pendiente" ? "pendiente" : requestedStatus === "incompleto" ? "incompleto" : hasNoCheck ? "alerta" : requestedStatus;
   const saved = await saveRoundReview(app, {
     date,
     patientId: patient.patientId,
+    preventiveWorkflowVersion: PREVENTIVE_ROUND_WORKFLOW_VERSION,
     service: patientService(patientForRound),
     bed: patientBed(patientForRound),
     status,
@@ -77,9 +93,10 @@ export async function savePatientRound(app, date, patient, patients, activeDevic
     noInvasivesConfirmed: Boolean(draft.noInvasivesConfirmed) && !activeDevices.length && !createdEpisodes.length,
     reviewedDevices: [...activeDevices.map(device => device.episodeId), ...createdEpisodes.map(device => device.episodeId)].filter(Boolean),
     packageReviews,
-    pendingIssuesAdded: draft.pendingText ? [draft.pendingText.trim()] : [],
+    pendingIssuesAdded: cleanPendingText ? [cleanPendingText] : [],
     alertsGenerated: hasNoCheck ? ["Criterio preventivo marcado como NO."] : [],
-    notes: draft.notes || "",
+    notes: cleanNotes || cleanPendingText,
+    surgeryRoom: surgeryRoom || null,
     patientMovement,
     quickDischarge,
     generalObservations: String(draft.generalObservations || "").trim(),
@@ -101,7 +118,7 @@ export async function savePatientRound(app, date, patient, patients, activeDevic
   };
 }
 
-async function applyPreventivePatientActions(app, date, patient, draft) {
+async function applyPreventivePatientActions(app, date, patient, draft, pendingText = "") {
   if (!canWrite("censo", app.state.auth.profile?.role)) return patient;
   const movement = patientMovementPayload(patient, draft);
   const discharge = quickDischargePayload(draft);
@@ -128,6 +145,14 @@ async function applyPreventivePatientActions(app, date, patient, draft) {
     changed = true;
   }
 
+  if (pendingText) {
+    next = {
+      ...next,
+      activePendingIssues: mergeUniqueClinicalIssues(next.activePendingIssues || [], [pendingText])
+    };
+    changed = true;
+  }
+
   if (discharge) {
     const reason = quickDischargeReason(discharge);
     return archivePatient(app, {
@@ -146,6 +171,15 @@ async function applyPreventivePatientActions(app, date, patient, draft) {
   }
 
   return changed ? savePatient(app, next) : patient;
+}
+
+function mergeUniqueClinicalIssues(current = [], added = []) {
+  const map = new Map();
+  [...current, ...added].filter(Boolean).forEach(item => {
+    const key = normalizeRoundText(item);
+    if (!map.has(key)) map.set(key, item);
+  });
+  return [...map.values()];
 }
 
 function patientMovementPayload(patient, draft) {
@@ -250,6 +284,7 @@ export function draftFromRound(round = null, date = "", patientId = "") {
       _dirty: false
     } : {},
     quickDischarge: round?.quickDischarge ? { ...round.quickDischarge, _dirty: false } : { enabled: false },
+    surgeryRoom: normalizeSurgeryRoomDraft(round?.surgeryRoom || {}, date),
     generalObservations: round?.generalObservations || "",
     generalObservationDate: normalizeDate(round?.generalObservationDate) || date,
     noInvasivesConfirmed: Boolean(round?.noInvasivesConfirmed),
@@ -279,6 +314,7 @@ function roundDraftKey(round = null) {
     round.notes || "",
     JSON.stringify(round.patientMovement || {}),
     JSON.stringify(round.quickDischarge || {}),
+    JSON.stringify(round.surgeryRoom || {}),
     round.generalObservations || "",
     round.generalObservationDate || ""
   ].join("|");
@@ -292,6 +328,7 @@ function draftTouched(draft = {}) {
     || draft.notes
     || draft.patientMovement?._dirty
     || draft.quickDischarge?._dirty
+    || Boolean(surgeryRoomPayload(draft, ""))
     || draft.generalObservations
     || draft.noInvasivesConfirmed
   );
@@ -308,6 +345,7 @@ function resetDraft(draft) {
   draft.notes = "";
   draft.patientMovement = {};
   draft.quickDischarge = { enabled: false };
+  draft.surgeryRoom = {};
   draft.generalObservations = "";
   draft.generalObservationDate = "";
   draft.noInvasivesConfirmed = false;

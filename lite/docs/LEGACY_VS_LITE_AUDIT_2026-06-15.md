@@ -8,7 +8,7 @@ Alcance: raiz legacy del repositorio contra `lite/`, con verificacion local, val
 
 EPIVIDA Lite ya reemplaza la arquitectura critica de EPIVIDA antiguo: carga inicial minima, router modular, Firestore como fuente principal, reglas por roles, service worker minimo, cache sin conflictos, tablas paginadas, expediente con cargas incrementales y modulos clinicos separados.
 
-No es correcto declarar paridad clinica total. La auditoria confirma paridad funcional critica en Auth, censo basico, importacion CSV/TSV con conciliacion, monitoreo, OPD base, ronda preventiva, dispositivos activos/archivo/reinstalacion, IAAS base con ventilacion, expediente incremental, reportes CSV/snapshots, auditoria, offline queue, seguridad y despliegue Cloudflare. Avance del 2026-06-16: ya se agregaron prioridad clinica en monitoreo, catalogos editables con `known_beds`, UI de cultivos/antimicrobianos por caso IAAS, tablero microbiologico agregado, respaldo JSON operativo con restauracion administrativa, reportes historicos por cursor/bloque, cedulas preventivas CSV diarias/mensuales sin Sheets, IAAS cerradas en `iaas_archive`, edicion/reinstalacion de dispositivos retirados, FiO2/PEEP, OPD sin loader, loader IAAS followup sin `eval` con catalogo antimicrobiano legacy y otros estudios estructurados, y auditoria reciente en Admin. Persisten brechas P0/P1 en conciliacion avanzada hospitalaria, validacion clinica formal de criterios IAAS, pruebas manuales por rol contra Firebase real, timeline visual por episodio y drills reales de restauracion.
+No es correcto declarar paridad clinica total. La auditoria confirma paridad funcional critica en Auth, censo basico, importacion CSV/TSV con conciliacion, monitoreo, OPD base, ronda preventiva, dispositivos activos/archivo/reinstalacion, IAAS base con ventilacion, expediente incremental, reportes CSV/snapshots, auditoria, offline queue, seguridad y despliegue Cloudflare. Avance del 2026-06-16: ya se agregaron prioridad clinica en monitoreo, catalogos editables con `known_beds`, UI de cultivos/antimicrobianos por caso IAAS, tablero microbiologico agregado, respaldo JSON operativo con restauracion administrativa, reportes historicos por cursor/bloque, cedulas preventivas CSV diarias/mensuales sin Sheets, flujo ISQ/quirofano del hotfix preventivo, IAAS cerradas en `iaas_archive`, edicion/reinstalacion de dispositivos retirados, FiO2/PEEP, OPD sin loader, loader IAAS followup sin `eval` con catalogo antimicrobiano legacy y otros estudios estructurados, y auditoria reciente en Admin. Persisten brechas P0/P1 en conciliacion avanzada hospitalaria, validacion clinica formal de criterios IAAS, pruebas manuales por rol contra Firebase real, timeline visual por episodio y drills reales de restauracion.
 
 ## Evidencia De Tamano Y Riesgo Legacy
 
@@ -47,7 +47,7 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | `src/app.js` | Shell minimo, navegacion por rol, precarga hover/focus y rutas pesadas diferidas. |
 | `lite/_headers` | `/`, HTML, config, SW, build marker y `src/*` con `no-cache`; `assets/*` immutable solo para assets. |
 | `epivida-lite-sw.js` | `APP_VERSION`, core minimo y exclusiones para config/legacy/datos clinicos. |
-| Cloudflare | `https://epivida-hevm.pages.dev/epivida-lite-build.json` debe responder `release: 2026-06-16-parity05`, `Cache-Control: no-cache`, despues de publicar este bloque. |
+| Cloudflare | `https://epivida-hevm.pages.dev/epivida-lite-build.json` debe responder `release: 2026-06-16-parity06`, `Cache-Control: no-cache`, despues de publicar este bloque. |
 
 ## Paridad Por Dominio
 
@@ -60,7 +60,7 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | Monitoreo | `renderEpidemiologicalMonitoringPage`, filtros, etiquetas IAAS/riesgo/vig. | `monitorService`, `modules/monitoreo`, filtros locales, paginacion y metricas. | Migrado; falta gravedad avanzada/snapshots operativos. |
 | OPD | `iaas-system-opd-loader-2026-05-20.js` parcheaba OPD en monitoreo/IAAS. | `opdService`, `opdFields`, Censo, Monitoreo y EPI-IAAS guardan/visualizan OPD sin `eval`, sin loader y sin coleccion nueva. | Migrado base; falta validacion operativa con casos reales anonimizados. |
 | Ronda | `renderRoundPage`, `renderPatientRound`, mapa de camas, guardar/siguiente. | `ronda-paquetes` dividido en `bedBoard`, `patientRound`, `preventiveForms`, `roundNavigation`, `saveRoundFlow`. | Critico migrado; `index.js` aun es grande y debe seguir vigilado. |
-| Paquetes preventivos | ITS-CC, ITU-CU, NAVM, ISQ, PE/PBMT, especiales y cedulas. | `preventivePackageService`, UI de ronda y `preventiveCedulaService` para CSV diario/mensual desde rondas. | Migrado funcional base; ISQ/especiales deben versionarse en catalogos. |
+| Paquetes preventivos | ITS-CC, ITU-CU, NAVM, ISQ, PE/PBMT, especiales, quirofano y cedulas. | `preventivePackageService`, UI de ronda, `saveRoundFlow` con `surgeryRoom` en `nursing_rounds`, pendientes limpios, estado `pendiente` explicito y `preventiveCedulaService` para CSV diario/mensual desde rondas. | Migrado funcional ampliado; requiere validacion clinica formal con casos anonimizados de ISQ/especiales. |
 | Dispositivos | `deviceEpisodes`, editor invasivo, instalacion/retiro/reinstalacion. | `deviceService`, `devices_active`, `devices_archive`, modulo dispositivos, historial retirado editable, reinstalacion como nuevo episodio y uso en ronda/expediente. | Migrado funcional; falta timeline visual lazy por episodio. |
 | IAAS | Seguimiento completo en runtime: vitales, ventilacion, BH, EGO, estudios, cultivos, tratamientos. | `iaasService`, `iaasCriteriaService`, `modules/epi-iaas`, expediente y servicios de cultivos/antimicrobianos; incluye FiO2/PEEP y otros estudios nombre/valor. | Migrado base ampliado; seguimiento avanzado por secciones aun requiere validacion clinica formal. |
 | Cultivos | Catalogos y alertas mezclados con IAAS/ronda. | `cultureService` por paciente/caso/estado con limite, `clinicalFollowUp` para agregar/editar cultivos desde IAAS y tablero agregado por estado. | UI por caso y tablero operativo migrados; faltan reglas clinicas finas de alerta. |
@@ -104,7 +104,7 @@ Conclusion tecnica: el legacy no es una app modular; es una app monolitica con h
 | `git branch --show-current` | `feature/epivida-lite-ultrafast-rework` |
 | `git pull --ff-only origin feature/epivida-lite-ultrafast-rework` | `Already up to date` |
 | `npm run validate` | OK: validacion completa de Lite, seguridad, deploy, offline, pacientes, ronda, importacion, paridad, no-legacy, performance, indices y escalabilidad. |
-| Cloudflare build marker | Esperado tras publicacion: `2026-06-16-parity05`, `no-cache`. |
+| Cloudflare build marker | Esperado tras publicacion: `2026-06-16-parity06`, `no-cache`. |
 | Cloudflare HTML publico | OK: HTML minimo, sin legacy detectado. |
 | Cloudflare headers | OK: `/`, `src/main.js`, `base.css`, SW y build marker con `no-cache`. |
 | Wrangler deploy directo | Bloqueado: falta `CLOUDFLARE_API_TOKEN` en entorno no interactivo. Cloudflare publico si auto-publico desde GitHub. |

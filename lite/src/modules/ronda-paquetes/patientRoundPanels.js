@@ -1,6 +1,6 @@
 import { badge, button, el, link } from "../../components/dom.js";
 import { normalizeDate } from "../../lib/date.js";
-import { deviceDisplayName, packageLabel, packageReviewSummary, packageTone, preventiveCompliance } from "../../services/preventivePackageService.js";
+import { deviceDisplayName, normalizeSurgeryRoomDraft, packageLabel, packageReviewSummary, packageTone, preventiveCompliance } from "../../services/preventivePackageService.js";
 import { patientBed, patientDiagnosis, patientLabel, patientService } from "./roundHelpers.js";
 import { daysBetween, deviceActiveOnDate, isPePackageType, roundPatientHref, statusLabel, truncate } from "./roundPatientUtils.js";
 import { draftFromRound } from "./saveRoundFlow.js";
@@ -52,6 +52,12 @@ export function savedRoundActionLines(round = {}) {
   }
   if (round.quickDischarge?.enabled) {
     lines.push(`Alta: ${round.quickDischarge.date || "S/F"} - ${round.quickDischarge.type || "SIN DATO"} - ${round.quickDischarge.shift || "SIN TURNO"}`);
+  }
+  const surgeryRoom = normalizeSurgeryRoomDraft(round.surgeryRoom || {}, round.date || round.roundDate || "");
+  if (surgeryRoom.inOperatingRoom === "SI") {
+    lines.push(`Quirofano: SI - ${surgeryRoom.date || "S/F"} ${surgeryRoom.time || "S/H"}`);
+  } else if (surgeryRoom.inOperatingRoom === "NO") {
+    lines.push("Quirofano: NO");
   }
   if (round.generalObservations) {
     lines.push(`Observacion general: ${truncate(round.generalObservations, 120)}`);

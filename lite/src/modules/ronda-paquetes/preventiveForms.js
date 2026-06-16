@@ -10,12 +10,15 @@ import {
   ITU_MATERIAL_TYPES,
   NAVM_DEVICE_TYPES,
   NAVM_ORAL_HYGIENE_TYPES,
+  normalizeSurgeryRoomDraft,
   packageCreatesDevice,
   packageTone,
   PREVENTIVE_CHECKS,
   PREVENTIVE_PACKAGE_TYPES,
+  sanitizePreventiveRoundText,
   preventiveCompliance,
   SPECIAL_DEVICE_TYPES,
+  SURGERY_ROOM_VALUES,
   YES_NO_NA
 } from "../../services/preventivePackageService.js";
 import { DISCHARGE_SHIFTS, DISCHARGE_TYPES } from "./roundConstants.js";
@@ -231,6 +234,7 @@ export function renderPreventiveActionsPanel(app, date, patient, draft, redraw) 
   ensurePatientActionDraft(draft, patient, date);
   const role = app.state.auth.profile?.role;
   const canEditCensus = canWrite("censo", role);
+  const canEditRound = canWrite("ronda-paquetes", role);
   const movement = draft.patientMovement;
   const discharge = draft.quickDischarge;
   const selectedService = movement.service || patientService(patient);
@@ -295,6 +299,7 @@ export function renderPreventiveActionsPanel(app, date, patient, draft, redraw) 
           }
         }))
       ]),
+      renderSurgeryRoomActionCard(date, draft, canEditRound, redraw),
       el("article", { class: "patient-action-card quick-discharge-card" }, [
         el("strong", {}, ["Alta rapida"]),
         renderButtonGroup("Confirmar alta", ["NO", "SI"], dischargeEnabled ? "SI" : "NO", value => {
@@ -335,7 +340,9 @@ export function renderPreventiveActionsPanel(app, date, patient, draft, redraw) 
         value: draft.pendingText || "",
         placeholder: "Ej. confirmar retiro de CVC, revisar cultivo...",
         oninput: event => {
-          draft.pendingText = event.target.value;
+          const clean = sanitizePreventiveRoundText(event.target.value);
+          if (event.target.value !== clean) event.target.value = clean;
+          draft.pendingText = clean;
         }
       })),
       field("Notas cortas", textareaInput({
@@ -345,6 +352,33 @@ export function renderPreventiveActionsPanel(app, date, patient, draft, redraw) 
         }
       }))
     ])
+  ]);
+}
+
+function renderSurgeryRoomActionCard(date, draft, canEdit, redraw) {
+  const surgeryRoom = normalizeSurgeryRoomDraft(draft.surgeryRoom || {}, date);
+  draft.surgeryRoom = surgeryRoom;
+  const inOperatingRoom = surgeryRoom.inOperatingRoom;
+  const patch = value => {
+    draft.surgeryRoom = normalizeSurgeryRoomDraft({ ...draft.surgeryRoom, ...value, _dirty: true }, date);
+    redraw();
+  };
+  return el("article", { class: "patient-action-card surgery-room-card" }, [
+    el("strong", {}, ["Quirofano / ISQ"]),
+    renderButtonGroup("Paciente en quirofano", SURGERY_ROOM_VALUES, inOperatingRoom, value => patch({ inOperatingRoom: value }), { disabled: !canEdit }),
+    inOperatingRoom === "SI" ? el("div", { class: "form-grid compact" }, [
+      field("Fecha ingreso", dateInput({
+        value: surgeryRoom.date || date,
+        disabled: !canEdit,
+        onchange: event => patch({ date: event.target.value })
+      })),
+      field("Hora 24 h", textInput({
+        type: "time",
+        value: surgeryRoom.time || "",
+        disabled: !canEdit,
+        onchange: event => patch({ time: event.target.value })
+      }))
+    ]) : el("small", { class: "muted" }, ["Registro rapido para senal quirurgica y cedula ISQ."])
   ]);
 }
 
@@ -359,6 +393,7 @@ export function ensurePatientActionDraft(draft, patient, date) {
   draft.quickDischarge.shift ||= DISCHARGE_SHIFTS[DISCHARGE_SHIFTS.length - 1];
   if (draft.generalObservationDate === undefined) draft.generalObservationDate = date;
   if (draft.generalObservations === undefined) draft.generalObservations = "";
+  draft.surgeryRoom = normalizeSurgeryRoomDraft(draft.surgeryRoom || {}, date);
   return draft;
 }
 

@@ -51,7 +51,7 @@ Alcance: inventario funcional de la raiz legacy del repositorio para migrar solo
 | ITS-CVC / ITS-CC | `iaas-system-runtime-2026-06-04.js:330`, `preventivePackageService` legacy | Paquete asociado a cateter central. | Si. | Campos dispersos. | `preventivePackageService.js`, `ronda-paquetes` | migrado |
 | ITU-CU | `iaas-system-runtime-2026-06-04.js:332` | Paquete para cateter urinario y material. | Si. | Reglas mezcladas con UI. | `preventivePackageService.js` | migrado |
 | NAVM | `iaas-system-runtime-2026-06-04.js:333` | Paquete para ventilacion mecanica. | Si. | Dependia de device text. | `preventivePackageService.js` | migrado |
-| ISQ | `preventive-round-workflow-hotfix-2026-06-02.js`, `ronda-paquetes` legacy | Senal quirurgica, sala y acciones. | Si. | No separado como servicio. | `ronda-paquetes`, futuro `preventiveForms.js` | pendiente |
+| ISQ | `preventive-round-workflow-hotfix-2026-06-02.js`, `ronda-paquetes` legacy | Senal quirurgica, sala/quirofano y acciones. | Si. | Hotfix DOM sobre flujo de ronda y guardado. | `preventivePackageService.js`, `preventiveForms.js`, `saveRoundFlow.js`, `patientRoundPanels.js` | migrado |
 | P.E. y P.B.M.T. | `iaas-system-runtime-2026-06-04.js:11944`, `:11966` | Identificaba paquetes PE/PBMT y resumen historico. | Si. | Logica dentro de ronda monolitica. | `preventivePackageService.js` | migrado |
 | Paquetes especiales | `iaas-system-runtime-2026-06-04.js:335` | Dispositivos/paquetes especiales. | Si. | Catalogo en runtime. | `preventivePackageService.js`, catalogos | migrado |
 | Ronda por fecha | `iaas-system-runtime-2026-06-04.js:4057` | Renderizaba ronda diaria por fecha. | Si. | Cargaba panel completo y dependencias globales. | `modules/ronda-paquetes` | migrado |

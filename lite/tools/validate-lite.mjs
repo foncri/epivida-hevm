@@ -240,6 +240,12 @@ for (const expected of ["PREVENTIVE_CEDULA_SPECS", "ITS - CC", "ITU - CU", "NAVM
     fail("preventiveCedulaService debe migrar cedulas preventivas diarias y mensuales desde rondas guardadas.");
   }
 }
+const preventivePackageServiceSource = readFileSync(join(root, "src/services/preventivePackageService.js"), "utf8");
+for (const expected of ["PREVENTIVE_ROUND_WORKFLOW_VERSION", "sanitizePreventiveRoundText", "normalizeSurgeryRoomDraft", "surgeryRoomPayload", "SURGERY_ROOM_VALUES"]) {
+  if (!preventivePackageServiceSource.includes(expected)) {
+    fail("preventivePackageService debe conservar reglas del hotfix preventive-round-workflow sin parches DOM legacy.");
+  }
+}
 
 const offlineQueueSource = readFileSync(join(root, "src/services/offlineQueueService.js"), "utf8");
 if (!offlineQueueSource.includes("function retryableSyncError") || !offlineQueueSource.includes("sync_blocked")) {
@@ -412,6 +418,16 @@ if (
   !preventiveFormsSource.includes("ensurePatientActionDraft")
 ) {
   fail("ronda-paquetes debe mantener formularios preventivos y acciones de paciente en preventiveForms.js, no en el orquestador principal.");
+}
+if (
+  !preventiveFormsSource.includes("renderSurgeryRoomActionCard") ||
+  !preventiveFormsSource.includes("sanitizePreventiveRoundText") ||
+  !saveRoundFlowSource.includes("requestedStatus === \"pendiente\" ? \"pendiente\"") ||
+  !saveRoundFlowSource.includes("surgeryRoomPayload") ||
+  !saveRoundFlowSource.includes("preventiveWorkflowVersion") ||
+  !patientRoundPanelsSource.includes("Quirofano")
+) {
+  fail("ronda-paquetes debe migrar preventive-round-workflow-hotfix: pendiente explicito, texto limpio y quirofano/ISQ estructurado.");
 }
 if (
   !patientRoundSource.includes('from "./patientRoundPanels.js"') ||
