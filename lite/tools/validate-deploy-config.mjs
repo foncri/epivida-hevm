@@ -73,8 +73,8 @@ if (packageJson) {
   if (scripts["deploy:firestore"] !== "firebase deploy --only firestore:rules,firestore:indexes") {
     fail("package.json debe conservar deploy:firestore para reglas e indices Firestore.");
   }
-  if (!scripts["validate:lite"] || !scripts["validate:lite:qa"] || !scripts["validate:deploy"]) {
-    fail("package.json debe exponer validate:lite, validate:lite:qa y validate:deploy.");
+  if (!scripts["validate:lite"] || !scripts["validate:lite:qa"] || !scripts["validate:deploy"] || !scripts["validate:snapshots"]) {
+    fail("package.json debe exponer validate:lite, validate:lite:qa, validate:deploy y validate:snapshots.");
   }
 }
 

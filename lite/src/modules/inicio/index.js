@@ -1,12 +1,13 @@
 import { badge, el, link } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { loadOperationalAlerts } from "../../services/operationalAlertService.js";
-import { todaySnapshot } from "../../services/snapshotService.js";
+import { snapshotTrend, todaySnapshot } from "../../services/snapshotService.js";
 import { listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
 
 export async function render({ app }) {
-  const [snapshot, pendingWrites, alerts] = await Promise.all([
+  const [snapshot, trend, pendingWrites, alerts] = await Promise.all([
     todaySnapshot(),
+    snapshotTrend(undefined, 7).catch(() => null),
     listPendingWrites(),
     loadOperationalAlerts().catch(() => null)
   ]);
@@ -22,6 +23,7 @@ export async function render({ app }) {
       [String(syncSummary.pending || snapshot?.totalPendingIssues || 0), "Pendientes sync"],
       [String(syncSummary.blocked), "Sync bloqueada"]
     ]),
+    trend ? renderSnapshotTrendPanel(trend) : "",
     alerts ? renderOperationalAlertPanels(alerts) : "",
     el("section", { class: "row-list" }, [
       quick("Monitoreo epidemiologico", "#/monitoreo-epidemiologico", "Tabla rapida de pacientes activos."),
@@ -29,6 +31,47 @@ export async function render({ app }) {
       role !== "enfermeria" ? quick("Censo", "#/censo", "Gestion de pacientes activos.") : "",
       role !== "enfermeria" ? quick("Reportes", "#/reportes", "Exportacion bajo demanda.") : ""
     ])
+  ]);
+}
+
+function renderSnapshotTrendPanel(trend) {
+  const latest = trend.latest;
+  const rows = trend.rows || [];
+  const patientPeak = Math.max(1, trend.peaks?.totalActivePatients || 0);
+  const deltas = trend.deltas || {};
+  return el("section", { class: "iaas-panel snapshot-trend-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Tendencia operativa"]),
+        el("p", {}, [latest ? `Ultimo snapshot: ${latest.date}` : "Sin snapshots recientes."])
+      ]),
+      badge(`${trend.foundDays || 0}/${rows.length || 0}`, trend.foundDays ? "ok" : "neutral")
+    ]),
+    latest ? el("div", { class: "snapshot-delta-grid" }, [
+      deltaCard("Pacientes", latest.totalActivePatients, deltas.totalActivePatients),
+      deltaCard("IAAS", latest.totalIAASActive, deltas.totalIAASActive),
+      deltaCard("Invasivos", latest.totalDevicesActive, deltas.totalDevicesActive),
+      deltaCard("Pendientes", latest.totalPendingIssues, deltas.totalPendingIssues)
+    ]) : "",
+    el("div", { class: "snapshot-trend-bars" }, rows.map(row =>
+      el("div", { class: `snapshot-trend-row ${row.found ? "" : "missing"}`.trim() }, [
+        el("span", {}, [row.date.slice(5)]),
+        el("div", { class: "snapshot-trend-track" }, [
+          el("i", { style: { width: `${row.found ? Math.max(6, (row.totalActivePatients / patientPeak) * 100) : 0}%` } })
+        ]),
+        el("strong", {}, [row.found ? String(row.totalActivePatients) : "S/D"])
+      ])
+    ))
+  ]);
+}
+
+function deltaCard(label, value, delta) {
+  const tone = delta > 0 ? "warn" : delta < 0 ? "ok" : "neutral";
+  const prefix = delta > 0 ? "+" : "";
+  return el("article", { class: `snapshot-delta-card ${tone}` }, [
+    el("span", {}, [label]),
+    el("strong", {}, [String(value ?? 0)]),
+    el("small", {}, [`${prefix}${delta || 0} vs previo`])
   ]);
 }
 

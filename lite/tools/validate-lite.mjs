@@ -500,6 +500,15 @@ const snapshotServiceSource = readFileSync(join(root, "src/services/snapshotServ
 if (!snapshotServiceSource.includes("snapshotPromises") || !snapshotServiceSource.includes("cacheSet(snapshotCacheKey(date)") || !snapshotServiceSource.includes("cacheGet(snapshotCacheKey(date)")) {
   fail("snapshotService debe cachear daily_snapshots por fecha y deduplicar lecturas en vuelo para Inicio.");
 }
+if (
+  !snapshotServiceSource.includes("export async function snapshotTrend") ||
+  !snapshotServiceSource.includes("snapshotTrendDates") ||
+  !snapshotServiceSource.includes("summarizeSnapshotTrend") ||
+  !inicioModuleSource.includes("snapshotTrend(undefined, 7)") ||
+  !inicioModuleSource.includes("renderSnapshotTrendPanel")
+) {
+  fail("Inicio debe migrar tendencia operativa del runtime usando daily_snapshots por rango acotado, no solo snapshot diario.");
+}
 const catalogServiceSource = readFileSync(join(root, "src/services/catalogService.js"), "utf8");
 if (!catalogServiceSource.includes("catalogsPromise") || !catalogServiceSource.includes("cacheSet(CACHE_KEY, rows)") || !catalogServiceSource.includes("cacheGet(CACHE_KEY)")) {
   fail("catalogService debe cachear catalogos y deduplicar lecturas en vuelo.");
