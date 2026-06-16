@@ -55,6 +55,14 @@ const PATIENTS = [
     hospitalDiagnosis: "Alta probable por mejoria",
     probableDischarge: true,
     dischargeReviewRequired: true,
+    opd: {
+      address: "",
+      phone: "",
+      symptomStartDate: "2026-06-01",
+      dischargeDate: "",
+      uploaded: false,
+      discharged: false
+    },
     active: true
   }
 ];

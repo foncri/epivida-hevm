@@ -1,4 +1,5 @@
 import { epidemiologicalDiagnosis, filterPatients, sortPatientsByServiceBed, uniqueValues } from "./patientService.js";
+import { opdEligibilityForPatient, opdStatus } from "./opdService.js";
 
 function normalizedText(value = "") {
   return String(value || "")
@@ -59,6 +60,7 @@ export function monitorMetrics(patients = [], visible = patients) {
     unclassified: groups.sin_clasificar || 0,
     criticalPriority: visible.filter(row => monitorSeverity(row).level === "critica").length,
     highPriority: visible.filter(row => monitorSeverity(row).level === "alta").length,
+    opdPending: visible.filter(row => monitorOpdStatus(row).pending).length,
     pendingSync: visible.filter(row => row.syncStatus === "local_pending").length
   };
 }
@@ -75,12 +77,17 @@ export function monitorStats(patients = [], visible = patients) {
     [String(summary.surveillance), "Vigilancia"],
     [String(summary.criticalPriority), "Prioridad critica"],
     [String(summary.highPriority), "Prioridad alta"],
+    [String(summary.opdPending), "OPD pendientes"],
     [String(summary.pendingSync), "Sync pendiente"]
   ];
 }
 
 export function monitorPatientDiagnosis(patient = {}) {
   return epidemiologicalDiagnosis(patient);
+}
+
+export function monitorOpdStatus(patient = {}) {
+  return opdStatus(patient.opd, opdEligibilityForPatient(patient));
 }
 
 export function monitorSeverity(patient = {}) {

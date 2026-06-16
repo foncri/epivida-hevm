@@ -216,6 +216,10 @@ if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.inc
 if (!iaasServiceSource.includes("vitalFio2") || !iaasServiceSource.includes("previousVitals.fio2") || !iaasServiceSource.includes("vitalPeep") || !iaasServiceSource.includes("previousVitals.peep")) {
   fail("iaasService debe conservar campos de ventilacion FiO2/PEEP del seguimiento IAAS legacy.");
 }
+const opdServiceSource = readFileSync(join(root, "src/services/opdService.js"), "utf8");
+if (!opdServiceSource.includes("export function opdEligibilityForPatient") || !opdServiceSource.includes("export function opdEligibilityForIaasCase") || !opdServiceSource.includes("opdRequiredMissing") || !opdServiceSource.includes("opdFromFormData") || !opdServiceSource.includes("MORBIMORTALIDAD")) {
+  fail("opdService debe migrar OPD legacy como servicio puro para vigilancia e IAAS, sin loader ni eval.");
+}
 const cultureServiceSource = readFileSync(join(root, "src/services/cultureService.js"), "utf8");
 if (!cultureServiceSource.includes("export async function listCulturesForPatient") || !cultureServiceSource.includes('"cultures", [["patientId", "==", patientId]]') || !cultureServiceSource.includes("pendingPayloadsForCollection(\"cultures\")") || !cultureServiceSource.includes("export async function saveCulture")) {
   fail("cultureService debe consultar cultivos por paciente/caso y mezclar cola offline sin lecturas globales.");
@@ -261,6 +265,9 @@ if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceS
 }
 if (!monitorServiceSource.includes("export function monitorMetrics") || !monitorServiceSource.includes("export function monitorDiagnosisGroup") || !monitorServiceSource.includes("visibleMonitorPatients") || !monitorServiceSource.includes("riesgo_iaas") || !monitorServiceSource.includes("no_iaas")) {
   fail("monitorService debe centralizar metricas/filtros de monitoreo sin lecturas historicas.");
+}
+if (!monitorServiceSource.includes("monitorOpdStatus") || !monitorServiceSource.includes("opdPending") || !monitorServiceSource.includes("opdEligibilityForPatient")) {
+  fail("monitorService debe mostrar pendientes OPD derivados localmente, sin consultas adicionales.");
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
@@ -312,12 +319,22 @@ const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/ind
 if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.includes("visibleMonitorPatients") || !monitoreoModuleSource.includes("monitorFilterOptions") || monitoreoModuleSource.includes("filterPatients") || monitoreoModuleSource.includes("uniqueValues")) {
   fail("modules/monitoreo debe delegar metricas/filtros a monitorService y conservar una sola lectura de pacientes activos.");
 }
+if (!monitoreoModuleSource.includes("monitorOpdStatus") || !monitoreoModuleSource.includes('"OPD"')) {
+  fail("modules/monitoreo debe exponer estado OPD sin cargar seguimiento IAAS completo.");
+}
+const censoModuleSource = readFileSync(join(root, "src/modules/censo/index.js"), "utf8");
+if (!censoModuleSource.includes("renderOpdFields") || !censoModuleSource.includes("opdFromFormData") || !censoModuleSource.includes("MORBIMORTALIDAD MATERNA/PERINATAL")) {
+  fail("modules/censo debe capturar OPD para vigilancia hospitalaria desde el formulario de paciente.");
+}
 const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.js"), "utf8");
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
   fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
 }
 if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes('name: "vitalFio2"') || !epiIaasModuleSource.includes('name: "vitalPeep"') || !epiIaasModuleSource.includes("followUpSummary")) {
   fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
+}
+if (!epiIaasModuleSource.includes("renderOpdFields") || !epiIaasModuleSource.includes("opdEligibilityForIaasCase") || !epiIaasModuleSource.includes("opdFromFormData")) {
+  fail("modules/epi-iaas debe capturar OPD para IAAS confirmada sin loader legacy.");
 }
 const dispositivosModuleSource = readFileSync(join(root, "src/modules/dispositivos/index.js"), "utf8");
 const dispositivosFormsSource = readFileSync(join(root, "src/modules/dispositivos/deviceForms.js"), "utf8");

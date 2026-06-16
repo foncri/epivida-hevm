@@ -85,6 +85,7 @@ Rutas legacy detectadas:
 | P1 | Reinstalacion guiada de dispositivos como nuevo episodio. | `#/dispositivos` prepara reinstalacion desde `devices_archive`, conserva tipo/subtipo/French/paquete/sitio, guarda un episodio activo nuevo con `previousEpisodeId`, `reinstallationOf`, `isReinstallation` y auditoria `device_reinstallation_create`. | `npm run validate:lite`. |
 | P1 | Campos de ventilacion IAAS. | `iaasService.normalizeIaasClinicalFollowUp()` y `#/epi-iaas` conservan FiO2 y PEEP en `vitalSigns`, igual que la superficie legacy de ventilacion/NAVM. | `npm run validate:lite`. |
 | P1 | Auditoria reciente en Admin. | `auditService.listRecentAuditLogs()` y `adminAuditPanel` cargan `audit_logs` bajo demanda por usuario o modulo, usando indices existentes y sin listar auditoria global. | `npm run validate:lite`; `npm run validate:indexes`. |
+| P1 | OPD sin loader legacy. | `opdService` reemplaza `iaas-system-opd-loader-2026-05-20.js`; Censo captura OPD para vigilancia/morbimortalidad, EPI-IAAS captura OPD para IAAS confirmada y Monitoreo muestra pendientes OPD sin consultas adicionales. | `npm run validate:lite`. |
 
 ## Omision P0 Migrada En Esta Fase
 
@@ -121,7 +122,7 @@ Implementacion Lite agregada:
 
 ## Estado Real
 
-EPIVIDA Lite es superior en arquitectura y rendimiento, pero no se debe vender como cierre total de paridad clinica. Reinstalacion de dispositivos, FiO2/PEEP y auditoria Admin ya quedaron cerradas en codigo; la ruta correcta es continuar por bloques:
+EPIVIDA Lite es superior en arquitectura y rendimiento, pero no se debe vender como cierre total de paridad clinica. Reinstalacion de dispositivos, FiO2/PEEP, auditoria Admin y OPD base ya quedaron cerradas en codigo; la ruta correcta es continuar por bloques:
 
 1. Cerrar P0 de censo/conciliacion con fixtures anonimos reales.
 2. Cerrar IAAS avanzado por secciones y cedulas.

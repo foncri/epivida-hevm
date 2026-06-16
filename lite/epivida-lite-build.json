@@ -1,8 +1,8 @@
 {
   "app": "EPIVIDA Lite",
-  "release": "2026-06-16-parity02",
+  "release": "2026-06-16-parity03",
   "branch": "feature/epivida-lite-ultrafast-rework",
   "cloudflareProject": "epivida-hevm",
-  "updatedAt": "2026-06-16T15:19:46Z",
-  "notes": "Paridad Lite ampliada: reinstalacion de dispositivos, ventilacion IAAS FiO2/PEEP y auditoria Admin filtrada. No clinical data."
+  "updatedAt": "2026-06-16T15:43:03Z",
+  "notes": "Paridad Lite ampliada: OPD base migrado sin loader legacy, con captura en Censo/EPI-IAAS y estado en Monitoreo. No clinical data."
 }

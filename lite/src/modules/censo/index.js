@@ -1,12 +1,14 @@
 import { badge, button, dateInput, el, field, frameScheduler, notice, numberInput, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
+import { renderOpdFields } from "../../components/opdFields.js";
 import { modulePage } from "../../components/moduleLayout.js";
 import { currentCensus } from "../../services/censusService.js";
 import { archivePatient, filterPatients, savePatient, sortPatientsByServiceBed } from "../../services/patientService.js";
+import { opdEligibilityForText, opdFromFormData, opdHasContent } from "../../services/opdService.js";
 import { canWrite } from "../../lib/security.js";
 
 const SEX_OPTIONS = ["", "F", "M"];
 const STATE_OPTIONS = ["", "ESTABLE", "DELICADO", "GRAVE", "MUY GRAVE", "CRITICO"];
-const EPI_OPTIONS = ["", "VIG TRANSMISIBLE", "VIG NO TRANSMISIBLE", "NO IAAS", "RIESGO IAAS", "IAAS"];
+const EPI_OPTIONS = ["", "VIG TRANSMISIBLE", "VIG NO TRANSMISIBLE", "MORBIMORTALIDAD MATERNA/PERINATAL", "NO IAAS", "RIESGO IAAS", "IAAS"];
 
 export async function render({ app }) {
   const census = await currentCensus();
@@ -96,6 +98,16 @@ function patientValues(patients, getter) {
 function patientForm(app, patient, onSaved, onError, onCancel) {
   let saving = false;
   const saveButton = button("Guardar", null, { type: "submit", dataset: { saveButton: "patient" } });
+  const epiSelect = selectInput(EPI_OPTIONS, { name: "epidemiologicalDiagnosis", value: patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis || "" });
+  const opdContainer = el("div", {});
+  const renderOpd = () => {
+    const eligibility = opdEligibilityForText(epiSelect.value);
+    opdContainer.replaceChildren(eligibility.eligible || opdHasContent(patient.opd)
+      ? renderOpdFields(patient.opd, { eligibility })
+      : "");
+  };
+  epiSelect.addEventListener("change", renderOpd);
+  renderOpd();
   return el("form", {
     class: "form-card",
     onsubmit: async event => {
@@ -107,6 +119,7 @@ function patientForm(app, patient, onSaved, onError, onCancel) {
       try {
         const form = event.currentTarget;
         const data = Object.fromEntries(new FormData(form));
+        const opdEligibility = opdEligibilityForText(data.epidemiologicalDiagnosis);
         const payload = {
           ...patient,
           patientName: data.patientName,
@@ -124,7 +137,10 @@ function patientForm(app, patient, onSaved, onError, onCancel) {
           currentEpidemiologicalDiagnosis: data.epidemiologicalDiagnosis,
           hospitalDiagnosis: data.hospitalDiagnosis,
           currentDiagnosis: data.hospitalDiagnosis,
-          observations: data.observations
+          observations: data.observations,
+          opd: opdEligibility.eligible || opdHasContent(patient.opd)
+            ? opdFromFormData(data, patient.opd)
+            : patient.opd
         };
         const saved = await savePatient(app, payload);
         onSaved(saved);
@@ -145,9 +161,10 @@ function patientForm(app, patient, onSaved, onError, onCancel) {
       field("Edad", numberInput({ name: "age", min: 0, max: 120, value: patient.age ?? "" })),
       field("Ingreso", dateInput({ name: "admissionDate", value: patient.admissionDate || "" })),
       field("Estado", selectInput(STATE_OPTIONS, { name: "status", value: patient.status || patient.currentState || "" })),
-      field("Dx epidemiologico", selectInput(EPI_OPTIONS, { name: "epidemiologicalDiagnosis", value: patient.epidemiologicalDiagnosis || "" })),
+      field("Dx epidemiologico", epiSelect),
       field("Dx hospitalario", textInput({ name: "hospitalDiagnosis", value: patient.hospitalDiagnosis || patient.currentDiagnosis || "" }))
     ]),
+    opdContainer,
     field("Observaciones", textareaInput({ name: "observations", rows: 3, value: patient.observations || "" })),
     el("div", { class: "toolbar" }, [
       saveButton,

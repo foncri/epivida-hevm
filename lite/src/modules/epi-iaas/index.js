@@ -1,6 +1,7 @@
 import { badge, button, dateInput, el, field, notice, pagedTable, selectInput, textareaInput, textInput } from "../../components/dom.js";
 import { renderClinicalFollowUpPanel } from "../../components/clinicalFollowUp.js";
 import { renderMicrobiologyDashboard } from "../../components/microbiologyDashboard.js";
+import { renderOpdFields } from "../../components/opdFields.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
 import { listAntimicrobialsForIaas, saveAntimicrobial } from "../../services/antimicrobialService.js";
@@ -10,6 +11,7 @@ import { canWrite } from "../../lib/security.js";
 import { buildCriteriaTemplate, criteriaVersionForType, defaultAntimicrobialIndication, defaultCultureTypeForIaas, getIaasCriteria, iaasTypeOptions } from "../../services/iaasCriteriaService.js";
 import { closeIaasCase, listActiveIaas, normalizeIaasClinicalFollowUp, saveIaasCase } from "../../services/iaasService.js";
 import { loadMicrobiologyDashboard } from "../../services/microbiologyDashboardService.js";
+import { opdEligibilityForIaasCase, opdFromFormData, opdHasContent, opdStatus } from "../../services/opdService.js";
 import { listActivePatients } from "../../services/patientService.js";
 
 const IAAS_STATUS = [["sospecha", "Sospecha"], ["probable", "Probable"], ["confirmada", "Confirmada"], ["descartada", "Descartada"]];
@@ -113,16 +115,26 @@ export async function render({ app }) {
 }
 
 function iaasForm(app, iaas, patients, onSaved, onCancel) {
-  const typeSelect = selectInput(iaasTypeOptions(), { name: "iaasType", required: true, value: iaas.iaasType || "" });
+  const typeSelect = selectInput(iaasTypeSelectOptions(iaas.iaasType), { name: "iaasType", required: true, value: iaas.iaasType || "" });
+  const statusSelect = selectInput(IAAS_STATUS, { name: "status", required: true, value: iaas.status || "sospecha" });
   const criteriaInput = textareaInput({ name: "criteria", rows: 5, value: iaas.criteria || "" });
   const criteriaVersionInput = el("input", { type: "hidden", name: "criteriaVersion", value: iaas.criteriaVersion || criteriaVersionForType(iaas.iaasType || "") });
   const criteriaGuide = el("div", { class: "criteria-guide" }, renderCriteriaGuide(iaas.iaasType || ""));
+  const opdContainer = el("div", {});
+  const renderOpd = () => {
+    const eligibility = opdEligibilityForIaasCase({ ...iaas, status: statusSelect.value });
+    opdContainer.replaceChildren(eligibility.eligible || opdHasContent(iaas.opd)
+      ? renderOpdFields(iaas.opd, { eligibility })
+      : "");
+  };
   typeSelect.addEventListener("change", () => {
     const selected = typeSelect.value;
     criteriaVersionInput.value = criteriaVersionForType(selected);
     criteriaGuide.replaceChildren(...renderCriteriaGuide(selected));
     if (!criteriaInput.value.trim()) criteriaInput.value = buildCriteriaTemplate(selected);
   });
+  statusSelect.addEventListener("change", renderOpd);
+  renderOpd();
 
   return el("form", {
     class: "form-card",
@@ -130,6 +142,7 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.currentTarget));
       const patient = patients.find(row => row.patientId === data.patientId) || {};
+      const opdEligibility = opdEligibilityForIaasCase({ ...iaas, status: data.status });
       const saved = await saveIaasCase(app, {
         ...iaas,
         patientId: data.patientId,
@@ -141,7 +154,10 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
         onsetDate: data.onsetDate,
         probableOrigin: data.probableOrigin,
         notes: data.notes,
-        ...normalizeIaasClinicalFollowUp(data, iaas)
+        ...normalizeIaasClinicalFollowUp(data, iaas),
+        opd: opdEligibility.eligible || opdHasContent(iaas.opd)
+          ? opdFromFormData(data, iaas.opd)
+          : iaas.opd
       });
       await saveLinkedCulture(app, saved, data);
       await saveLinkedAntimicrobial(app, saved, data);
@@ -151,7 +167,7 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
     el("div", { class: "form-grid" }, [
       field("Paciente", selectInput(patientOptions(patients), { name: "patientId", required: true, value: iaas.patientId || "" })),
       field("Tipo IAAS", typeSelect),
-      field("Estado", selectInput(IAAS_STATUS, { name: "status", required: true, value: iaas.status || "sospecha" })),
+      field("Estado", statusSelect),
       field("Fecha inicio", dateInput({ name: "onsetDate", value: iaas.onsetDate || todayIso() })),
       field("Origen probable", textInput({ name: "probableOrigin", value: iaas.probableOrigin || "" }))
     ]),
@@ -165,6 +181,7 @@ function iaasForm(app, iaas, patients, onSaved, onCancel) {
       field("Plan", textareaInput({ name: "carePlan", rows: 3, value: iaas.followUp?.carePlan || "" }))
     ]),
     criteriaGuide,
+    opdContainer,
     el("div", { class: "form-grid compact" }, [
       field("Temp", textInput({ name: "vitalTemperature", value: iaas.vitalSigns?.temperature || "" })),
       field("FC", textInput({ name: "vitalHeartRate", value: iaas.vitalSigns?.heartRate || "" })),
@@ -238,6 +255,12 @@ function renderCriteriaGuide(type = "") {
   ];
 }
 
+function iaasTypeSelectOptions(current = "") {
+  const options = iaasTypeOptions();
+  if (current && !options.some(([value]) => value === current)) options.push([current, current]);
+  return options;
+}
+
 function patientOptions(patients) {
   return [["", "Seleccionar"], ...patients.map(patient => [
     patient.patientId,
@@ -262,6 +285,7 @@ function followUpSummary(row = {}) {
     row.vitalSigns?.temperature ? `T ${row.vitalSigns.temperature}` : "",
     row.vitalSigns?.fio2 ? `FiO2 ${row.vitalSigns.fio2}` : "",
     row.vitalSigns?.peep ? `PEEP ${row.vitalSigns.peep}` : "",
+    opdStatus(row.opd, opdEligibilityForIaasCase(row)).pending ? "OPD pendiente" : "",
     row.labs?.biometry ? "BH" : ""
   ].filter(Boolean);
   return parts.join(" / ") || "Sin seguimiento";

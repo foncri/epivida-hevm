@@ -1,7 +1,7 @@
 import { badge, el, frameScheduler, pagedTable, selectInput, textInput } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { listActivePatients } from "../../services/patientService.js";
-import { monitorFilterOptions, monitorPatientDiagnosis, monitorSeverity, monitorStats, visibleMonitorPatients } from "../../services/monitorService.js";
+import { monitorFilterOptions, monitorOpdStatus, monitorPatientDiagnosis, monitorSeverity, monitorStats, visibleMonitorPatients } from "../../services/monitorService.js";
 
 export async function render() {
   const patients = await listActivePatients();
@@ -22,7 +22,7 @@ export async function render() {
         selectInput(filterOptions.priority, { onchange: event => { filters.priority = event.target.value; redraw(); } }),
         selectInput(filterOptions.sort, { onchange: event => { filters.sort = event.target.value; redraw(); } })
       ]),
-      pagedTable(["Prioridad", "Servicio", "Cama", "Paciente", "Sexo", "Dx epidemiologico", "Sync"], visible, patient =>
+      pagedTable(["Prioridad", "Servicio", "Cama", "Paciente", "Sexo", "Dx epidemiologico", "OPD", "Sync"], visible, patient =>
         el("tr", {}, [
           el("td", {}, [badge(monitorSeverity(patient).label, monitorSeverityTone(patient))]),
           el("td", {}, [patient.service || patient.currentService || ""]),
@@ -30,6 +30,7 @@ export async function render() {
           el("td", {}, [patient.patientName || patient.patientId || ""]),
           el("td", {}, [patient.sex || ""]),
           el("td", {}, [monitorPatientDiagnosis(patient)]),
+          el("td", {}, [opdBadge(patient)]),
           el("td", {}, [patient.syncStatus === "local_pending" ? badge("Pendiente", "warn") : patient.syncStatus || ""])
         ])
       )
@@ -46,4 +47,9 @@ function monitorSeverityTone(patient) {
   if (level === "critica" || level === "alta") return "warn";
   if (level === "media") return "neutral";
   return "ok";
+}
+
+function opdBadge(patient) {
+  const status = monitorOpdStatus(patient);
+  return badge(status.label, status.tone);
 }
