@@ -7,7 +7,9 @@ import { listActivePatients } from "../../services/patientService.js";
 import { downloadCsv, downloadJson } from "../../services/exportService.js";
 import { listPendingWrites } from "../../services/offlineQueueService.js";
 import { preventiveCedulaCsvRows, preventiveCedulaOptions, preventiveMonthlyCsvRows } from "../../services/preventiveCedulaService.js";
-import { buildOperationalBackup, dailySnapshotRowsForRange, historicalExportOptions, pageHistoricalRows } from "../../services/reportService.js";
+import { buildOperationalBackup, historicalExportOptions, pageHistoricalRows } from "../../services/reportService.js";
+import { renderEpidemiologicalCensusExport } from "./epidemiologicalExports.js";
+import { renderDailySnapshotExport } from "./snapshotExports.js";
 
 export async function render({ app }) {
   const state = app.state.moduleState.reportes ||= {
@@ -34,13 +36,26 @@ export async function render({ app }) {
       state.message ? notice(state.message, state.message.includes("primeros") ? "warn" : "ok") : "",
       renderDailySnapshotExport(app, state, redraw),
       renderPreventiveCedulaExport(app, state, redraw),
+      renderEpidemiologicalCensusExport(app, state, redraw),
       renderHistoricalChunkExport(app, state, redraw),
       renderOperationalBackupExport(app, state, redraw),
       el("section", { class: "row-list" }, [
-        exportCard("Censo actual CSV", "patients_active", async () => downloadCsv(app, `epivida-censo-${todayIso()}.csv`, await listActivePatients(), { dataset: "patients_active" })),
-        exportCard("Dispositivos activos CSV", "devices_active", async () => downloadCsv(app, `epivida-dispositivos-${todayIso()}.csv`, await listActiveDevices(), { dataset: "devices_active" })),
-        exportCard("IAAS activas CSV", "iaas_active", async () => downloadCsv(app, `epivida-iaas-${todayIso()}.csv`, await listActiveIaas(), { dataset: "iaas_active" })),
-        exportCard("Sincronizacion pendiente CSV", "sync_queue local", async () => downloadCsv(app, `epivida-sync-pendiente-${todayIso()}.csv`, await listPendingWrites(), { dataset: "sync_queue" }))
+        exportCard("Censo actual", "patients_active", {
+          csv: async () => downloadCsv(app, `epivida-censo-${todayIso()}.csv`, await listActivePatients(), { dataset: "patients_active" }),
+          excel: async () => downloadExcel(app, `epivida-censo-${todayIso()}.xlsx`, await listActivePatients(), { dataset: "patients_active", sheetName: "Censo" })
+        }),
+        exportCard("Dispositivos activos", "devices_active", {
+          csv: async () => downloadCsv(app, `epivida-dispositivos-${todayIso()}.csv`, await listActiveDevices(), { dataset: "devices_active" }),
+          excel: async () => downloadExcel(app, `epivida-dispositivos-${todayIso()}.xlsx`, await listActiveDevices(), { dataset: "devices_active", sheetName: "Dispositivos" })
+        }),
+        exportCard("IAAS activas", "iaas_active", {
+          csv: async () => downloadCsv(app, `epivida-iaas-${todayIso()}.csv`, await listActiveIaas(), { dataset: "iaas_active" }),
+          excel: async () => downloadExcel(app, `epivida-iaas-${todayIso()}.xlsx`, await listActiveIaas(), { dataset: "iaas_active", sheetName: "IAAS" })
+        }),
+        exportCard("Sincronizacion pendiente", "sync_queue local", {
+          csv: async () => downloadCsv(app, `epivida-sync-pendiente-${todayIso()}.csv`, await listPendingWrites(), { dataset: "sync_queue" }),
+          excel: async () => downloadExcel(app, `epivida-sync-pendiente-${todayIso()}.xlsx`, await listPendingWrites(), { dataset: "sync_queue", sheetName: "Sync" })
+        })
       ])
     );
   }
@@ -55,7 +70,7 @@ function renderPreventiveCedulaExport(app, state, redraw) {
   const cedula = state.cedula;
   return el("section", { class: "form-card" }, [
     el("h2", {}, ["Cedulas preventivas"]),
-    el("p", { class: "muted" }, ["Genera CSV desde rondas guardadas; no carga Google Sheets ni librerias Excel."]),
+    el("p", { class: "muted" }, ["Genera archivos bajo demanda desde rondas guardadas; no carga Google Sheets ni librerias Excel al inicio."]),
     el("div", { class: "form-grid compact" }, [
       field("Paquete", selectInput(preventiveCedulaOptions(), {
         value: cedula.packageKey,
@@ -81,6 +96,17 @@ function renderPreventiveCedulaExport(app, state, redraw) {
         state.message = `Cedula ${result.spec.defaultTitle} exportada: ${result.rows.length} fila(s).`;
         redraw();
       }, { class: "ghost" }),
+      button("Exportar cedula diaria Excel", async () => {
+        const result = await preventiveCedulaCsvRows(cedula.date, cedula.packageKey);
+        await downloadExcel(app, `epivida-cedula-${result.spec.key}-${result.date}.xlsx`, result.rows, {
+          dataset: "preventive_cedula",
+          packageType: result.spec.packageType,
+          date: result.date,
+          sheetName: result.spec.key
+        });
+        state.message = `Cedula Excel ${result.spec.defaultTitle} exportada: ${result.rows.length} fila(s).`;
+        redraw();
+      }, { class: "ghost" }),
       button("Exportar mensual CSV", async () => {
         const result = await preventiveMonthlyCsvRows(cedula.month, cedula.packageKey);
         await downloadCsv(app, `epivida-cedula-mensual-${result.spec.key}-${result.month.monthKey}.csv`, result.rows, {
@@ -89,6 +115,17 @@ function renderPreventiveCedulaExport(app, state, redraw) {
           month: result.month.monthKey
         });
         state.message = `Mensual ${result.spec.defaultTitle} exportado: ${result.rows.length} fila(s).`;
+        redraw();
+      }, { class: "ghost" }),
+      button("Exportar mensual Excel", async () => {
+        const result = await preventiveMonthlyCsvRows(cedula.month, cedula.packageKey);
+        await downloadExcel(app, `epivida-cedula-mensual-${result.spec.key}-${result.month.monthKey}.xlsx`, result.rows, {
+          dataset: "preventive_cedula_monthly",
+          packageType: result.spec.packageType,
+          month: result.month.monthKey,
+          sheetName: `${result.spec.key} mensual`
+        });
+        state.message = `Mensual Excel ${result.spec.defaultTitle} exportado: ${result.rows.length} fila(s).`;
         redraw();
       }, { class: "ghost" })
     ])
@@ -166,6 +203,37 @@ function renderHistoricalChunkExport(app, state, redraw) {
           : `Exportados ${result.rows.length} registro(s). No hay mas bloques en este rango.`;
         redraw();
       }, { class: "ghost" }),
+      button("Exportar siguiente bloque Excel", async () => {
+        const result = await pageHistoricalRows(history.dataset, history.from, history.to, {
+          ...(history.cursor || {}),
+          pageSize: Number(history.pageSize) || 100,
+          direction: "next"
+        });
+        if (result.error) {
+          state.message = result.error;
+          redraw();
+          return;
+        }
+        await downloadExcel(app, `epivida-${result.dataset.key}-${result.from}-${result.to}.xlsx`, result.rows, {
+          dataset: result.dataset.collection,
+          from: result.from,
+          to: result.to,
+          chunked: true,
+          hasNext: result.hasNext,
+          sheetName: result.dataset.key
+        });
+        history.cursor = {
+          firstCursor: result.firstCursor,
+          lastCursor: result.lastCursor,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          pageSize: result.pageSize
+        };
+        state.message = result.hasNext
+          ? `Exportados ${result.rows.length} registro(s) Excel. Hay mas bloques disponibles.`
+          : `Exportados ${result.rows.length} registro(s) Excel. No hay mas bloques en este rango.`;
+        redraw();
+      }, { class: "ghost" }),
       button("Reiniciar bloque", () => {
         resetCursor();
         state.message = "Cursor historico reiniciado.";
@@ -178,60 +246,33 @@ function renderHistoricalChunkExport(app, state, redraw) {
 function renderOperationalBackupExport(app, state, redraw) {
   return el("section", { class: "form-card" }, [
     el("h2", {}, ["Respaldo operativo JSON"]),
-    el("p", { class: "muted" }, ["Incluye censo activo, dispositivos activos, IAAS activas, cola pendiente y snapshots del rango seleccionado."]),
+    el("p", { class: "muted" }, ["Incluye censo activo, dispositivos activos, IAAS activas, catalogos, cola pendiente y snapshots del rango seleccionado."]),
     el("div", { class: "toolbar" }, [
       button("Descargar respaldo JSON", async () => {
         const backup = await buildOperationalBackup(app, { includeSnapshots: true, from: state.from, to: state.to });
         await downloadJson(app, `epivida-backup-${todayIso()}.json`, backup, {
           dataset: "operational_backup",
-          rows: backup.meta.patients + backup.meta.devices + backup.meta.iaas + backup.meta.pending + backup.meta.snapshots
+          rows: backup.meta.patients + backup.meta.devices + backup.meta.iaas + backup.meta.catalogs + backup.meta.pending + backup.meta.snapshots
         });
-        state.message = `Respaldo JSON generado: ${backup.meta.patients} pacientes, ${backup.meta.devices} dispositivos, ${backup.meta.iaas} IAAS.`;
+        state.message = `Respaldo JSON generado: ${backup.meta.patients} pacientes, ${backup.meta.devices} dispositivos, ${backup.meta.iaas} IAAS, ${backup.meta.catalogs} catalogos.`;
         redraw();
       }, { class: "ghost" })
     ])
   ]);
 }
 
-function renderDailySnapshotExport(app, state, redraw) {
-  return el("section", { class: "form-card" }, [
-    el("h2", {}, ["Snapshots diarios por rango"]),
-    el("div", { class: "form-grid compact" }, [
-      field("Desde", dateInput({
-        value: state.from,
-        onchange: event => {
-          state.from = event.target.value;
-        }
-      })),
-      field("Hasta", dateInput({
-        value: state.to,
-        onchange: event => {
-          state.to = event.target.value;
-        }
-      }))
-    ]),
-    el("div", { class: "toolbar" }, [
-      button("Exportar snapshots CSV", async () => {
-        const result = await dailySnapshotRowsForRange(state.from, state.to);
-        await downloadCsv(app, `epivida-snapshots-${result.from}-${result.to}.csv`, result.rows, {
-          dataset: "daily_snapshots",
-          from: result.from,
-          to: result.to,
-          truncated: result.truncated
-        });
-        state.message = result.truncated
-          ? `Exportados los primeros ${result.rows.length} dias. Acorta el rango para evitar cargas grandes.`
-          : `Exportados ${result.rows.length} snapshot(s).`;
-        redraw();
-      }, { class: "ghost" })
-    ])
-  ]);
-}
-
-function exportCard(title, dataset, action) {
+function exportCard(title, dataset, actions) {
   return el("article", { class: "row-card" }, [
     el("strong", {}, [title]),
     el("span", { class: "muted" }, [`Fuente: ${dataset}.`]),
-    button("Exportar", action, { class: "ghost" })
+    el("div", { class: "toolbar" }, [
+      button("CSV", actions.csv, { class: "ghost" }),
+      button("Excel", actions.excel, { class: "ghost" })
+    ])
   ]);
+}
+
+async function downloadExcel(app, filename, rows, meta = {}) {
+  const { downloadWorkbook } = await import("../../services/excelExportService.js");
+  return downloadWorkbook(app, filename, rows, meta);
 }

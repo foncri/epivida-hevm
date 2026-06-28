@@ -20,7 +20,7 @@ EPIVIDA Lite debe pintar rapido, autenticar rapido, cargar solo la ruta necesari
 
 ## Datos
 
-- Inicio y monitoreo solo leen `patients_active`, `daily_snapshots` o catalogos necesarios.
+- Inicio y monitoreo leen `patients_active`, `daily_snapshots` o catalogos necesarios; la unica excepcion historica operativa es `patients_archive where opdPending == true order by archivedAt desc limit <= 100` para Alta OPD pendiente.
 - Historicos deben usar rango de fecha, `limit`, cursor e indice.
 - Nunca hacer `listCollection("patients_archive")` sin filtros.
 - Busqueda historica debe ir por `patients_search` o por consulta paginada.

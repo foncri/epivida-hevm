@@ -81,6 +81,14 @@
       ]
     },
     {
+      "collectionGroup": "patients_archive",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "opdPending", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "nursing_rounds",
       "queryScope": "COLLECTION",
       "fields": [
@@ -277,6 +285,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "module", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "audit_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entityId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },

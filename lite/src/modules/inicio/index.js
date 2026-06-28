@@ -1,13 +1,14 @@
 import { badge, el, link } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { loadOperationalAlerts } from "../../services/operationalAlertService.js";
-import { snapshotTrend, todaySnapshot } from "../../services/snapshotService.js";
+import { snapshotPeriodOverview, snapshotTrend, todaySnapshot } from "../../services/snapshotService.js";
 import { listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
 
 export async function render({ app }) {
-  const [snapshot, trend, pendingWrites, alerts] = await Promise.all([
+  const [snapshot, trend, periodOverview, pendingWrites, alerts] = await Promise.all([
     todaySnapshot(),
     snapshotTrend(undefined, 7).catch(() => null),
+    snapshotPeriodOverview().catch(() => null),
     listPendingWrites(),
     loadOperationalAlerts().catch(() => null)
   ]);
@@ -24,6 +25,7 @@ export async function render({ app }) {
       [String(syncSummary.blocked), "Sync bloqueada"]
     ]),
     trend ? renderSnapshotTrendPanel(trend) : "",
+    periodOverview ? renderSnapshotPeriodPanel(periodOverview) : "",
     alerts ? renderOperationalAlertPanels(alerts) : "",
     el("section", { class: "row-list" }, [
       quick("Monitoreo epidemiologico", "#/monitoreo-epidemiologico", "Tabla rapida de pacientes activos."),
@@ -31,6 +33,32 @@ export async function render({ app }) {
       role !== "enfermeria" ? quick("Censo", "#/censo", "Gestion de pacientes activos.") : "",
       role !== "enfermeria" ? quick("Reportes", "#/reportes", "Exportacion bajo demanda.") : ""
     ])
+  ]);
+}
+
+function renderSnapshotPeriodPanel(overview) {
+  const rows = [
+    ["Mes", overview.month],
+    ["Anio", overview.year]
+  ];
+  return el("section", { class: "iaas-panel snapshot-period-panel" }, [
+    el("div", { class: "iaas-panel-head compact" }, [
+      el("div", {}, [
+        el("h2", {}, ["Agregados operativos"]),
+        el("p", {}, ["Mensual/anual desde snapshots; no recorre historicos clinicos."])
+      ]),
+      badge(rows.filter(([, summary]) => summary?.found).length ? "activo" : "S/D", rows.some(([, summary]) => summary?.found) ? "ok" : "neutral")
+    ]),
+    el("div", { class: "snapshot-delta-grid" }, rows.map(([label, summary]) =>
+      el("article", { class: "snapshot-delta-card neutral" }, [
+        el("span", {}, [summary?.key ? `${label} ${summary.key}` : label]),
+        el("strong", {}, [summary?.found ? String(summary.latest?.totalActivePatients ?? 0) : "S/D"]),
+        el("small", {}, [summary?.found
+          ? `Pico ${summary.peaks?.totalActivePatients ?? 0}; corte ${summary.lastSnapshotDate || "sin fecha"}`
+          : "Sin agregado guardado"
+        ])
+      ])
+    ))
   ]);
 }
 

@@ -11,7 +11,7 @@ function requireValue(condition, message) {
 globalThis.window = {};
 globalThis.indexedDB = undefined;
 
-const { nextQueueWithWrite, syncQueueSummary } = await import("../src/services/offlineQueueService.js");
+const { listPendingWrites, nextQueueWithWrite, queueWrite, syncQueueSummary } = await import("../src/services/offlineQueueService.js");
 
 const clinicalQueue = nextQueueWithWrite([
   {
@@ -63,6 +63,27 @@ const blockedSummary = syncQueueSummary([
 requireValue(blockedSummary.pending === 1, "syncQueueSummary debe contar local_pending.");
 requireValue(blockedSummary.blocked === 1, "syncQueueSummary debe contar sync_blocked.");
 requireValue(blockedSummary.other === 1, "syncQueueSummary debe contar otros estados.");
+
+const app = {
+  state: {
+    auth: {
+      user: { uid: "qa-user", email: "qa@epivida.local" },
+      profile: { role: "admin_epidemiologia" }
+    }
+  }
+};
+await Promise.all(Array.from({ length: 6 }, (_, index) => queueWrite(app, {
+  id: `parallel_${index}`,
+  kind: "setDocMerge",
+  collection: "patients_active",
+  path: `patients_active/p_parallel_${index}`,
+  data: { patientId: `p_parallel_${index}`, patientName: `Paciente Paralelo ${index}` }
+})));
+const parallelQueue = await listPendingWrites();
+requireValue(
+  Array.from({ length: 6 }, (_, index) => parallelQueue.some(item => item.path === `patients_active/p_parallel_${index}`)).every(Boolean),
+  "queueWrite debe conservar escrituras paralelas sin pisar la cola offline."
+);
 
 if (failures.length) {
   console.error(`EPIVIDA Lite offline queue validation failed (${failures.length})`);

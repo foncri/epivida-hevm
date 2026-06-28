@@ -1,15 +1,21 @@
 import { cacheGet, cacheSet } from "../lib/cache.js";
 import { appConfig } from "../lib/config.js";
+import { nowIso, todayIso } from "../lib/date.js";
+import { normalizedPatientName, normalizeText } from "../lib/normalize.js";
 import { cleanText, stripUndefined, validPatient } from "../lib/validators.js";
 import { getDocData, listCollectionWhere } from "./firestoreService.js";
 import { writeAudit } from "./auditService.js";
-import { nowIso } from "../lib/date.js";
+import { dischargeDateValue, dischargeReasonForType, dischargeSummary, normalizeDischargeShift, normalizeDischargeType } from "./dischargeService.js";
 import { pendingPayloadsForCollection, setDocMergeOrQueue } from "./offlineQueueService.js";
+import { completeOpdForSave, opdEligibilityForPatient, opdHasContent, opdStatus } from "./opdService.js";
 import { testActivePatients } from "./testDataService.js";
 
 const CACHE_KEY = "patients_active:last";
 let activePatientsPromise = null;
 const patientFilterTextCache = new WeakMap();
+const PATIENT_SEARCH_LIMIT = 25;
+const MAX_SEARCH_TOKENS = 80;
+const ARCHIVED_OPD_LIMIT = 25;
 
 function makePatientId() {
   if (globalThis.crypto?.randomUUID) return `patient_${globalThis.crypto.randomUUID()}`;
@@ -122,6 +128,91 @@ export function patientFilterText(patient = {}) {
   return text;
 }
 
+export function patientSearchIndexData(patient = {}, extra = {}) {
+  const service = patient.service || patient.currentService || "";
+  const bed = patient.bed || patient.currentBed || "";
+  const diagnosis = epidemiologicalDiagnosis(patient);
+  const hospitalDiagnosis = patient.hospitalDiagnosis || patient.currentDiagnosis || "";
+  const searchText = normalizeText([
+    patient.patientId,
+    patient.patientName,
+    normalizedPatientName(patient.patientName),
+    bed,
+    service,
+    patient.sector,
+    patient.status || patient.currentState,
+    diagnosis,
+    hospitalDiagnosis
+  ].filter(Boolean).join(" "));
+  return stripUndefined({
+    patientId: patient.patientId || patient.id || "",
+    patientName: patient.patientName || "",
+    normalizedPatientName: normalizedPatientName(patient.patientName),
+    active: patient.active !== false,
+    service,
+    bed,
+    sex: patient.sex || "",
+    status: patient.status || patient.currentState || "",
+    epidemiologicalDiagnosis: diagnosis,
+    hospitalDiagnosis,
+    admissionDate: patient.admissionDate || patient.currentAdmissionDate || "",
+    searchText,
+    searchTokens: patientSearchTokens(searchText),
+    ...extra
+  });
+}
+
+export function patientSearchTokens(value = "") {
+  const words = normalizeText(value)
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(word => word.length >= 2);
+  const tokens = new Set();
+  words.forEach(word => {
+    tokens.add(word);
+    const max = Math.min(12, word.length);
+    for (let length = 2; length <= max; length += 1) tokens.add(word.slice(0, length));
+  });
+  return [...tokens].slice(0, MAX_SEARCH_TOKENS);
+}
+
+export async function searchPatientsIndex(query = "", options = {}) {
+  const tokens = patientSearchTokens(query);
+  if (!tokens.length) return [];
+  const primaryToken = tokens.sort((a, b) => b.length - a.length)[0];
+  const limit = Math.min(50, Math.max(1, Number(options.limit) || PATIENT_SEARCH_LIMIT));
+  const activeOnly = options.activeOnly === true;
+  const pending = await pendingPayloadsForCollection("patients_search");
+  if (appConfig().testMode) {
+    return limitPatientSearchRows([
+      ...testActivePatients().map(patient => patientSearchIndexData(patient)),
+      ...pending
+    ], tokens, { activeOnly, limit });
+  }
+  try {
+    const rows = await listCollectionWhere("patients_search", [["searchTokens", "array-contains", primaryToken]], { limit });
+    return limitPatientSearchRows([...rows, ...pending], tokens, { activeOnly, limit });
+  } catch {
+    return limitPatientSearchRows(pending, tokens, { activeOnly, limit });
+  }
+}
+
+export async function listArchivedPatientsWithPendingOpd(options = {}) {
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || ARCHIVED_OPD_LIMIT));
+  if (appConfig().testMode) {
+    return limitArchivedOpdRows(await mergePendingArchivedPatients([]), limit);
+  }
+  try {
+    const rows = await listCollectionWhere("patients_archive", [["opdPending", "==", true]], {
+      orderBy: [["archivedAt", "desc"]],
+      limit
+    });
+    return limitArchivedOpdRows(await mergePendingArchivedPatients(rows), limit);
+  } catch {
+    return limitArchivedOpdRows(await mergePendingArchivedPatients([]), limit);
+  }
+}
+
 export async function savePatient(app, patient) {
   if (!validPatient(patient)) throw new Error("Paciente sin nombre o servicio.");
   const patientId = patient.patientId || makePatientId();
@@ -137,6 +228,11 @@ export async function savePatient(app, patient) {
   const saved = await setDocMergeOrQueue(app, `patients_active/${patientId}`, payload, {
     module: "censo",
     entityType: "patient",
+    entityId: patientId
+  });
+  await setDocMergeOrQueue(app, `patients_search/${patientId}`, patientSearchIndexData(saved), {
+    module: "censo",
+    entityType: "patient_search",
     entityId: patientId
   });
   activePatientsPromise = null;
@@ -155,12 +251,35 @@ export async function savePatient(app, patient) {
 
 export async function archivePatient(app, patient, reason = "") {
   if (!patient?.patientId) throw new Error("Paciente sin identificador.");
+  const now = nowIso();
+  const dischargeType = normalizeDischargeType(patient.dischargeType || reason || "");
+  const dischargeDate = dischargeDateValue(patient.dischargeDate || patient.dischargedAt || patient.dischargeAt, todayIso());
+  const dischargeShift = normalizeDischargeShift(patient.dischargeShift || "");
+  const dischargeReason = cleanText(reason, 240) || patient.dischargeReason || dischargeReasonForType(dischargeType);
+  const archiveOpd = opdForArchivedPatient(patient, { dischargeType, dischargeDate });
+  const archiveOpdStatus = opdStatus(archiveOpd, opdEligibilityForPatient(patient));
   const payload = stripUndefined({
     ...patient,
     active: false,
-    dischargeReason: cleanText(reason, 240) || patient.dischargeReason || "egreso_manual",
-    dischargedAt: nowIso(),
-    updatedAt: nowIso(),
+    lastService: patient.service || patient.currentService || patient.lastService || "",
+    lastBed: patient.bed || patient.currentBed || patient.lastBed || "",
+    hospitalizationStatus: "egresado",
+    presentInLatestCensus: false,
+    dischargeStatus: "confirmada",
+    dischargeReviewRequired: false,
+    probableDischarge: false,
+    dischargeReported: false,
+    dischargeType,
+    dischargeDate,
+    dischargeShift,
+    dischargeReason,
+    dischargeSummary: dischargeSummary(dischargeType, dischargeDate, dischargeShift),
+    opd: archiveOpd,
+    opdPending: archiveOpdStatus.pending,
+    opdStatusLabel: archiveOpdStatus.label,
+    opdStatusDetail: archiveOpdStatus.detail,
+    dischargedAt: now,
+    updatedAt: now,
     updatedBy: app.state.auth.user?.uid || ""
   });
   const activeSaved = await setDocMergeOrQueue(app, `patients_active/${patient.patientId}`, payload, {
@@ -179,6 +298,15 @@ export async function archivePatient(app, patient, reason = "") {
     entityType: "patient_archive",
     entityId: patient.patientId
   });
+  await setDocMergeOrQueue(app, `patients_search/${patient.patientId}`, patientSearchIndexData(payload, {
+    active: false,
+    archivedAt: payload.dischargedAt,
+    archiveReason: payload.dischargeReason
+  }), {
+    module: "censo",
+    entityType: "patient_search",
+    entityId: patient.patientId
+  });
   const saved = {
     ...activeSaved,
     archiveSyncStatus: archiveSaved.syncStatus,
@@ -194,6 +322,91 @@ export async function archivePatient(app, patient, reason = "") {
     after: saved
   });
   return saved;
+}
+
+export async function saveArchivedPatient(app, patient = {}) {
+  const patientId = patient.patientId || patient.id || "";
+  if (!patientId) throw new Error("Paciente archivado sin identificador.");
+  const now = nowIso();
+  const opd = completeOpdForSave(patient.opd, patient);
+  const status = opdStatus(opd, opdEligibilityForPatient(patient));
+  const payload = stripUndefined({
+    ...patient,
+    patientId,
+    active: false,
+    lastService: patient.service || patient.currentService || patient.lastService || "",
+    lastBed: patient.bed || patient.currentBed || patient.lastBed || "",
+    opd,
+    opdPending: status.pending,
+    opdStatusLabel: status.label,
+    opdStatusDetail: status.detail,
+    archivedAt: patient.archivedAt || patient.dischargedAt || now,
+    archiveReason: patient.archiveReason || patient.dischargeReason || "archivo_actualizado",
+    updatedAt: now,
+    updatedBy: app.state.auth.user?.uid || ""
+  });
+  const saved = await setDocMergeOrQueue(app, `patients_archive/${patientId}`, payload, {
+    module: "censo",
+    entityType: "patient_archive",
+    entityId: patientId
+  });
+  await setDocMergeOrQueue(app, `patients_search/${patientId}`, patientSearchIndexData(payload, {
+    active: false,
+    archivedAt: payload.archivedAt,
+    archiveReason: payload.archiveReason
+  }), {
+    module: "censo",
+    entityType: "patient_search",
+    entityId: patientId
+  });
+  await writeAudit(app, {
+    actionType: "patient_archive_update",
+    module: "censo",
+    entityType: "patient_archive",
+    entityId: patientId,
+    patientId,
+    after: saved
+  });
+  return saved;
+}
+
+function opdForArchivedPatient(patient = {}, discharge = {}) {
+  const eligibility = opdEligibilityForPatient(patient);
+  if (!eligibility.eligible && !opdHasContent(patient.opd)) return patient.opd;
+  return completeOpdForSave(patient.opd, { ...patient, ...discharge });
+}
+
+async function mergePendingArchivedPatients(rows = []) {
+  const map = byPatientId(rows);
+  const pending = await pendingPayloadsForCollection("patients_archive");
+  pending
+    .filter(row => row.opdPending === true)
+    .forEach(row => {
+      const id = row.patientId || row.id;
+      if (id) map.set(id, { ...map.get(id), ...row, patientId: id });
+    });
+  return [...map.values()];
+}
+
+function limitArchivedOpdRows(rows = [], limit = ARCHIVED_OPD_LIMIT) {
+  return rows
+    .filter(row => row.active === false && row.opdPending === true)
+    .sort((a, b) => String(b.archivedAt || b.dischargedAt || "").localeCompare(String(a.archivedAt || a.dischargedAt || "")))
+    .slice(0, limit);
+}
+
+function limitPatientSearchRows(rows = [], tokens = [], options = {}) {
+  const map = byPatientId(rows);
+  return [...map.values()]
+    .filter(row => !options.activeOnly || row.active !== false)
+    .filter(row => tokens.every(token => patientSearchRowMatches(row, token)))
+    .sort((a, b) => String(a.patientName || "").localeCompare(String(b.patientName || ""), "es", { numeric: true }))
+    .slice(0, options.limit || PATIENT_SEARCH_LIMIT);
+}
+
+function patientSearchRowMatches(row = {}, token = "") {
+  const searchText = row.searchText || normalizeText([row.patientName, row.bed, row.service, row.hospitalDiagnosis, row.epidemiologicalDiagnosis].join(" "));
+  return String(searchText).includes(token);
 }
 
 export async function syncPatientIaasClassification(app, patientId, classification, source = {}) {
@@ -220,6 +433,12 @@ export async function syncPatientIaasClassification(app, patientId, classificati
   const saved = await setDocMergeOrQueue(app, `patients_active/${patientId}`, payload, {
     module: "epi-iaas",
     entityType: "patient",
+    entityId: patientId,
+    sourceAction: "iaas_classification_sync"
+  });
+  await setDocMergeOrQueue(app, `patients_search/${patientId}`, patientSearchIndexData(saved), {
+    module: "epi-iaas",
+    entityType: "patient_search",
     entityId: patientId,
     sourceAction: "iaas_classification_sync"
   });

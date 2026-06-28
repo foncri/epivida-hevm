@@ -1,12 +1,14 @@
 import { normalizeDate, todayIso } from "../lib/date.js";
+import { listAntimicrobialsByStatus } from "./antimicrobialService.js";
 import { listActiveDevices } from "./deviceService.js";
 import { listCulturesByStatus } from "./cultureService.js";
+import { microbiologyClinicalAlerts } from "./microbiologyAlertService.js";
 import { listPendingWrites, syncQueueSummary } from "./offlineQueueService.js";
-import { listActivePatients, sortPatientsByServiceBed } from "./patientService.js";
+import { listActivePatients, listArchivedPatientsWithPendingOpd, sortPatientsByServiceBed } from "./patientService.js";
 import { listTodayRounds } from "./roundService.js";
 import { monitorDiagnosisGroup, monitorOpdStatus, monitorSeverity } from "./monitorService.js";
 
-export const OPERATIONAL_ALERTS_VERSION = "lite-operational-alerts-2026-06-16-v1";
+export const OPERATIONAL_ALERTS_VERSION = "lite-operational-alerts-2026-06-27-v3";
 
 const REVIEWED_STATUSES = new Set(["reviewed", "revisado", "alerta"]);
 const NON_IAAS_RISK_DEVICE_TYPES = new Set([
@@ -16,7 +18,8 @@ const NON_IAAS_RISK_DEVICE_TYPES = new Set([
   "CANULA NASAL",
   "PUNTAS NASALES/CANULA NASAL"
 ]);
-const CULTURE_PENDING_STATUSES = ["solicitado", "pendiente"];
+const CULTURE_ALERT_STATUSES = ["solicitado", "pendiente", "resultado", "positivo", "negativo"];
+const ACTIVE_ANTIMICROBIAL_STATUSES = ["activo", "ajustado", "profilaxis"];
 
 function normalizedText(value = "") {
   return String(value || "")
@@ -39,43 +42,52 @@ export async function loadOperationalAlerts(options = {}) {
   const date = normalizeDate(options.date) || todayIso();
   const today = normalizeDate(options.today) || todayIso();
   const cultureLimit = Math.min(100, Math.max(1, Number(options.cultureLimit) || 25));
-  const [patients, devices, rounds, queue, culturesByStatus] = await Promise.all([
+  const antimicrobialLimit = Math.min(100, Math.max(1, Number(options.antimicrobialLimit) || 25));
+  const [patients, archivedOpdPatients, devices, rounds, queue, culturesByStatus, activeAntimicrobials] = await Promise.all([
     listActivePatients(),
+    listArchivedPatientsWithPendingOpd({ limit: 25 }),
     listActiveDevices(),
     listTodayRounds(date),
     listPendingWrites(),
-    Promise.all(CULTURE_PENDING_STATUSES.map(status => listCulturesByStatus(status, { limit: cultureLimit })))
+    Promise.all(CULTURE_ALERT_STATUSES.map(status => listCulturesByStatus(status, { limit: cultureLimit }))),
+    Promise.all(ACTIVE_ANTIMICROBIAL_STATUSES.map(status => listAntimicrobialsByStatus(status, { limit: antimicrobialLimit })))
   ]);
   return buildOperationalAlerts({
     date,
     today,
     patients,
+    archivedPatients: archivedOpdPatients,
     devices,
     rounds,
     queue,
-    cultures: dedupeById(culturesByStatus.flat(), "cultureId")
+    cultures: dedupeById(culturesByStatus.flat(), "cultureId"),
+    antimicrobials: dedupeById(activeAntimicrobials.flat(), "antimicrobialId")
   });
 }
 
-export function buildOperationalAlerts({ date = todayIso(), today = todayIso(), patients = [], devices = [], rounds = [], cultures = [], queue = [] } = {}) {
+export function buildOperationalAlerts({ date = todayIso(), today = todayIso(), patients = [], archivedPatients = [], devices = [], rounds = [], cultures = [], antimicrobials = [], queue = [] } = {}) {
   const activePatients = patients.filter(patient => patient.active !== false);
+  const archivedOpdPatients = archivedPatients.filter(patient => patient.active === false && patient.opdPending === true);
+  const opdPatients = dedupeById([...activePatients, ...archivedOpdPatients], "patientId");
   const activeDevices = devices.filter(device => device.active !== false && !device.removalDate && device.status !== "retirado");
   const roundMap = new Map(rounds.map(round => [round.patientId, round]));
   const devicesByPatient = groupBy(activeDevices, "patientId");
   const sync = syncQueueSummary(queue);
+  const microbiologyAlerts = microbiologyClinicalAlerts({ cultures, antimicrobials, patients: activePatients, today, limit: 100 });
   const preventiveAlerts = [
     ...probableDischargeAlerts(activePatients, date),
     ...movementAlerts(activePatients, date),
     ...roundPendingAlerts(activePatients, roundMap, date),
+    ...deviceSurveillanceAlerts(activeDevices),
     ...surgicalSignalAlerts(activePatients, date)
   ];
   const iaasAlerts = [
-    ...culturePendingAlerts(cultures, activePatients, today),
+    ...microbiologyOperationalAlerts(prioritizeOperationalMicrobiology(microbiologyAlerts).slice(0, 3)),
     ...criticalPatientAlerts(activePatients),
     ...iaasRiskDeviceAlerts(activePatients, devicesByPatient, date)
   ];
   const vigAlerts = [
-    ...opdPendingAlerts(activePatients),
+    ...opdPendingAlerts(opdPatients),
     ...syncAlerts(sync)
   ];
   const panels = [
@@ -90,16 +102,41 @@ export function buildOperationalAlerts({ date = todayIso(), today = todayIso(), 
     totals: {
       activePatients: activePatients.length,
       activeDevices: activeDevices.length,
+      totalDeviceDays: totalDeviceDays(activeDevices),
       roundPending: activePatients.filter(patient => !REVIEWED_STATUSES.has(roundStatus(roundMap.get(patient.patientId)))).length,
       criticalPatients: activePatients.filter(patient => monitorSeverity(patient).level === "critica").length,
       highPriorityPatients: activePatients.filter(patient => monitorSeverity(patient).level === "alta").length,
-      culturesDue: culturePendingAlerts(cultures, activePatients, today).filter(alert => alert.due).length,
-      opdPending: activePatients.filter(patient => monitorOpdStatus(patient).pending).length,
+      culturesDue: microbiologyAlerts.filter(alert => alert.kind === "culture" && alert.due).length,
+      antimicrobialDue: microbiologyAlerts.filter(alert => alert.kind === "antimicrobial" && alert.due).length,
+      opdPending: opdPatients.filter(patient => monitorOpdStatus(patient).pending).length,
       syncPending: sync.pending,
       syncBlocked: sync.blocked
     },
     panels
   };
+}
+
+function microbiologyOperationalAlerts(alerts = []) {
+  return alerts.map(alert => alertItem({
+    key: `micro:${alert.kind}:${alert.sourceId || alert.patientId || alert.title}`,
+    kind: alert.kind,
+    tone: alert.tone === "critical" ? "critical" : "warn",
+    title: alert.title,
+    detail: alert.detail,
+    href: alert.href || "#/epi-iaas",
+    time: alert.kind === "antimicrobial" ? "ATB" : "Cultivo",
+    patientId: alert.patientId || "",
+    due: alert.due === true
+  }));
+}
+
+function prioritizeOperationalMicrobiology(alerts = []) {
+  return [...alerts].sort((a = {}, b = {}) =>
+    Number(b.due === true) - Number(a.due === true)
+    || Number(b.priority || 0) - Number(a.priority || 0)
+    || String(b.date || "").localeCompare(String(a.date || ""))
+    || String(a.detail || "").localeCompare(String(b.detail || ""), "es")
+  );
 }
 
 function panel(key, title, href, items = []) {
@@ -174,6 +211,20 @@ function roundPendingAlerts(patients = [], roundMap = new Map(), date = "") {
   })];
 }
 
+function deviceSurveillanceAlerts(activeDevices = []) {
+  if (!activeDevices.length) return [];
+  const topTypes = topDeviceTypes(activeDevices);
+  return [alertItem({
+    key: "devices:surveillance",
+    kind: "device-surveillance",
+    tone: "info",
+    title: "Dispositivos activos para vigilancia",
+    detail: `${activeDevices.length} invasivo(s), ${totalDeviceDays(activeDevices)} dispositivo-dia acumulados${topTypes ? ` - ${topTypes}` : ""}`,
+    href: "#/reportes",
+    time: "Turno"
+  })];
+}
+
 function surgicalSignalAlerts(patients = [], date = "") {
   const rows = patients.filter(isSurgicalSignal).sort(comparePatients);
   if (!rows.length) return [];
@@ -186,6 +237,23 @@ function surgicalSignalAlerts(patients = [], date = "") {
     href: `#/ronda/${date}`,
     time: "ISQ"
   })];
+}
+
+function totalDeviceDays(activeDevices = []) {
+  return activeDevices.length;
+}
+
+function topDeviceTypes(activeDevices = []) {
+  const counts = activeDevices.reduce((map, device) => {
+    const label = String(device.deviceType || device.preventivePackage || "Invasivo").trim() || "Invasivo";
+    map.set(label, (map.get(label) || 0) + 1);
+    return map;
+  }, new Map());
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+    .slice(0, 3)
+    .map(([label, count]) => `${label}: ${count}`)
+    .join(" | ");
 }
 
 function criticalPatientAlerts(patients = []) {
@@ -228,42 +296,21 @@ function iaasRiskDeviceAlerts(patients = [], devicesByPatient = new Map(), date 
     }));
 }
 
-function culturePendingAlerts(cultures = [], patients = [], today = todayIso()) {
-  const patientsById = new Map(patients.map(patient => [patient.patientId, patient]));
-  return cultures
-    .filter(isCulturePending)
-    .map(culture => {
-      const day = daysBetween(culture.requestedAt || culture.collectionDate, today);
-      const threshold = isBloodCulture(culture.sampleType || culture.type) ? 7 : 2;
-      return { culture, day: day ?? 0, threshold, due: Number.isFinite(day) && day >= threshold, patient: patientsById.get(culture.patientId) || {} };
-    })
-    .sort((a, b) => Number(b.due) - Number(a.due) || b.day - a.day)
-    .slice(0, 5)
-    .map(({ culture, day, threshold, due, patient }) => alertItem({
-      key: `culture:${culture.cultureId || culture.id}`,
-      kind: "culture",
-      tone: due ? "critical" : "warn",
-      title: due ? "Cultivo con resultado probable" : "Cultivo pendiente",
-      detail: `${culture.sampleType || culture.type || "Cultivo"} - ${patientLabel(patient) || culture.patientName || culture.patientId || "Paciente"} - dia ${day}/${threshold}`,
-      href: culture.patientId ? `#/pacientes/${culture.patientId}/expediente` : "#/epi-iaas",
-      time: due ? "Recabar" : "Pendiente",
-      patientId: culture.patientId || "",
-      due
-    }));
-}
-
 function opdPendingAlerts(patients = []) {
-  const rows = patients.filter(patient => monitorOpdStatus(patient).pending).slice(0, 5);
-  if (!rows.length) return [];
-  return [alertItem({
-    key: "opd:pending",
-    kind: "opd",
-    tone: "warn",
-    title: `${rows.length} OPD pendiente(s)`,
-    detail: rows.map(patient => patientLabel(patient)).join(" | "),
-    href: "#/monitoreo-epidemiologico",
-    time: "OPD"
-  })];
+  return patients
+    .map(patient => ({ patient, status: monitorOpdStatus(patient) }))
+    .filter(item => item.status.pending)
+    .slice(0, 5)
+    .map(({ patient, status }) => alertItem({
+      key: `opd:${patient.patientId}`,
+      kind: "opd",
+      tone: "warn",
+      title: `${patient.active === false ? "Alta OPD pendiente" : "OPD pendiente"}: ${patientLabel(patient)}`,
+      detail: `${patient.active === false ? "Egresado" : patientLocation(patient)} - ${status.detail || status.label}`,
+      href: patientCensoHref(patient.patientId),
+      time: patient.active === false ? "Alta OPD" : "OPD",
+      patientId: patient.patientId
+    }));
 }
 
 function syncAlerts(sync = {}) {
@@ -304,19 +351,6 @@ function alertItem(item) {
   };
 }
 
-function isCulturePending(culture = {}) {
-  const status = normalizedText(culture.status || "");
-  const organism = normalizedText(culture.organism || culture.microorganism || "");
-  const resultAt = normalizeDate(culture.resultAt || culture.resultDate);
-  return CULTURE_PENDING_STATUSES.map(normalizedText).includes(status)
-    && !resultAt
-    && (!organism || organism === "PENDIENTE" || organism === "SIN RESULTADO");
-}
-
-function isBloodCulture(type = "") {
-  return normalizedText(type).includes("HEMOCULTIVO");
-}
-
 function isIaasRiskRelevantDevice(device = {}) {
   const text = normalizedText(device.deviceType || device.preventivePackage || "");
   return Boolean(text) && !NON_IAAS_RISK_DEVICE_TYPES.has(text);
@@ -347,6 +381,10 @@ function patientLabel(patient = {}) {
 
 function patientLocation(patient = {}) {
   return `${patient.service || patient.currentService || "Sin servicio"} cama ${patient.bed || patient.currentBed || "S/C"}`;
+}
+
+function patientCensoHref(patientId = "") {
+  return patientId ? `#/censo/paciente/${encodeURIComponent(patientId)}` : "#/censo";
 }
 
 function groupBy(rows = [], field = "") {

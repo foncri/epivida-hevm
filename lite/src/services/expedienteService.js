@@ -24,9 +24,9 @@ export async function loadPatientExpediente(patientId) {
   const patient = patientDoc || null;
   const archivedDeviceRows = archivedDevicePage.rows;
   const rounds = roundsPage.rows;
-  const iaasRows = iaasPage.rows;
   const cultures = culturesPage.rows;
   const antimicrobials = antimicrobialsPage.rows;
+  const iaasRows = attachIaasClinicalLinks(iaasPage.rows, cultures, antimicrobials);
   const auditRows = auditPage.rows;
   const devices = mergeDeviceHistory(activeDeviceRows, archivedDeviceRows);
   return {
@@ -77,4 +77,28 @@ function pageMeta(page = {}) {
     hasPrevious: Boolean(page.hasPrevious),
     pageSize: page.pageSize || CLINICAL_HISTORY_LIMIT
   };
+}
+
+function attachIaasClinicalLinks(rows = [], cultures = [], antimicrobials = []) {
+  const culturesByCase = groupByIaasId(cultures);
+  const antimicrobialsByCase = groupByIaasId(antimicrobials);
+  return rows.map(row => {
+    const id = row.iaasId || row.id;
+    return {
+      ...row,
+      relatedCultures: id ? culturesByCase.get(id) || [] : [],
+      relatedAntimicrobials: id ? antimicrobialsByCase.get(id) || [] : []
+    };
+  });
+}
+
+function groupByIaasId(rows = []) {
+  return rows.reduce((map, row) => {
+    const id = row.iaasId;
+    if (!id) return map;
+    const group = map.get(id) || [];
+    group.push(row);
+    map.set(id, group);
+    return map;
+  }, new Map());
 }

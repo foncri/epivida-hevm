@@ -1,27 +1,37 @@
-import { nowIso } from "../lib/date.js";
+import { normalizeDate, nowIso, todayIso } from "../lib/date.js";
 import { listAntimicrobialsByStatus } from "./antimicrobialService.js";
 import { listCulturesByStatus } from "./cultureService.js";
+import { microbiologyClinicalAlerts } from "./microbiologyAlertService.js";
 
 const MICRO_LIMIT = 40;
+const CULTURE_RESULT_STATUSES = ["positivo", "resultado", "negativo"];
+const ACTIVE_ANTIMICROBIAL_STATUSES = ["activo", "ajustado", "profilaxis"];
 
 export async function loadMicrobiologyDashboard(options = {}) {
   const limit = Math.min(100, Math.max(1, Number(options.limit) || MICRO_LIMIT));
-  const [requested, pending, positive, resulted, activeAntimicrobials] = await Promise.all([
+  const today = normalizeDate(options.today) || todayIso();
+  const [requested, pending, resultCulturesByStatus, antimicrobialsByStatus] = await Promise.all([
     listCulturesByStatus("solicitado", { limit }),
     listCulturesByStatus("pendiente", { limit }),
-    listCulturesByStatus("positivo", { limit }),
-    listCulturesByStatus("resultado", { limit }),
-    listAntimicrobialsByStatus("activo", { limit })
+    Promise.all(CULTURE_RESULT_STATUSES.map(status => listCulturesByStatus(status, { limit }))),
+    Promise.all(ACTIVE_ANTIMICROBIAL_STATUSES.map(status => listAntimicrobialsByStatus(status, { limit })))
   ]);
   const pendingCultures = uniqueById([...requested, ...pending], row => row.cultureId || row.id);
-  const resultCultures = uniqueById([...positive, ...resulted], row => row.cultureId || row.id);
+  const resultCultures = uniqueById(resultCulturesByStatus.flat(), row => row.cultureId || row.id);
+  const activeAntimicrobials = uniqueById(antimicrobialsByStatus.flat(), row => row.antimicrobialId || row.id);
   return {
     updatedAt: nowIso(),
     limit,
     pendingCultures,
     resultCultures,
     positiveCultures: resultCultures.filter(isPositiveCulture),
-    activeAntimicrobials
+    activeAntimicrobials,
+    clinicalAlerts: microbiologyClinicalAlerts({
+      cultures: [...pendingCultures, ...resultCultures],
+      antimicrobials: activeAntimicrobials,
+      today,
+      limit: 12
+    })
   };
 }
 

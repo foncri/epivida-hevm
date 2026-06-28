@@ -14,9 +14,16 @@ export function renderMicrobiologyDashboard({ summary, loading = false, onRefres
       microStat(data.pendingCultures.length, "Cultivos pendientes", "warn"),
       microStat(data.resultCultures.length, "Resultados recientes", "neutral"),
       microStat(data.positiveCultures.length, "Positivos", data.positiveCultures.length ? "bad" : "ok"),
-      microStat(data.activeAntimicrobials.length, "Antimicrobianos activos", "device")
+      microStat(data.activeAntimicrobials.length, "Antimicrobianos activos", "device"),
+      microStat(data.clinicalAlerts.length, "Alertas clinicas", data.clinicalAlerts.length ? "bad" : "ok")
     ]),
     el("div", { class: "form-grid compact" }, [
+      microTable("Alertas clinicas", ["Tipo", "Paciente", "Detalle", "Prioridad"], data.clinicalAlerts, row => [
+        row.kind === "antimicrobial" ? "Antimicrobiano" : "Cultivo",
+        row.patientId || "",
+        row.detail || row.title || "",
+        badge(row.tone === "critical" ? "Critica" : "Revision", row.tone === "critical" ? "bad" : "warn")
+      ]),
       microTable("Cultivos pendientes", ["Fecha", "Paciente", "Muestra", "Estado"], data.pendingCultures, row => [
         row.requestedAt || "",
         row.patientName || row.patientId || "",
@@ -64,6 +71,7 @@ function emptySummary() {
     pendingCultures: [],
     resultCultures: [],
     positiveCultures: [],
-    activeAntimicrobials: []
+    activeAntimicrobials: [],
+    clinicalAlerts: []
   };
 }

@@ -37,7 +37,7 @@ export function deviceForm(app, device, patients, onSaved, onCancel, catalogs = 
   }, [
     device.isReinstallation ? notice(`Nuevo episodio por reinstalacion. Episodio previo: ${device.previousEpisodeId || device.reinstallationOf || "sin folio"}.`, "warn") : "",
     el("div", { class: "form-grid" }, [
-      field("Paciente", selectInput(patientOptions(patients), { name: "patientId", required: true, value: device.patientId || "" })),
+      field("Paciente", selectInput(patientOptions(patients, device), { name: "patientId", required: true, value: device.patientId || "" })),
       field("Tipo", selectInput(deviceTypeOptions(catalogs, device.deviceType), { name: "deviceType", required: true, value: device.deviceType || "" })),
       field("Subtipo", textInput({ name: "deviceSubtype", value: device.deviceSubtype || "" })),
       field("French/calibre", textInput({ name: "french", value: device.french || "" })),
@@ -57,7 +57,7 @@ export function deviceForm(app, device, patients, onSaved, onCancel, catalogs = 
   ]);
 }
 
-export function renderDeviceHistoryPanel({ app, patients, catalogs, writable, selectedPatientId, archivedDevices, editingArchive, message, onLoad, onEdit, onReinstall, onCancel, onSaved }) {
+export function renderDeviceHistoryPanel({ app, patients, catalogs, writable, selectedPatientId, archivedDevices, editingArchive, message, onLoad, onEdit, onReinstall, onTimeline, onCancel, onSaved }) {
   return el("section", { class: "row-card device-history-panel" }, [
     el("strong", {}, ["Historial de dispositivos retirados"]),
     el("span", { class: "muted" }, ["Consulta y corrige episodios retirados sin reactivar dispositivos."]),
@@ -83,10 +83,31 @@ export function renderDeviceHistoryPanel({ app, patients, catalogs, writable, se
         el("td", {}, [device.syncStatus === "local_pending" ? badge("Pendiente", "warn") : ""]),
         writable ? el("td", { class: "actions-cell" }, [
           button("Reinstalar", () => onReinstall(device), { class: "small ghost" }),
-          button("Editar historico", () => onEdit(device), { class: "small ghost" })
+          button("Editar historico", () => onEdit(device), { class: "small ghost" }),
+          button("Timeline", () => onTimeline(device), { class: "small ghost" })
         ]) : ""
       ])
     )
+  ]);
+}
+
+export function renderDeviceTimelinePanel({ device, rows, message, onClose }) {
+  if (!device) return "";
+  return el("section", { class: "row-card device-timeline-panel" }, [
+    el("strong", {}, [`Timeline del episodio ${device.episodeId || device.id || ""}`]),
+    el("span", { class: "muted" }, [deviceTypeLabel(device) || "Dispositivo"]),
+    message ? notice(message, message.includes("Sin eventos") ? "warn" : "ok") : "",
+    pagedTable(["Fecha", "Accion", "Modulo", "Usuario"], rows, row =>
+      el("tr", {}, [
+        el("td", {}, [row.createdAt || ""]),
+        el("td", {}, [auditActionLabel(row.actionType)]),
+        el("td", {}, [row.module || row.entityType || ""]),
+        el("td", {}, [row.userEmail || row.userId || ""])
+      ])
+    ),
+    el("div", { class: "toolbar" }, [
+      button("Cerrar timeline", onClose, { class: "ghost" })
+    ])
   ]);
 }
 
@@ -175,6 +196,13 @@ export function patientName(patients, patientId) {
 
 export function careLabel(value = "") {
   return CARE_STATUS.find(([key]) => key === value)?.[1] || value;
+}
+
+function auditActionLabel(value = "") {
+  return String(value || "")
+    .replace(/^device_/, "")
+    .replaceAll("_", " ")
+    || "Evento";
 }
 
 export function upsertDevice(rows, device) {

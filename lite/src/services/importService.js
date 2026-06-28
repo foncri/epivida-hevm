@@ -4,24 +4,27 @@ import { cleanText, stripUndefined } from "../lib/validators.js";
 import { CENSUS_REPAIR_VERSION, repairHospitalCensusInput } from "./censusRepairService.js";
 
 const HEADER_ALIASES = {
-  patientId: ["patientid", "id", "folio", "expediente", "registro"],
-  hospitalInternalId: ["expediente", "registro", "numero expediente", "folio hospitalario", "rfc", "afiliacion", "nss", "numero afiliacion"],
-  patientName: ["paciente", "nombre", "nombre paciente", "nombre completo", "nombre del paciente", "apellidos y nombres", "apellido y nombre"],
-  service: ["servicio", "area", "unidad", "piso"],
-  bed: ["cama", "cam", "habitacion", "ubicacion", "ubicacion cama", "cubiculo", "sillon", "cama/sillon"],
-  serviceBed: ["servicio cama", "servicio/cama", "ubicacion cama", "cama servicio"],
-  sector: ["sector", "derechohabiencia", "derecho habiencia", "tipo derechohabiente", "tipo de derechohabiente"],
+  patientId: ["patientid", "patient_id", "paciente_id", "id_paciente", "id", "folio", "expediente", "registro", "n_expediente", "no_expediente", "numero_expediente"],
+  hospitalInternalId: ["hospital_internal_id", "id_hospitalario", "expediente", "registro", "numero expediente", "numero_expediente", "folio hospitalario", "rfc", "afiliacion", "nss", "numero afiliacion"],
+  patientName: ["patient_name", "paciente", "nombre", "nombre paciente", "nombre_paciente", "nombre completo", "nombre_completo", "nombre del paciente", "apellidos y nombres", "apellido y nombre", "nombre_y_apellidos", "paciente_nombre"],
+  service: ["servicio", "area", "departamento", "sala", "unidad", "piso"],
+  bed: ["cama", "cam", "cama_actual", "numero_cama", "no_cama", "num_cama", "habitacion", "ubicacion", "ubicacion cama", "cubiculo", "sillon", "cama/sillon", "cama_sillon"],
+  serviceBed: ["servicio cama", "servicio_cama", "servicio/cama", "servicio_y_cama", "servicio-cama", "ubicacion cama", "cama servicio"],
+  sector: ["sector", "derechohabiencia", "derecho_habiencia", "derecho habiencia", "tipo_derechohabiente", "tipo derechohabiente", "tipo de derechohabiente"],
   sex: ["sexo", "genero"],
   age: ["edad"],
-  birthDate: ["fecha nacimiento", "fecha de nacimiento", "nacimiento", "f nac", "fnac", "fecha nac"],
-  admissionDate: ["fecha ingreso", "fecha de ingreso", "ingreso", "f ingreso", "fecha admision", "admision"],
-  deih: ["deih", "eih", "d e i h", "dias estancia", "dias de estancia", "estancia"],
-  status: ["estado", "estado de salud", "estado clinico", "gravedad", "condicion"],
-  epidemiologicalDiagnosis: ["dx epidemiologico", "diagnostico epidemiologico", "riesgo iaas", "clasificacion"],
-  hospitalDiagnosis: ["dx hospitalario", "diagnostico", "diagnostico actual", "diagnostico hospitalario", "diagnosticos hospitalarios", "dx actual", "dx", "padecimiento", "diagnostico de ingreso", "dx ingreso"],
+  birthDate: ["fecha_nacimiento", "fecha nacimiento", "fecha de nacimiento", "nacimiento", "f nac", "fnac", "fecha nac"],
+  censusDate: ["fecha_censo", "fecha", "censo_fecha", "fecha_del_censo", "dia_censo"],
+  admissionDate: ["fecha_ingreso", "fecha ingreso", "fecha de ingreso", "ingreso", "f ingreso", "fecha admision", "admision", "fecha_ingreso_hospitalario"],
+  deih: ["deih", "eih", "d e i h", "d.e.i.h", "dias_estancia", "dias estancia", "dias de estancia", "estancia"],
+  status: ["estado", "estado_salud", "estado de salud", "estado_clinico", "estado clinico", "gravedad", "condicion"],
+  epidemiologicalDiagnosis: ["dx_epidemiologico", "dx epidemiologico", "diagnostico epidemiologico", "riesgo_iaas", "riesgo iaas", "riesgo", "clasificacion_iaas", "clasificacion"],
+  hospitalDiagnosis: ["diagnostico_actual", "diagnostico_ingreso", "diagnostico_de_ingreso", "dx_actual", "dx_ingreso", "dx hospitalario", "dx_hospitalario", "diagnostico", "diagnostico actual", "diagnostico hospitalario", "diagnosticos hospitalarios", "diagnosticos_hospitalarios", "dx actual", "dx", "padecimiento", "diagnostico de ingreso", "dx ingreso"],
   isolation: ["aislamiento"],
-  observations: ["observaciones", "obs", "notas", "pendientes", "observaciones y pendientes", "pendientes y observaciones", "indicaciones"]
+  observations: ["observaciones", "obs", "notas", "pendientes", "pendiente", "observaciones_pendientes", "observaciones y pendientes", "pendientes y observaciones", "indicaciones"]
 };
+
+const MERGEABLE_IMPORT_FIELDS = new Set(["hospitalDiagnosis", "observations"]);
 
 const CANONICAL_BY_HEADER = Object.entries(HEADER_ALIASES).reduce((map, [field, aliases]) => {
   aliases.forEach(alias => map.set(headerKey(alias), field));
@@ -121,9 +124,16 @@ export function normalizeImportRow(cells = [], headers = [], sourceRow = 1) {
   const raw = {};
   headers.forEach((field, index) => {
     if (field?.startsWith("extra_")) return;
-    raw[field] = cells[index] || "";
+    raw[field] = mergeImportField(raw[field], cells[index] || "", field);
   });
   return normalizeImportRecord(raw, sourceRow);
+}
+
+function mergeImportField(current = "", next = "", field = "") {
+  const value = cleanText(next, 1000);
+  if (!value) return current || "";
+  if (!current || !MERGEABLE_IMPORT_FIELDS.has(field)) return value;
+  return cleanText([current, value].filter(Boolean).join(" / "), 1000);
 }
 
 export function normalizeImportRecord(raw = {}, sourceRow = 1) {

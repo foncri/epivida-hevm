@@ -3,6 +3,7 @@ import { renderAdminAuditPanel } from "../../components/adminAuditPanel.js";
 import { renderBackupRestorePanel } from "../../components/backupRestorePanel.js";
 import { firebaseConfigStatus } from "../../lib/config.js";
 import { modulePage } from "../../components/moduleLayout.js";
+import { renderCatalogImportPanel } from "./catalogImportPanel.js";
 import { loadCatalogs, saveCatalogEntry } from "../../services/catalogService.js";
 import { clearBlockedWrites, flushPendingWrites, listPendingWrites, syncQueueSummary } from "../../services/offlineQueueService.js";
 import { listUserProfiles, saveUserProfile } from "../../services/userService.js";
@@ -41,6 +42,7 @@ export async function render({ app }) {
   let users = initialUsers;
   let editingUser = null;
   let editingCatalog = null;
+  const catalogImportState = { text: "", preview: null, importing: false, message: "" };
   const auditState = { rows: [], module: "", userId: "", loading: false, message: "" };
   let message = "";
   const body = el("div", { class: "stack" });
@@ -54,7 +56,7 @@ export async function render({ app }) {
         el("span", { class: "muted" }, [firebaseStatus.ready ? `Configurado: ${firebaseStatus.projectId}` : "Pendiente de configuracion productiva."]),
         firebaseStatus.missing.length ? el("span", { class: "muted" }, [`Faltan: ${firebaseStatus.missing.join(", ")}`]) : "",
       ]),
-      renderCatalogsPanel(app, catalogs, editingCatalog, nextEditing => {
+      renderCatalogsPanel(app, catalogs, editingCatalog, catalogImportState, nextEditing => {
         editingCatalog = nextEditing;
         redraw();
       }, async saved => {
@@ -65,6 +67,14 @@ export async function render({ app }) {
           ? "Catalogo guardado localmente; queda pendiente de sincronizar."
           : "Catalogo sincronizado.";
         redraw();
+      }, async result => {
+        result.savedRows.forEach(saved => {
+          catalogs = upsertCatalog(catalogs, saved);
+        });
+        pending = await listPendingWrites();
+        message = result.syncStatus === "local_pending"
+          ? `Importacion de catalogos registrada localmente: ${result.count} entrada(s) pendiente(s) de sincronizar.`
+          : `Importacion de catalogos sincronizada: ${result.count} entrada(s).`;
       }),
       el("section", { class: "row-card" }, [
         el("strong", {}, ["Sincronizacion pendiente"]),
@@ -125,7 +135,7 @@ export async function render({ app }) {
   ]);
 }
 
-function renderCatalogsPanel(app, catalogs, editingCatalog, onEdit, onSaved) {
+function renderCatalogsPanel(app, catalogs, editingCatalog, importState, onEdit, onSaved, onImported) {
   const counts = catalogs.reduce((acc, item) => {
     acc[item.type] = (acc[item.type] || 0) + 1;
     return acc;
@@ -137,6 +147,7 @@ function renderCatalogsPanel(app, catalogs, editingCatalog, onEdit, onSaved) {
     ]),
     button("Nuevo catalogo", () => onEdit({ type: "services", active: true, version: "local" }), { class: "ghost" }),
     editingCatalog ? catalogForm(app, editingCatalog, onSaved, () => onEdit(null)) : "",
+    renderCatalogImportPanel(app, importState, onImported, () => onEdit(editingCatalog)),
     pagedTable(["Tipo", "Valor", "Etiqueta", "Orden", "Version", "Activo", "Sync", "Acciones"], catalogs, item =>
       el("tr", {}, [
         el("td", {}, [catalogTypeLabel(item.type)]),

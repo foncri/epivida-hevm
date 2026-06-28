@@ -1,27 +1,39 @@
-import { badge, button, el, notice, pagedTable } from "../../components/dom.js";
+import { badge, button, el, link, notice, pagedTable } from "../../components/dom.js";
 import { modulePage, stats } from "../../components/moduleLayout.js";
 import { todayIso } from "../../lib/date.js";
 import { canWrite } from "../../lib/security.js";
+import { listAuditForEntity } from "../../services/auditService.js";
 import { loadCatalogs } from "../../services/catalogService.js";
-import { listActiveDevices, listArchivedDevicesForPatient, removeDeviceEpisode } from "../../services/deviceService.js";
-import { listActivePatients } from "../../services/patientService.js";
-import { careLabel, deviceForm, deviceSaveMessage, deviceTypeLabel, patientName, reinstallationDraft, renderDeviceHistoryPanel, upsertArchivedDevice, upsertDevice } from "./deviceForms.js";
+import { activeDevice, listActiveDevices, listArchivedDevicesForPatient, listDevicesForPatient, removeDeviceEpisode } from "../../services/deviceService.js";
+import { getPatientById, listActivePatients } from "../../services/patientService.js";
+import { careLabel, deviceForm, deviceSaveMessage, deviceTypeLabel, patientName, reinstallationDraft, renderDeviceHistoryPanel, renderDeviceTimelinePanel, upsertArchivedDevice, upsertDevice } from "./deviceForms.js";
 
-export async function render({ app }) {
-  let [devices, patients, catalogs] = await Promise.all([listActiveDevices(), listActivePatients(), loadCatalogs()]);
+export async function render({ app, route }) {
+  const routePatientId = patientIdFromRoute(route);
+  const [initialDevices, patients, catalogs, initialArchivedDevices] = await Promise.all([
+    routePatientId ? listDevicesForPatient(routePatientId).then(rows => rows.filter(activeDevice)) : listActiveDevices(),
+    routePatientId ? getPatientById(routePatientId).then(patient => patient ? [patient] : []) : listActivePatients(),
+    loadCatalogs(),
+    routePatientId ? listArchivedDevicesForPatient(routePatientId, { limit: 100 }) : Promise.resolve([])
+  ]);
+  let devices = initialDevices;
   const role = app.state.auth.profile?.role;
   const writable = canWrite("dispositivos", role);
   let editing = null;
   let editingArchive = null;
-  let archivedDevices = [];
-  let selectedPatientId = "";
+  let archivedDevices = initialArchivedDevices;
+  let selectedPatientId = routePatientId;
+  let timelineDevice = null;
+  let timelineRows = [];
   let message = "";
-  let historyMessage = "";
+  let historyMessage = routePatientId ? `${archivedDevices.length} episodio(s) retirado(s) cargado(s).` : "";
+  let timelineMessage = "";
   const body = el("div", { class: "stack" });
 
   function redraw() {
     body.replaceChildren(
       message ? notice(message, message.includes("pendiente") ? "warn" : "ok") : "",
+      routePatientId ? renderPatientRouteContext(routePatientId, patients[0]) : "",
       stats([
         [String(devices.length), "Activos"],
         [String(new Set(devices.map(row => row.deviceType).filter(Boolean)).size), "Tipos"],
@@ -51,6 +63,7 @@ export async function render({ app }) {
           message = `Reinstalacion preparada desde episodio ${device.episodeId || device.id || "historico"}. Revisa fecha y guarda.`;
           redraw();
         },
+        onTimeline: loadTimeline,
         onCancel: () => { editingArchive = null; redraw(); },
         onSaved: saved => {
           archivedDevices = upsertArchivedDevice(archivedDevices, saved);
@@ -58,6 +71,17 @@ export async function render({ app }) {
           historyMessage = saved.syncStatus === "local_pending"
             ? "Historico guardado localmente; queda pendiente de sincronizar."
             : "Historico sincronizado.";
+          redraw();
+        }
+      }),
+      renderDeviceTimelinePanel({
+        device: timelineDevice,
+        rows: timelineRows,
+        message: timelineMessage,
+        onClose: () => {
+          timelineDevice = null;
+          timelineRows = [];
+          timelineMessage = "";
           redraw();
         }
       }),
@@ -75,6 +99,7 @@ export async function render({ app }) {
           writable ? el("td", { class: "actions-cell" }, [
             button("Editar", () => { editing = device; redraw(); }, { class: "small ghost" }),
             button("Historial", () => loadHistory(device.patientId), { class: "small ghost" }),
+            button("Timeline", () => loadTimeline(device), { class: "small ghost" }),
             button("Retirar", async () => {
               const saved = await removeDeviceEpisode(app, device, todayIso());
               devices = devices.filter(row => row.episodeId !== saved.episodeId);
@@ -91,7 +116,7 @@ export async function render({ app }) {
 
   redraw();
   return modulePage("Dispositivos", "Dispositivos activos como modulo propio.", [body], [
-    writable ? button("Nuevo dispositivo", () => { editing = {}; redraw(); }, { class: "ghost" }) : ""
+    writable ? button("Nuevo dispositivo", () => { editing = selectedPatientId ? { patientId: selectedPatientId } : {}; redraw(); }, { class: "ghost" }) : ""
   ]);
   async function loadHistory(patientId) {
     selectedPatientId = patientId || selectedPatientId;
@@ -104,4 +129,47 @@ export async function render({ app }) {
     historyMessage = `${archivedDevices.length} episodio(s) retirado(s) cargado(s).`;
     redraw();
   }
+
+  async function loadTimeline(device = {}) {
+    const entityId = device.episodeId || device.id || "";
+    if (!entityId) {
+      timelineDevice = null;
+      timelineRows = [];
+      timelineMessage = "El episodio no tiene folio para auditoria.";
+      redraw();
+      return;
+    }
+    timelineDevice = device;
+    timelineRows = await listAuditForEntity(entityId, { limit: 50 });
+    timelineMessage = timelineRows.length
+      ? `${timelineRows.length} evento(s) auditado(s) cargado(s).`
+      : "Sin eventos auditados para este episodio.";
+    redraw();
+  }
+}
+
+function patientIdFromRoute(route = {}) {
+  const parts = route.parts || [];
+  const patientIndex = parts.indexOf("paciente");
+  const raw = patientIndex >= 0 ? parts[patientIndex + 1] : "";
+  if (!raw) return "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function renderPatientRouteContext(patientId, patient = {}) {
+  const label = patient?.patientName || patientId;
+  const location = [patient?.service || patient?.currentService, patient?.bed || patient?.currentBed].filter(Boolean).join(" / ");
+  return el("section", { class: "row-card" }, [
+    el("strong", {}, [`Paciente ${label}`]),
+    el("span", { class: "muted" }, [
+      `Ruta directa desde expediente${location ? ` - ${location}` : ""}. Activos e historicos se cargan solo para este paciente.`
+    ]),
+    el("div", { class: "toolbar" }, [
+      link("#/dispositivos", "Ver todos", { class: "button ghost small" })
+    ])
+  ]);
 }

@@ -9,6 +9,7 @@ let queueReadPromise = null;
 let queueSnapshot = null;
 let queueSnapshotAt = 0;
 let queueVersion = 0;
+let queueWriteTail = Promise.resolve();
 const NON_RETRYABLE_CODES = new Set([
   "permission-denied",
   "unauthenticated",
@@ -90,9 +91,14 @@ export async function queueWrite(app, operation) {
     role: profile?.role || "",
     ...operation
   };
-  const queue = await readQueue();
-  await writeQueue(nextQueueWithWrite(queue, item));
-  return item;
+  const previousWrite = queueWriteTail.catch(() => undefined);
+  const writeTask = previousWrite.then(async () => {
+    const queue = await readQueue();
+    await writeQueue(nextQueueWithWrite(queue, item));
+    return item;
+  });
+  queueWriteTail = writeTask.catch(() => undefined);
+  return writeTask;
 }
 
 export function nextQueueWithWrite(queue = [], item = {}) {

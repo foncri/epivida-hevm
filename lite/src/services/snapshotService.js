@@ -4,10 +4,35 @@ import { normalizeDate, todayIso } from "../lib/date.js";
 import { getDocData } from "./firestoreService.js";
 
 const snapshotPromises = new Map();
+const periodSnapshotPromises = new Map();
 const MAX_SNAPSHOT_TREND_DAYS = 30;
+const METRIC_FIELDS = [
+  "totalActivePatients",
+  "totalImportedPatients",
+  "totalReconciliationPatients",
+  "totalIAASActive",
+  "totalDevicesActive",
+  "totalPendingIssues",
+  "reportedDischarges",
+  "probableDischarges"
+];
+const METRIC_ALIASES = {
+  totalActivePatients: ["latestActivePatients"],
+  totalImportedPatients: ["sumImportedPatients", "latestImportedPatients"],
+  totalReconciliationPatients: ["sumReconciliationPatients", "latestReconciliationPatients"],
+  totalIAASActive: ["latestIAASActive"],
+  totalDevicesActive: ["latestDevicesActive"],
+  totalPendingIssues: ["latestPendingIssues"],
+  reportedDischarges: ["sumReportedDischarges"],
+  probableDischarges: ["sumProbableDischarges"]
+};
 
 function snapshotCacheKey(date) {
   return `daily_snapshots:${date}`;
+}
+
+function periodSnapshotCacheKey(collection, key) {
+  return `${collection}:${key}`;
 }
 
 async function loadSnapshot(date) {
@@ -33,6 +58,37 @@ export async function todaySnapshot(date = todayIso()) {
     }));
   }
   return snapshotPromises.get(key);
+}
+
+export function monthKeyForDate(date = todayIso()) {
+  const normalized = normalizeDate(date) || todayIso();
+  return normalized.slice(0, 7);
+}
+
+export function yearKeyForDate(date = todayIso()) {
+  const normalized = normalizeDate(date) || todayIso();
+  return normalized.slice(0, 4);
+}
+
+export async function monthSnapshot(monthKey = monthKeyForDate()) {
+  return periodSnapshot("monthly_snapshots", monthKey);
+}
+
+export async function yearSnapshot(yearKey = yearKeyForDate()) {
+  return periodSnapshot("yearly_snapshots", yearKey);
+}
+
+export async function snapshotPeriodOverview(date = todayIso()) {
+  const month = monthKeyForDate(date);
+  const year = yearKeyForDate(date);
+  const [monthly, yearly] = await Promise.all([
+    monthSnapshot(month).catch(() => null),
+    yearSnapshot(year).catch(() => null)
+  ]);
+  return {
+    month: summarizeMonthlySnapshot(month, monthly),
+    year: summarizeYearlySnapshot(year, yearly)
+  };
 }
 
 export function snapshotTrendDates(endDate = todayIso(), days = 7) {
@@ -80,6 +136,132 @@ export function summarizeSnapshotTrend(rows = []) {
       totalPendingIssues: maxMetric(found, "totalPendingIssues")
     }
   };
+}
+
+export function snapshotMetricFromDaily(date, snapshot = {}) {
+  const metric = { date };
+  METRIC_FIELDS.forEach(field => {
+    metric[field] = numberValue(snapshot?.[field]);
+  });
+  return metric;
+}
+
+export function summarizeMonthlySnapshot(monthKey = monthKeyForDate(), snapshot = null) {
+  if (!snapshot) return emptyPeriodSummary(monthKey, "month");
+  const metrics = Object.entries(snapshot.dailyMetrics || {})
+    .map(([date, metric]) => ({ date, ...numericMetric(metric) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return summarizePeriodMetrics(monthKey, "month", metrics, snapshot.latest || null, snapshot.lastSnapshotDate || "");
+}
+
+export function summarizeYearlySnapshot(yearKey = yearKeyForDate(), snapshot = null) {
+  if (!snapshot) return emptyPeriodSummary(yearKey, "year");
+  const metrics = Object.entries(snapshot.monthlyMetrics || {})
+    .map(([month, metric]) => ({ month, date: metric.lastSnapshotDate || `${month}-01`, ...numericMetric(metric) }))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)));
+  return summarizePeriodMetrics(yearKey, "year", metrics, snapshot.latest || null, snapshot.lastSnapshotDate || "");
+}
+
+export function aggregateDailySnapshots(monthKey = monthKeyForDate(), rows = []) {
+  const metrics = rows
+    .filter(row => row.found)
+    .map(row => snapshotMetricFromDaily(row.date, row))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return summarizePeriodMetrics(monthKey, "month", metrics, metrics.at(-1) || null, metrics.at(-1)?.date || "");
+}
+
+export function aggregateMonthlySnapshots(yearKey = yearKeyForDate(), rows = []) {
+  const metrics = rows
+    .filter(row => row.found)
+    .map(row => ({
+      month: row.month,
+      date: row.lastSnapshotDate || `${row.month}-01`,
+      ...numericMetric(row)
+    }))
+    .sort((a, b) => String(a.month).localeCompare(String(b.month)));
+  return summarizePeriodMetrics(yearKey, "year", metrics, metrics.at(-1) || null, metrics.at(-1)?.date || "");
+}
+
+async function periodSnapshot(collection, key) {
+  const id = String(key || "").trim();
+  if (!id) return null;
+  const promiseKey = `${collection}/${id}`;
+  if (!periodSnapshotPromises.has(promiseKey)) {
+    periodSnapshotPromises.set(promiseKey, loadPeriodSnapshot(collection, id).finally(() => {
+      periodSnapshotPromises.delete(promiseKey);
+    }));
+  }
+  return periodSnapshotPromises.get(promiseKey);
+}
+
+async function loadPeriodSnapshot(collection, key) {
+  if (appConfig().testMode) {
+    const cached = await cacheGet(periodSnapshotCacheKey(collection, key));
+    return cached?.value || null;
+  }
+  try {
+    const snapshot = await getDocData(`${collection}/${key}`);
+    if (snapshot) cacheSet(periodSnapshotCacheKey(collection, key), snapshot).catch(() => undefined);
+    return snapshot;
+  } catch {
+    const cached = await cacheGet(periodSnapshotCacheKey(collection, key));
+    return cached?.value || null;
+  }
+}
+
+function emptyPeriodSummary(key, period) {
+  return {
+    key,
+    period,
+    found: false,
+    daysFound: 0,
+    monthsFound: 0,
+    lastSnapshotDate: "",
+    latest: null,
+    averages: emptyMetrics(),
+    peaks: emptyMetrics(),
+    sums: emptyMetrics()
+  };
+}
+
+function summarizePeriodMetrics(key, period, metrics = [], latestFallback = null, lastSnapshotDate = "") {
+  const latest = numericMetric(latestFallback || metrics.at(-1) || {});
+  const peaks = {};
+  const sums = {};
+  const averages = {};
+  METRIC_FIELDS.forEach(field => {
+    const values = metrics.map(row => numberValue(row[field]));
+    const sum = values.reduce((total, value) => total + value, 0);
+    sums[field] = sum;
+    peaks[field] = values.length ? Math.max(...values) : numberValue(latest[field]);
+    averages[field] = values.length ? Math.round((sum / values.length) * 10) / 10 : 0;
+  });
+  return {
+    key,
+    period,
+    found: metrics.length > 0 || Boolean(latestFallback),
+    daysFound: period === "month" ? metrics.length : 0,
+    monthsFound: period === "year" ? metrics.length : 0,
+    lastSnapshotDate: lastSnapshotDate || metrics.at(-1)?.date || "",
+    latest,
+    averages,
+    peaks,
+    sums
+  };
+}
+
+function numericMetric(metric = {}) {
+  const normalized = {};
+  METRIC_FIELDS.forEach(field => {
+    const aliases = METRIC_ALIASES[field] || [];
+    const value = metric?.[field] ?? aliases.map(alias => metric?.[alias]).find(item => item !== undefined);
+    normalized[field] = numberValue(value);
+  });
+  return normalized;
+}
+
+function emptyMetrics() {
+  return numericMetric({});
 }
 
 function addDaysIso(date, days) {

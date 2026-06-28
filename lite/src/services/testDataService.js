@@ -205,6 +205,17 @@ const CULTURES = [
     organism: "Pendiente",
     susceptibility: "Pendiente",
     status: "solicitado"
+  },
+  {
+    cultureId: "culture_history_negative",
+    patientId: "p_history",
+    iaasId: "iaas_history_negative",
+    sampleType: "Urocultivo",
+    requestedAt: "2026-06-25",
+    resultAt: "2026-06-26",
+    organism: "Sin desarrollo",
+    susceptibility: "",
+    status: "negativo"
   }
 ];
 
@@ -218,10 +229,50 @@ const ANTIMICROBIALS = [
     endDate: "",
     indication: "Cobertura empirica por sospecha ITS-CVC",
     status: "activo"
+  },
+  {
+    antimicrobialId: "atb_history_proph",
+    patientId: "p_history",
+    iaasId: "",
+    drug: "Cefazolina",
+    startDate: "2026-06-23",
+    endDate: "",
+    indication: "Profilaxis quirurgica",
+    status: "profilaxis"
+  },
+  {
+    antimicrobialId: "atb_history_adjusted",
+    patientId: "p_history",
+    iaasId: "iaas_history_negative",
+    drug: "Meropenem",
+    startDate: "2026-06-25",
+    endDate: "",
+    indication: "Ajuste por sospecha urinaria",
+    status: "ajustado"
   }
 ];
 
 const AUDIT_LOGS = [
+  {
+    auditId: "audit_device_removed_01",
+    patientId: "p_history",
+    actionType: "device_remove",
+    module: "dispositivos",
+    entityType: "device",
+    entityId: "d_cvc_history_removed",
+    userEmail: "test@epivida.local",
+    createdAt: "2026-06-02T10:15:00.000Z"
+  },
+  {
+    auditId: "audit_device_archive_update_01",
+    patientId: "p_history",
+    actionType: "device_archive_update",
+    module: "dispositivos",
+    entityType: "device_archive",
+    entityId: "d_cvc_history_removed",
+    userEmail: "test@epivida.local",
+    createdAt: "2026-06-03T11:30:00.000Z"
+  },
   {
     auditId: "audit_history_round_01",
     patientId: "p_history",
@@ -374,6 +425,11 @@ export function testAntimicrobialsForIaas(iaasId = "") {
 export function testAuditForPatient(patientId = "") {
   if (!testDataEnabled() || !patientId) return [];
   return AUDIT_LOGS.filter(row => row.patientId === patientId).map(row => ({ ...row }));
+}
+
+export function testAuditForEntity(entityId = "") {
+  if (!testDataEnabled() || !entityId) return [];
+  return AUDIT_LOGS.filter(row => row.entityId === entityId).map(row => ({ ...row }));
 }
 
 export function testAuditLogs() {

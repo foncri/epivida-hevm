@@ -27,6 +27,12 @@ const RESTORE_DATASETS = {
     collection: "catalogs",
     idField: "catalogId",
     entityType: "catalog"
+  },
+  daily_snapshots: {
+    label: "Snapshots diarios",
+    collection: "daily_snapshots",
+    idField: "date",
+    entityType: "daily_snapshot"
   }
 };
 
@@ -60,38 +66,83 @@ export function summarizeOperationalBackup(backup = {}) {
   });
 }
 
-export async function restoreOperationalBackup(app, backup = {}, selectedKeys = [], options = {}) {
-  const selected = selectedKeys.filter(key => RESTORE_DATASETS[key]);
-  if (!selected.length) throw new Error("Selecciona al menos un dataset restaurable.");
-  const maxRows = Math.min(5000, Math.max(1, Number(options.maxRows) || 1000));
-  const restoredAt = nowIso();
-  const restoredBy = app.state.auth.user?.uid || "";
-  const results = [];
+export function restoreOperationalBackupPlan(backup = {}, selectedKeys = [], options = {}) {
+  const selected = [...new Set(selectedKeys)].filter(Boolean);
+  const unsupported = selected.filter(key => !RESTORE_DATASETS[key]);
+  const supported = selected.filter(key => RESTORE_DATASETS[key]);
+  if (!supported.length) throw new Error("Selecciona al menos un dataset restaurable.");
 
-  for (const key of selected) {
+  const maxRows = Math.min(5000, Math.max(1, Number(options.maxRows) || 1000));
+  const datasets = supported.map(key => {
     const config = RESTORE_DATASETS[key];
     const rows = Array.isArray(backup.datasets?.[key]) ? backup.datasets[key] : [];
     const limitedRows = rows.slice(0, maxRows);
-    let written = 0;
-    let skipped = rows.length - limitedRows.length;
+    const validRows = [];
+    let invalidRows = rows.length - limitedRows.length;
 
     for (const row of limitedRows) {
-      const id = restoreRowId(row, config.idField);
-      if (!id) {
-        skipped += 1;
+      if (!isRecord(row)) {
+        invalidRows += 1;
         continue;
       }
+      const id = restoreRowId(row, config.idField);
+      if (!id) {
+        invalidRows += 1;
+        continue;
+      }
+      validRows.push({ row, id });
+    }
+
+    return {
+      key,
+      label: config.label,
+      collection: config.collection,
+      idField: config.idField,
+      entityType: config.entityType,
+      total: rows.length,
+      writable: validRows.length,
+      skipped: invalidRows,
+      truncated: rows.length > limitedRows.length,
+      validRows
+    };
+  });
+
+  return {
+    schema: cleanText(backup.schema || "epivida-lite-operational-backup", 120),
+    createdAt: cleanText(backup.createdAt || "", 80),
+    selected: supported,
+    unsupported,
+    maxRows,
+    datasets,
+    total: datasets.reduce((sum, item) => sum + item.total, 0),
+    writable: datasets.reduce((sum, item) => sum + item.writable, 0),
+    skipped: datasets.reduce((sum, item) => sum + item.skipped, 0)
+  };
+}
+
+export async function restoreOperationalBackup(app, backup = {}, selectedKeys = [], options = {}) {
+  const plan = restoreOperationalBackupPlan(backup, selectedKeys, options);
+  const restoredAt = nowIso();
+  const restoredBy = app.state.auth.user?.uid || "";
+  const restoreRunId = `restore_${restoredAt.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  const results = [];
+
+  for (const dataset of plan.datasets) {
+    let written = 0;
+
+    for (const { row, id } of dataset.validRows) {
       const payload = stripUndefined({
         ...row,
-        [config.idField]: id,
+        [dataset.idField]: id,
         restoredAt,
         restoredBy,
-        restoredFromBackupSchema: cleanText(backup.schema || "epivida-lite-operational-backup", 120),
-        restoredFromBackupCreatedAt: cleanText(backup.createdAt || "", 80)
+        restoreRunId,
+        restoredFromBackupSchema: plan.schema,
+        restoredFromBackupCreatedAt: plan.createdAt
       });
-      await setDocMergeOrQueue(app, `${config.collection}/${id}`, payload, {
+      await setDocMergeOrQueue(app, `${dataset.collection}/${id}`, payload, {
         module: "admin",
-        entityType: config.entityType,
+        entityType: dataset.entityType,
         entityId: id
       });
       written += 1;
@@ -99,12 +150,12 @@ export async function restoreOperationalBackup(app, backup = {}, selectedKeys = 
     }
 
     results.push({
-      key,
-      label: config.label,
+      key: dataset.key,
+      label: dataset.label,
       written,
-      skipped,
-      total: rows.length,
-      truncated: rows.length > limitedRows.length
+      skipped: dataset.skipped,
+      total: dataset.total,
+      truncated: dataset.truncated
     });
   }
 
@@ -112,21 +163,27 @@ export async function restoreOperationalBackup(app, backup = {}, selectedKeys = 
     actionType: "backup_restore",
     module: "admin",
     entityType: "operational_backup",
-    entityId: restoredAt,
+    entityId: restoreRunId,
     after: {
-      schema: backup.schema || "",
-      createdAt: backup.createdAt || "",
-      selected,
-      maxRows,
+      schema: plan.schema,
+      createdAt: plan.createdAt,
+      selected: plan.selected,
+      unsupported: plan.unsupported,
+      maxRows: plan.maxRows,
+      restoreRunId,
       results
     }
   });
-  return { restoredAt, results };
+  return { restoredAt, restoreRunId, results, unsupported: plan.unsupported };
 }
 
 function restoreRowId(row = {}, idField = "") {
   const raw = row[idField] || row.id || "";
   return cleanText(raw, 180).replace(/[\\/#?]/g, "_");
+}
+
+function isRecord(row) {
+  return Boolean(row) && typeof row === "object" && !Array.isArray(row);
 }
 
 function yieldToBrowser() {

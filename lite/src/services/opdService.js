@@ -1,13 +1,22 @@
 import { normalizeDate, nowIso } from "../lib/date.js";
+import { normalizeText } from "../lib/normalize.js";
 import { cleanText } from "../lib/validators.js";
-import { epidemiologicalDiagnosis } from "./patientService.js";
 
 function normalizedText(value = "") {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase();
+  return normalizeText(value);
 }
+
+export const OPD_DISCHARGE_TYPES = [
+  "ALTA HOSPITALARIA POR MEJORIA",
+  "ALTA HOSPITALARIA VOLUNTARIA",
+  "ALTA HOSPITALARIA POR MAXIMO BENEFICIO",
+  "DEFUNCION",
+  "MEJORIA",
+  "VOLUNTARIA",
+  "MAXIMO BENEFICIO"
+];
+
+const OPD_IAAS_EXCLUDED_SERVICES = ["AMBULATORIO", "HEMODIALISIS", "ONCOLOGIA"];
 
 export function defaultOpdData() {
   return {
@@ -65,7 +74,7 @@ export function opdRequiredMissing(value = {}) {
   return missing;
 }
 
-export function opdEligibilityForText(value = "") {
+export function opdEligibilityForText(value = "", context = {}) {
   const text = normalizedText(value);
   const isVig = text.includes("VIG TRANSMISIBLE")
     || text.includes("VIG NO TRANSMISIBLE")
@@ -73,17 +82,25 @@ export function opdEligibilityForText(value = "") {
     || text.includes("MATERNA")
     || text.includes("PERINATAL");
   if (isVig) return { eligible: true, scope: "vig", label: "Vigilancia Hospitalaria" };
+  const hospitalized = opdHospitalContext(context);
+  if (hospitalized && (text.includes("ESAVI") || text.includes("COVID") || text.includes("INFLUENZA"))) {
+    return { eligible: true, scope: "vig", label: "Vigilancia Hospitalaria" };
+  }
   const hasIaas = text.includes("IAAS") && !text.includes("NO IAAS") && !text.includes("RIESGO IAAS");
-  if (hasIaas) return { eligible: true, scope: "iaas", label: "IAAS confirmada" };
+  if (hasIaas && opdIaasServiceAllowed(context)) return { eligible: true, scope: "iaas", label: "IAAS confirmada" };
+  if (hasIaas && !opdServiceName(context)) return { eligible: true, scope: "iaas", label: "IAAS confirmada" };
   return { eligible: false, scope: "", label: "" };
 }
 
 export function opdEligibilityForPatient(patient = {}) {
   return opdEligibilityForText([
-    epidemiologicalDiagnosis(patient),
+    patient.epidemiologicalDiagnosis || patient.currentEpidemiologicalDiagnosis,
     patient.hospitalDiagnosis,
     patient.currentDiagnosis
-  ].filter(Boolean).join(" "));
+  ].filter(Boolean).join(" "), {
+    service: patient.service || patient.currentService || patient.lastService,
+    active: patient.active
+  });
 }
 
 export function opdEligibilityForIaasCase(iaas = {}) {
@@ -95,7 +112,9 @@ export function opdEligibilityForIaasCase(iaas = {}) {
     iaas.patientClassification,
     iaas.epidemiologicalDiagnosis,
     iaas.iaasType
-  ].filter(Boolean).join(" "));
+  ].filter(Boolean).join(" "), {
+    service: iaas.service || iaas.currentService
+  });
 }
 
 export function opdStatus(value = {}, eligibility = { eligible: false }) {
@@ -114,6 +133,50 @@ export function opdStatus(value = {}, eligibility = { eligible: false }) {
     return { label: "Alta OPD", tone: "warn", pending: true, detail: "Fecha de egreso registrada; falta marcar Alta." };
   }
   return { label: "OPD completo", tone: "ok", pending: false, detail: "Datos OPD completos." };
+}
+
+export function opdAutoDischargeDate(patient = {}, row = {}) {
+  const type = patient.dischargeType || row.dischargeType || "";
+  const date = normalizeDate(patient.dischargeDate || row.dischargeDate || patient.dischargedAt || row.dischargedAt);
+  if (!date) return "";
+  return isOpdDischargeType(type) ? date : "";
+}
+
+export function opdDischargeReady(patient = {}, row = {}, value = {}) {
+  const opd = normalizeOpdData(value);
+  if (!opd.dischargeDate && !opdAutoDischargeDate(patient, row)) return false;
+  return Boolean(opdAutoDischargeDate(patient, row))
+    || normalizedText(patient.hospitalizationStatus).includes("EGRESADO")
+    || normalizedText(row.dischargeStatus).includes("CONFIRM");
+}
+
+export function completeOpdForSave(value = {}, patient = {}, row = {}) {
+  const opd = normalizeOpdData(value);
+  if (!opd.dischargeDate) opd.dischargeDate = opdAutoDischargeDate(patient, row);
+  if (opdHasContent(opd)) opd.updatedAt = nowIso();
+  return opd;
+}
+
+export function isOpdDischargeType(type = "") {
+  const key = normalizedText(type);
+  return OPD_DISCHARGE_TYPES.some(item => normalizedText(item) === key);
+}
+
+function opdServiceName(context = {}) {
+  return normalizedText(context.service || context.currentService || context.lastService || "");
+}
+
+function opdHospitalContext(context = {}) {
+  if (context.hospitalized !== undefined) return Boolean(context.hospitalized);
+  const service = opdServiceName(context);
+  if (!service) return Boolean(context.assumeHospitalized);
+  return service !== "AMBULATORIO";
+}
+
+function opdIaasServiceAllowed(context = {}) {
+  const service = opdServiceName(context);
+  if (!service) return Boolean(context.assumeHospitalized);
+  return !OPD_IAAS_EXCLUDED_SERVICES.includes(service);
 }
 
 function opdFlag(value) {

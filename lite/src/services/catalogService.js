@@ -11,6 +11,44 @@ const CACHE_KEY = "catalogs:last";
 let catalogsPromise = null;
 
 const DEFAULT_CATALOG_VERSION = "legacy-2026-06";
+export const CATALOG_IMPORT_MAX_ROWS = 500;
+
+export const CATALOG_TYPES = [
+  "services",
+  "known_beds",
+  "device_types",
+  "culture_types",
+  "culture_status",
+  "antimicrobials",
+  "antimicrobial_status"
+];
+
+const CATALOG_TYPE_SET = new Set(CATALOG_TYPES);
+const DEFAULT_IMPORT_HEADERS = ["type", "value", "label", "service", "bed", "order", "version", "active"];
+const IMPORT_HEADER_ALIASES = {
+  activo: "active",
+  active: "active",
+  cama: "bed",
+  catalogid: "catalogId",
+  catalog_id: "catalogId",
+  catalogo: "type",
+  catalogtype: "type",
+  codigo: "value",
+  code: "value",
+  etiqueta: "label",
+  id: "catalogId",
+  key: "value",
+  label: "label",
+  orden: "order",
+  order: "order",
+  servicio: "service",
+  service: "service",
+  tipo: "type",
+  type: "type",
+  valor: "value",
+  value: "value",
+  version: "version"
+};
 
 const LEGACY_KNOWN_BEDS = {
   "MEDICINA INTERNA": [
@@ -137,6 +175,177 @@ function normalizeCatalog(row = {}) {
   });
 }
 
+function normalizedHeader(value = "") {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function detectDelimiter(line = "") {
+  const candidates = ["\t", ",", ";"];
+  return candidates
+    .map(delimiter => ({ delimiter, count: parseDelimitedLine(line, delimiter).length }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter || ",";
+}
+
+function parseDelimitedLine(line = "", delimiter = ",") {
+  const cells = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === "\"") {
+      if (quoted && line[index + 1] === "\"") {
+        current += "\"";
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === delimiter && !quoted) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function parseImportActive(value = "") {
+  const text = normalizedHeader(value);
+  if (!text) return true;
+  return !["0", "baja", "false", "inactivo", "inactive", "no", "n"].includes(text);
+}
+
+function hasImportHeader(cells = []) {
+  return cells.some(cell => IMPORT_HEADER_ALIASES[normalizedHeader(cell)]);
+}
+
+function importHeaderKey(value = "") {
+  return IMPORT_HEADER_ALIASES[normalizedHeader(value)] || normalizedHeader(value);
+}
+
+function importRawRow(cells = [], headers = []) {
+  return headers.reduce((acc, header, index) => {
+    if (header) acc[header] = cells[index] ?? "";
+    return acc;
+  }, {});
+}
+
+function normalizeCatalogImportRow(raw = {}, index = 0, options = {}) {
+  const errors = [];
+  const type = cleanText(raw.type || "", 80);
+  let service = cleanText(raw.service || "", 120);
+  let bed = cleanText(raw.bed || "", 120);
+  let value = cleanText(raw.value || raw.label || "", 180);
+  let label = cleanText(raw.label || value || bed, 220);
+
+  if (!CATALOG_TYPE_SET.has(type)) {
+    errors.push(`Tipo no permitido: ${type || "vacio"}.`);
+  }
+
+  if (type === "known_beds") {
+    if ((!service || !bed) && value.includes("|")) {
+      const [valueService, valueBed] = value.split("|");
+      service ||= cleanText(valueService, 120);
+      bed ||= cleanText(valueBed, 120);
+    }
+    if (!service || !bed) {
+      errors.push("Cama conocida requiere servicio y cama.");
+    }
+    value = `${service}|${bed}`;
+    label = label || bed;
+  } else if (!value) {
+    errors.push("Catalogo requiere valor.");
+  }
+
+  if (!label) {
+    errors.push("Catalogo requiere etiqueta.");
+  }
+
+  if (errors.length) {
+    return { errors };
+  }
+
+  return {
+    row: normalizeCatalog({
+      catalogId: raw.catalogId || "",
+      type,
+      value,
+      label,
+      service: type === "known_beds" ? service : undefined,
+      bed: type === "known_beds" ? bed : undefined,
+      order: raw.order || (index + 1) * 10,
+      active: parseImportActive(raw.active),
+      version: raw.version || options.defaultVersion || "admin-import",
+      source: options.source || "admin_catalog_import"
+    }),
+    errors: []
+  };
+}
+
+export function parseCatalogImportText(text = "", options = {}) {
+  const lines = String(text || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (!lines.length) {
+    return {
+      rows: [],
+      accepted: [],
+      rejected: [],
+      issues: ["No hay catalogos para importar."],
+      headers: [],
+      delimiter: "",
+      totalRows: 0,
+      truncated: false
+    };
+  }
+
+  const delimiter = options.delimiter || detectDelimiter(lines[0]);
+  const firstCells = parseDelimitedLine(lines[0], delimiter);
+  const headerPresent = hasImportHeader(firstCells);
+  const headers = headerPresent
+    ? firstCells.map(importHeaderKey)
+    : DEFAULT_IMPORT_HEADERS.slice(0, firstCells.length);
+  const dataLines = headerPresent ? lines.slice(1) : lines;
+  const maxRows = Math.min(CATALOG_IMPORT_MAX_ROWS, Math.max(1, Number(options.maxRows) || CATALOG_IMPORT_MAX_ROWS));
+  const accepted = [];
+  const rejected = [];
+
+  dataLines.slice(0, maxRows).forEach((line, index) => {
+    const raw = importRawRow(parseDelimitedLine(line, delimiter), headers);
+    const normalized = normalizeCatalogImportRow(raw, index, options);
+    if (normalized.errors.length) {
+      rejected.push({ line: index + (headerPresent ? 2 : 1), raw, errors: normalized.errors });
+    } else {
+      accepted.push(normalized.row);
+    }
+  });
+
+  const truncated = dataLines.length > maxRows;
+  const issues = [];
+  if (truncated) issues.push(`Se previsualizaron ${maxRows} de ${dataLines.length} fila(s).`);
+  if (rejected.length) issues.push(`${rejected.length} fila(s) no se importaran por errores de validacion.`);
+
+  return {
+    rows: accepted,
+    accepted,
+    rejected,
+    issues,
+    headers,
+    delimiter,
+    totalRows: dataLines.length,
+    truncated
+  };
+}
+
 function mergeCatalogRows(...groups) {
   const map = new Map();
   groups.flat().filter(Boolean).forEach(row => {
@@ -223,4 +432,58 @@ export async function saveCatalogEntry(app, entry = {}) {
     after: saved
   });
   return saved;
+}
+
+export async function importCatalogEntries(app, rows = [], options = {}) {
+  const maxRows = Math.min(CATALOG_IMPORT_MAX_ROWS, Math.max(1, Number(options.maxRows) || CATALOG_IMPORT_MAX_ROWS));
+  const now = nowIso();
+  const importBatchId = options.importBatchId || `catalog_import_${now.replace(/[^0-9]/g, "").slice(0, 14)}`;
+  const userId = app.state.auth.user?.uid || "";
+  const normalizedRows = rows.slice(0, maxRows).map((row, index) => normalizeCatalog({
+    ...row,
+    order: row.order ?? (index + 1) * 10,
+    source: row.source || "admin_catalog_import",
+    importBatchId,
+    updatedAt: now,
+    updatedBy: userId,
+    createdAt: row.createdAt || now,
+    createdBy: row.createdBy || userId
+  }));
+
+  const invalid = normalizedRows.find(row => !row.type || !row.value || !row.label || !CATALOG_TYPE_SET.has(row.type));
+  if (invalid) {
+    throw new Error(`Catalogo importado invalido: ${invalid.type || "sin tipo"} / ${invalid.value || "sin valor"}.`);
+  }
+
+  const savedRows = [];
+  for (const payload of normalizedRows) {
+    const saved = await setDocMergeOrQueue(app, `catalogs/${payload.catalogId}`, payload, {
+      module: "admin",
+      entityType: "catalog",
+      entityId: payload.catalogId
+    });
+    savedRows.push(saved);
+  }
+
+  catalogsPromise = null;
+  await writeAudit(app, {
+    actionType: "catalog_import",
+    module: "admin",
+    entityType: "catalog_import",
+    entityId: importBatchId,
+    after: {
+      importBatchId,
+      count: savedRows.length,
+      types: [...new Set(savedRows.map(row => row.type))],
+      catalogIds: savedRows.map(row => row.catalogId).slice(0, 100),
+      source: options.source || "admin_catalog_import"
+    }
+  });
+
+  return {
+    importBatchId,
+    savedRows,
+    count: savedRows.length,
+    syncStatus: savedRows.some(row => row.syncStatus === "local_pending") ? "local_pending" : "server_synced"
+  };
 }

@@ -35,6 +35,7 @@ function requireIndex(collectionGroup, fields) {
   ["patients_active", [["normalizedPatientName", "ASCENDING"], ["active", "ASCENDING"]]],
   ["patients_archive", [["lastService", "ASCENDING"], ["archivedAt", "DESCENDING"]]],
   ["patients_archive", [["normalizedPatientName", "ASCENDING"], ["archivedAt", "DESCENDING"]]],
+  ["patients_archive", [["opdPending", "ASCENDING"], ["archivedAt", "DESCENDING"]]],
   ["nursing_rounds", [["date", "ASCENDING"], ["service", "ASCENDING"]]],
   ["nursing_rounds", [["date", "ASCENDING"], ["patientId", "ASCENDING"]]],
   ["nursing_rounds", [["patientId", "ASCENDING"], ["date", "DESCENDING"]]],
@@ -58,6 +59,7 @@ function requireIndex(collectionGroup, fields) {
   ["audit_logs", [["userId", "ASCENDING"], ["createdAt", "DESCENDING"]]],
   ["audit_logs", [["patientId", "ASCENDING"], ["createdAt", "DESCENDING"]]],
   ["audit_logs", [["module", "ASCENDING"], ["createdAt", "DESCENDING"]]],
+  ["audit_logs", [["entityId", "ASCENDING"], ["createdAt", "DESCENDING"]]],
   ["exports_log", [["userId", "ASCENDING"], ["createdAt", "DESCENDING"]]]
 ].forEach(([collection, fields]) => requireIndex(collection, fields));
 

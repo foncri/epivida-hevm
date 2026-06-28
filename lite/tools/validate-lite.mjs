@@ -35,7 +35,12 @@ const budgets = {
   initialCssBytes: 50_000,
   initialJsBytes: 15_000,
   maxRouteModuleBytes: 15_000,
-  roundRouteModuleBytes: 90_000,
+  roundRouteModuleBytes: 1_500,
+  roundPageBytes: 15_000,
+  dischargeReviewPanelBytes: 8_000,
+  expedientePanelsBytes: 10_000,
+  expedienteEventPanelsBytes: 12_000,
+  expedientePrintBytes: 8_000,
   maxInitialStylesheets: 1,
   maxInitialScripts: 2
 };
@@ -163,6 +168,11 @@ for (const file of walk(join(root, "src/modules")).filter(file => file.endsWith(
     : budgets.maxRouteModuleBytes;
   assertBudget(`Modulo de ruta ${relativeFile}`, size, limit);
 }
+assertBudget("Chunk de pagina principal de ronda", statSync(join(root, "src/modules/ronda-paquetes/roundPage.js")).size, budgets.roundPageBytes);
+assertBudget("Panel de altas por verificar de ronda", statSync(join(root, "src/modules/ronda-paquetes/dischargeReviewPanel.js")).size, budgets.dischargeReviewPanelBytes);
+assertBudget("Paneles base de expediente", statSync(join(root, "src/modules/expediente/panels.js")).size, budgets.expedientePanelsBytes);
+assertBudget("Paneles historicos de expediente", statSync(join(root, "src/modules/expediente/eventPanels.js")).size, budgets.expedienteEventPanelsBytes);
+assertBudget("Vista imprimible de expediente", statSync(join(root, "src/modules/expediente/print.js")).size, budgets.expedientePrintBytes);
 
 const routerSource = readFileSync(join(root, "src/router.js"), "utf8");
 if (!routerSource.includes('app.state.auth.status !== "ready"') || !routerSource.includes("canAccessRoute(route.key")) {
@@ -216,8 +226,11 @@ if (!iaasServiceSource.includes("function activeIaas") || !iaasServiceSource.inc
 if (!iaasServiceSource.includes("vitalFio2") || !iaasServiceSource.includes("previousVitals.fio2") || !iaasServiceSource.includes("vitalPeep") || !iaasServiceSource.includes("previousVitals.peep")) {
   fail("iaasService debe conservar campos de ventilacion FiO2/PEEP del seguimiento IAAS legacy.");
 }
+if (!iaasServiceSource.includes("validateIaasClinicalCompleteness") || !iaasServiceSource.includes("clinicalValidationStatus") || !iaasServiceSource.includes("clinicalValidationVersion")) {
+  fail("iaasService debe persistir validacion clinica versionada de cedulas IAAS.");
+}
 const opdServiceSource = readFileSync(join(root, "src/services/opdService.js"), "utf8");
-if (!opdServiceSource.includes("export function opdEligibilityForPatient") || !opdServiceSource.includes("export function opdEligibilityForIaasCase") || !opdServiceSource.includes("opdRequiredMissing") || !opdServiceSource.includes("opdFromFormData") || !opdServiceSource.includes("MORBIMORTALIDAD")) {
+if (!opdServiceSource.includes("export function opdEligibilityForPatient") || !opdServiceSource.includes("export function opdEligibilityForIaasCase") || !opdServiceSource.includes("opdRequiredMissing") || !opdServiceSource.includes("opdFromFormData") || !opdServiceSource.includes("MORBIMORTALIDAD") || !opdServiceSource.includes("COVID") || !opdServiceSource.includes("INFLUENZA") || !opdServiceSource.includes("ESAVI") || !opdServiceSource.includes("OPD_IAAS_EXCLUDED_SERVICES") || !opdServiceSource.includes("opdHospitalContext") || !opdServiceSource.includes("OPD_DISCHARGE_TYPES") || !opdServiceSource.includes("opdAutoDischargeDate") || !opdServiceSource.includes("completeOpdForSave")) {
   fail("opdService debe migrar OPD legacy como servicio puro para vigilancia e IAAS, sin loader ni eval.");
 }
 const cultureServiceSource = readFileSync(join(root, "src/services/cultureService.js"), "utf8");
@@ -233,6 +246,12 @@ if (!cultureServiceSource.includes("export async function listCulturesForPatient
 const antimicrobialServiceSource = readFileSync(join(root, "src/services/antimicrobialService.js"), "utf8");
 if (!antimicrobialServiceSource.includes("export async function listAntimicrobialsForPatient") || !antimicrobialServiceSource.includes('"antimicrobials", [["patientId", "==", patientId]]') || !antimicrobialServiceSource.includes("pendingPayloadsForCollection(\"antimicrobials\")") || !antimicrobialServiceSource.includes("export async function saveAntimicrobial")) {
   fail("antimicrobialService debe consultar antimicrobianos por paciente/caso y mezclar cola offline sin lecturas globales.");
+}
+const microbiologyAlertServiceSource = readFileSync(join(root, "src/services/microbiologyAlertService.js"), "utf8");
+for (const expected of ["MICROBIOLOGY_ALERTS_VERSION", "microbiologyClinicalAlerts", "cultureClinicalAlert", "antimicrobialClinicalAlert", "positive-critical", "Antimicrobiano amplio sin cultivo", "active-ended", "Profilaxis antimicrobiana prolongada", "Timeout antimicrobiano 48h", "Revisar desescalamiento por cultivo negativo", "broad-negative-culture", "prophylaxis-prolonged", "iaasPatientHref", "#/seguimiento-iaas/"]) {
+  if (!microbiologyAlertServiceSource.includes(expected)) {
+    fail("microbiologyAlertService debe centralizar reglas finas de cultivos y antimicrobianos sin lecturas globales.");
+  }
 }
 const preventiveCedulaServiceSource = readFileSync(join(root, "src/services/preventiveCedulaService.js"), "utf8");
 for (const expected of ["PREVENTIVE_CEDULA_SPECS", "ITS - CC", "ITU - CU", "NAVM", "ISQ", "P.E. Y P.B.M.T.", "preventiveCedulaCsvRows", "preventiveMonthlyCsvRows", "preventiveCedulaSummaryRow", "listTodayRounds"]) {
@@ -260,8 +279,8 @@ if (!offlineQueueSource.includes("clearBlockedWrites") || !offlineQueueSource.in
 if (!offlineQueueSource.includes('item.status === "local_pending"')) {
   fail("offlineQueueService solo debe mezclar en UI clinica escrituras local_pending.");
 }
-if (!offlineQueueSource.includes("queueReadPromise") || !offlineQueueSource.includes("queueSnapshot") || !offlineQueueSource.includes("QUEUE_SNAPSHOT_TTL_MS") || !offlineQueueSource.includes("queueVersion += 1")) {
-  fail("offlineQueueService debe deduplicar lecturas IndexedDB de la cola offline y refrescar cache al escribir.");
+if (!offlineQueueSource.includes("queueReadPromise") || !offlineQueueSource.includes("queueSnapshot") || !offlineQueueSource.includes("QUEUE_SNAPSHOT_TTL_MS") || !offlineQueueSource.includes("queueVersion += 1") || !offlineQueueSource.includes("queueWriteTail")) {
+  fail("offlineQueueService debe deduplicar lecturas IndexedDB, serializar escrituras concurrentes y refrescar cache al escribir.");
 }
 
 const testDataSource = readFileSync(join(root, "src/services/testDataService.js"), "utf8");
@@ -271,26 +290,41 @@ for (const expected of ["p_uci_02", "p_history", "testDataEnabled", "appConfig()
   }
 }
 const patientServiceSource = readFileSync(join(root, "src/services/patientService.js"), "utf8");
+const dischargeServiceSource = readFileSync(join(root, "src/services/dischargeService.js"), "utf8");
 const monitorServiceSource = readFileSync(join(root, "src/services/monitorService.js"), "utf8");
 const operationalAlertServiceSource = readFileSync(join(root, "src/services/operationalAlertService.js"), "utf8");
 const importServiceSource = readFileSync(join(root, "src/services/importService.js"), "utf8");
 const censusRepairServiceSource = readFileSync(join(root, "src/services/censusRepairService.js"), "utf8");
+const reconciliationServiceSource = readFileSync(join(root, "src/services/reconciliationService.js"), "utf8");
+const excelImportServiceSource = readFileSync(join(root, "src/services/excelImportService.js"), "utf8");
+const importarCensoModuleSource = readFileSync(join(root, "src/modules/importar-censo/index.js"), "utf8");
 const roundServiceSource = readFileSync(join(root, "src/services/roundService.js"), "utf8");
 const expedienteServiceSource = readFileSync(join(root, "src/services/expedienteService.js"), "utf8");
 const iaasCriteriaServiceSource = readFileSync(join(root, "src/services/iaasCriteriaService.js"), "utf8");
+for (const expected of ["IAAS_CLINICAL_VALIDATION_VERSION", "TYPE_ALIASES", "\"ITS-CVC\"", "validateIaasClinicalCompleteness", "clinicalValidation", "canConfirm", "blocking", "criteriaVersionForType(type)", "legacyAssessment", "iaasAssessment", "viralPanel", "infectionTracking"]) {
+  if (!iaasCriteriaServiceSource.includes(expected)) {
+    fail("iaasCriteriaService debe normalizar alias legacy y validar completitud clinica por tipo IAAS, incluyendo evidencia iaasAssessment heredada.");
+  }
+}
 if (!patientServiceSource.includes("testActivePatients") || !roundServiceSource.includes("testRoundsForPatient")) {
   fail("Servicios clinicos deben mezclar datos sinteticos de QA solo en modo local de prueba.");
 }
 if (!patientServiceSource.includes("patientFilterTextCache") || !patientServiceSource.includes("export function patientFilterText")) {
   fail("patientService debe cachear texto de busqueda local para censo/monitoreo.");
 }
-if (!monitorServiceSource.includes("export function monitorMetrics") || !monitorServiceSource.includes("export function monitorDiagnosisGroup") || !monitorServiceSource.includes("visibleMonitorPatients") || !monitorServiceSource.includes("riesgo_iaas") || !monitorServiceSource.includes("no_iaas")) {
+if (!dischargeServiceSource.includes("ALTA HOSPITALARIA POR MEJORIA") || !dischargeServiceSource.includes("ALTA HOSPITALARIA VOLUNTARIA") || !dischargeServiceSource.includes("ALTA HOSPITALARIA POR MAXIMO BENEFICIO") || !dischargeServiceSource.includes("DEFUNCION") || !patientServiceSource.includes("normalizeDischargeType") || !patientServiceSource.includes("dischargeStatus: \"confirmada\"") || !patientServiceSource.includes("completeOpdForSave(patient.opd")) {
+  fail("patientService debe normalizar altas legacy y completar fecha OPD al archivar pacientes.");
+}
+if (!patientServiceSource.includes("patientSearchIndexData") || !patientServiceSource.includes("patientSearchTokens") || !patientServiceSource.includes("searchPatientsIndex") || !patientServiceSource.includes('"patients_search", [["searchTokens", "array-contains"')) {
+  fail("patientService debe mantener busqueda avanzada acotada sobre patients_search con tokens, sin listar historicos.");
+}
+if (!monitorServiceSource.includes("export function monitorMetrics") || !monitorServiceSource.includes("export function monitorDiagnosisGroup") || !monitorServiceSource.includes("export function monitorEpidemiologicalBases") || !monitorServiceSource.includes("visibleMonitorPatients") || !monitorServiceSource.includes("MONITOR_AGE_RANGES") || !monitorServiceSource.includes("monitorPatientAgeYears") || !monitorServiceSource.includes("monitorPatientDeih") || !monitorServiceSource.includes("daysBetweenDateValues") || !monitorServiceSource.includes('"deih-desc"') || !monitorServiceSource.includes('"state-desc"') || !monitorServiceSource.includes("riesgo_iaas") || !monitorServiceSource.includes("no_iaas") || !monitorServiceSource.includes("COVID/Influenza") || !monitorServiceSource.includes("ESAVI") || !monitorServiceSource.includes("Morbimortalidad") || !monitorServiceSource.includes("epiBase")) {
   fail("monitorService debe centralizar metricas/filtros de monitoreo sin lecturas historicas.");
 }
 if (!monitorServiceSource.includes("monitorOpdStatus") || !monitorServiceSource.includes("opdPending") || !monitorServiceSource.includes("opdEligibilityForPatient")) {
   fail("monitorService debe mostrar pendientes OPD derivados localmente, sin consultas adicionales.");
 }
-for (const expected of ["OPERATIONAL_ALERTS_VERSION", "loadOperationalAlerts", "buildOperationalAlerts", "listTodayRounds", "listActiveDevices", "listCulturesByStatus", "syncQueueSummary", "risk-device", "culture"]) {
+for (const expected of ["OPERATIONAL_ALERTS_VERSION", "loadOperationalAlerts", "buildOperationalAlerts", "listArchivedPatientsWithPendingOpd", "archivedPatients", "\"Alta OPD pendiente\"", "listTodayRounds", "listActiveDevices", "listCulturesByStatus", "CULTURE_ALERT_STATUSES", "\"negativo\"", "ACTIVE_ANTIMICROBIAL_STATUSES", "\"profilaxis\"", "\"ajustado\"", "listAntimicrobialsByStatus", "microbiologyClinicalAlerts", "prioritizeOperationalMicrobiology", "syncQueueSummary", "risk-device", "device-surveillance", "Dispositivos activos para vigilancia", "totalDeviceDays", "culture", "antimicrobialDue"]) {
   if (!operationalAlertServiceSource.includes(expected)) {
     fail("operationalAlertService debe migrar pendientes y alertas del runtime legacy como servicio ligero.");
   }
@@ -300,10 +334,28 @@ for (const expected of ["CENSUS_REPAIR_VERSION", "repairHospitalCensusInput", "r
     fail("censusRepairService debe migrar import-census-repair.js como reparador puro de censos hospitalarios.");
   }
 }
-for (const expected of ["repairHospitalCensusInput", "shouldUseRepair", "normalizeImportRecord", "repairVersion", "sourceName"]) {
+for (const expected of ["repairHospitalCensusInput", "shouldUseRepair", "normalizeImportRecord", "repairVersion", "sourceName", "patient_name", "servicio_cama", "diagnostico_actual", "mergeImportField"]) {
   if (!importServiceSource.includes(expected)) {
     fail("importService debe usar censusRepairService antes del parser tabular cuando detecta formato hospitalario legacy.");
   }
+}
+for (const expected of ["export function resolveImportScope", "preserveExistingPatients", "below_full_coverage", "export function extractReportedDischarge", "dischargeReported", "alta_reportada", "movementNotice", "DUPLICATE_LOCATION_CONFLICT_MESSAGE", "DUPLICATE_EXISTING_MESSAGE", "PROTECTED_AMBULATORY_COMPANION_MESSAGE", "AUTOMATIC_DISCHARGE_MESSAGE", "shouldAutoDischargeBeforeImport", "automaticDischargeCensusRow", "automaticArchived", "protectedAmbulatoryCompanionRow", "protectedHospitalStayId", "conflictRows", "duplicateExistingRows", "automaticDischarges", "markDuplicateExistingForReview", "patient_duplicate_existing_review", "patient_probable_discharge", "censusReconciliationRow", "writePeriodSnapshots", "monthly_snapshots", "yearly_snapshots", "snapshotMetricFromDaily"]) {
+  if (!reconciliationServiceSource.includes(expected)) {
+    fail("reconciliationService debe migrar alcance completo/parcial, altas reportadas/probables, altas automaticas y snapshots mensual/anual desde el importador legacy.");
+  }
+}
+for (const expected of ["importMode", "Tipo de importacion", "Automatico", "Completo", "Parcial", "summary.preserveExistingPatients", "summary.reportedDischarges", "summary.conflictRows", "summary.duplicateExistingRows", "summary.automaticDischarges", "Duplicado activo", "Conflicto"]) {
+  if (!importarCensoModuleSource.includes(expected)) {
+    fail("modules/importar-censo debe exponer modo completo/parcial y alertas de conciliacion en el preview.");
+  }
+}
+for (const expected of ["spreadsheetFileToTsv", "spreadsheetBufferToTsv", "DecompressionStream(\"deflate-raw\")", "firstWorksheetPath", "sharedStringsFromXml", "worksheetXmlToTsv"]) {
+  if (!excelImportServiceSource.includes(expected)) {
+    fail("excelImportService debe convertir hojas Excel Open XML a TSV sin librerias pesadas.");
+  }
+}
+if (!importarCensoModuleSource.includes('import("../../services/excelImportService.js")') || !importarCensoModuleSource.includes(".xlsx,.xlsm") || importarCensoModuleSource.includes('from "../../services/excelImportService.js"')) {
+  fail("modules/importar-censo debe cargar Excel con import dinamico solo al seleccionar archivo compatible.");
 }
 if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSource.includes("activeDevicesPromise") || !deviceServiceSource.includes("devicePatientPromises") || !iaasServiceSource.includes("activeIaasPromise") || !iaasServiceSource.includes("patientIaasPromises") || !roundServiceSource.includes("todayRoundsPromises") || !roundServiceSource.includes("patientRoundsPromises") || !roundServiceSource.includes("roundSessionPromises")) {
   fail("Servicios clinicos deben deduplicar lecturas Firestore en vuelo para evitar consultas repetidas entre modulos.");
@@ -311,7 +363,7 @@ if (!patientServiceSource.includes("activePatientsPromise") || !deviceServiceSou
 if (!roundServiceSource.includes("ROUND_HISTORY_LIMIT") || !roundServiceSource.includes('"nursing_rounds", [["patientId", "==", patientId]]') || !roundServiceSource.includes('orderBy: [["date", "desc"]]') || !roundServiceSource.includes("mergePendingForPatient(patientId") || !roundServiceSource.includes(".slice(0, pageSize)")) {
   fail("roundService debe leer historial de ronda por paciente con limite, orden descendente e indice patientId+date.");
 }
-if (!patientServiceSource.includes("export async function getPatientById") || !patientServiceSource.includes("getDocData(`patients_active/${patientId}`)") || !patientServiceSource.includes("getDocData(`patients_archive/${patientId}`)") || !patientServiceSource.includes('pendingPayloadsForCollection("patients_archive")')) {
+if (!patientServiceSource.includes("export async function getPatientById") || !patientServiceSource.includes("getDocData(`patients_active/${patientId}`)") || !patientServiceSource.includes("getDocData(`patients_archive/${patientId}`)") || !patientServiceSource.includes('pendingPayloadsForCollection("patients_archive")') || !patientServiceSource.includes("listArchivedPatientsWithPendingOpd") || !patientServiceSource.includes("saveArchivedPatient") || !patientServiceSource.includes("opdPending") || !patientServiceSource.includes("opdStatusLabel")) {
   fail("patientService debe leer expediente por ID sin listar todos los pacientes activos y mezclando pendientes de archivo.");
 }
 if (!iaasServiceSource.includes("export async function listIaasForPatient") || !iaasServiceSource.includes('["patientId", "==", patientId]') || !iaasServiceSource.includes('["active", "==", true]')) {
@@ -323,7 +375,7 @@ if (!iaasServiceSource.includes("patientClassificationForIaasStatus") || !iaasSe
 if (!patientServiceSource.includes("syncPatientIaasClassification") || !patientServiceSource.includes("patient_iaas_classification_sync") || !patientServiceSource.includes("currentEpidemiologicalDiagnosis")) {
   fail("patientService debe exponer sincronizacion auditada de clasificacion epidemiologica desde IAAS.");
 }
-if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan")) {
+if (!iaasServiceSource.includes("export function normalizeIaasClinicalFollowUp") || !iaasServiceSource.includes("vitalSigns") || !iaasServiceSource.includes("biometry") || !iaasServiceSource.includes("carePlan") || !iaasServiceSource.includes("clinicalTimeline") || !iaasServiceSource.includes("clinicalRevisionHistory") || !iaasServiceSource.includes("export function iaasClinicalRevisionHistory") || !iaasServiceSource.includes("mergeIaasClinicalRevisionHistory") || !iaasServiceSource.includes("previousIaasSnapshot") || !iaasServiceSource.includes("export function iaasVitalTrendSeries") || !iaasServiceSource.includes("export function iaasClinicalTimelineTable") || !iaasServiceSource.includes("normalizeTableCultures") || !iaasServiceSource.includes("resultAt") || !iaasServiceSource.includes("normalizeTableAntimicrobials")) {
   fail("iaasService debe normalizar seguimiento IAAS clinico estructurado: criterios, vitales, labs y plan.");
 }
 if (!iaasServiceSource.includes("normalizeIaasCustomStudies") || !iaasServiceSource.includes("summarizeIaasCustomStudies") || !iaasServiceSource.includes("customStudiesFromText")) {
@@ -335,7 +387,7 @@ if (!iaasCriteriaServiceSource.includes("IAAS_CRITERIA_VERSION") || !iaasCriteri
 if (expedienteServiceSource.includes("listActivePatients") || expedienteServiceSource.includes("listActiveIaas")) {
   fail("expedienteService no debe listar pacientes o IAAS globales al abrir un expediente.");
 }
-if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("export async function loadExpedienteSectionPage") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("pageIaasForPatient") || !expedienteServiceSource.includes("pageArchivedDevicesForPatient") || !expedienteServiceSource.includes("pageRoundsForPatient") || !expedienteServiceSource.includes("pageCulturesForPatient") || !expedienteServiceSource.includes("pageAntimicrobialsForPatient") || !expedienteServiceSource.includes("pageAuditForPatient") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("CLINICAL_HISTORY_LIMIT") || !expedienteServiceSource.includes("pageMeta")) {
+if (!expedienteServiceSource.includes("export async function loadPatientExpediente") || !expedienteServiceSource.includes("export async function loadExpedienteSectionPage") || !expedienteServiceSource.includes("getPatientById(patientId)") || !expedienteServiceSource.includes("pageIaasForPatient") || !expedienteServiceSource.includes("pageArchivedDevicesForPatient") || !expedienteServiceSource.includes("pageRoundsForPatient") || !expedienteServiceSource.includes("pageCulturesForPatient") || !expedienteServiceSource.includes("pageAntimicrobialsForPatient") || !expedienteServiceSource.includes("pageAuditForPatient") || !expedienteServiceSource.includes("mergeDeviceHistory") || !expedienteServiceSource.includes("DEVICE_HISTORY_LIMIT") || !expedienteServiceSource.includes("CLINICAL_HISTORY_LIMIT") || !expedienteServiceSource.includes("pageMeta") || !expedienteServiceSource.includes("attachIaasClinicalLinks") || !expedienteServiceSource.includes("relatedCultures") || !expedienteServiceSource.includes("relatedAntimicrobials")) {
   fail("expedienteService debe cargar expediente por paciente y mezclar dispositivos/cultivos/antimicrobianos con limites.");
 }
 
@@ -351,39 +403,83 @@ if (!appSource.includes("HEAVY_PRELOAD_ROUTES") || !appSource.includes('"ronda-p
 }
 
 const expedienteModuleSource = readFileSync(join(root, "src/modules/expediente/index.js"), "utf8");
-if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModuleSource.includes("loadExpedienteSectionPage") || !expedienteModuleSource.includes("renderCursorTablePanel") || !expedienteModuleSource.includes("appendUniqueRows") || !expedienteModuleSource.includes("renderAuditTable") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
+const expedientePanelsSource = readFileSync(join(root, "src/modules/expediente/panels.js"), "utf8");
+const expedienteEventPanelsSource = readFileSync(join(root, "src/modules/expediente/eventPanels.js"), "utf8");
+const expedientePrintSource = readFileSync(join(root, "src/modules/expediente/print.js"), "utf8");
+if (!expedienteModuleSource.includes("loadPatientExpediente") || !expedienteModuleSource.includes("renderExpedienteSections") || !expedientePanelsSource.includes('from "./eventPanels.js"') || expedientePanelsSource.includes("loadExpedienteSectionPage") || !expedienteEventPanelsSource.includes("loadExpedienteSectionPage") || !expedienteEventPanelsSource.includes("renderCursorEventPanel") || !expedienteEventPanelsSource.includes("appendUniqueRows") || !expedienteEventPanelsSource.includes("export function renderAuditPanel") || !expedienteEventPanelsSource.includes("expediente-event-card") || expedienteModuleSource.includes("listDevicesForPatient") || expedienteModuleSource.includes("listActiveIaas") || expedienteModuleSource.includes("listActivePatients") || expedienteModuleSource.includes("listRoundsForPatient")) {
   fail("modules/expediente debe cargar datos por expedienteService para evitar consultas historicas dispersas.");
+}
+if (!expedienteEventPanelsSource.includes("iaasPatientHref") || expedienteEventPanelsSource.includes('link("#/epi-iaas", "Editar en EPI-IAAS"')) {
+  fail("Expediente debe abrir cultivos, antimicrobianos e IAAS en seguimiento IAAS directo por paciente, no en la lista general.");
+}
+if (!expedienteEventPanelsSource.includes("iaasDailyHistoryText") || !expedienteEventPanelsSource.includes("iaasClinicalTimelineTable") || !expedienteEventPanelsSource.includes("Historial diario") || !expedienteEventPanelsSource.includes("relatedCultures") || !expedienteEventPanelsSource.includes("relatedAntimicrobials")) {
+  fail("Expediente debe mostrar historial diario IAAS compacto con cultivos y antimicrobianos vinculados al caso.");
+}
+if (!expedienteModuleSource.includes("renderExpedientePrintPanel") || !expedientePanelsSource.includes("Preparar impresion") || !expedientePrintSource.includes("expedientePrintModel") || !expedientePrintSource.includes("EXPEDIENTE CLINICO-EPIDEMIOLOGICO") || !expedientePrintSource.includes("Imprimir expediente") || !expedientePrintSource.includes("printing-expediente-report") || expedientePrintSource.includes("listActivePatients") || expedientePrintSource.includes("loadPatientExpediente")) {
+  fail("Expediente debe preparar impresion local desde el expediente ya cargado, sin lecturas globales ni consultas extra.");
 }
 const monitoreoModuleSource = readFileSync(join(root, "src/modules/monitoreo/index.js"), "utf8");
 const inicioModuleSource = readFileSync(join(root, "src/modules/inicio/index.js"), "utf8");
-if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.includes("visibleMonitorPatients") || !monitoreoModuleSource.includes("monitorFilterOptions") || monitoreoModuleSource.includes("filterPatients") || monitoreoModuleSource.includes("uniqueValues")) {
-  fail("modules/monitoreo debe delegar metricas/filtros a monitorService y conservar una sola lectura de pacientes activos.");
+if (!monitoreoModuleSource.includes("monitorStats") || !monitoreoModuleSource.includes("visibleMonitorPatients") || !monitoreoModuleSource.includes("monitorFilterOptions") || !monitoreoModuleSource.includes("monitorSeveritySummary") || !monitoreoModuleSource.includes("monitorPatientAgeYears") || !monitoreoModuleSource.includes("monitorPatientDeih") || !monitoreoModuleSource.includes("ageRange") || !monitoreoModuleSource.includes("epiBase") || !monitoreoModuleSource.includes('"DEIH"') || !monitoreoModuleSource.includes('"Motivo"') || monitoreoModuleSource.includes("filterPatients") || monitoreoModuleSource.includes("uniqueValues")) {
+  fail("modules/monitoreo debe delegar metricas/filtros a monitorService y conservar lecturas operativas acotadas.");
 }
 if (!monitoreoModuleSource.includes("monitorOpdStatus") || !monitoreoModuleSource.includes('"OPD"')) {
   fail("modules/monitoreo debe exponer estado OPD sin cargar seguimiento IAAS completo.");
+}
+if (!monitoreoModuleSource.includes("listArchivedPatientsWithPendingOpd({ limit: 25 })") || !monitoreoModuleSource.includes("archivedOpdPanel") || !monitoreoModuleSource.includes("Alta OPD archivada")) {
+  fail("modules/monitoreo debe mostrar Alta OPD archivada desde patients_archive con consulta limitada.");
+}
+if (!monitorServiceSource.includes("RISK_DEVICE_PATTERNS") || !monitorServiceSource.includes("monitorSeveritySummary") || !monitorServiceSource.includes("inferredRiskDevicesForText") || !monitorServiceSource.includes("Estado critico/intubacion/ventilacion") || !monitorServiceSource.includes("Senal infecciosa/microbiologica") || !monitorServiceSource.includes("DEIH >= 14 dias")) {
+  fail("monitorService debe explicar prioridad clinica legacy con estado critico, invasivos, infeccion, IAAS y DEIH sin consultas adicionales.");
 }
 if (!inicioModuleSource.includes("loadOperationalAlerts") || !inicioModuleSource.includes("renderOperationalAlertPanels") || !inicioModuleSource.includes("Alertas operativas")) {
   fail("modules/inicio debe exponer alertas operativas legacy sin cargar runtime ni reportes historicos.");
 }
 const censoModuleSource = readFileSync(join(root, "src/modules/censo/index.js"), "utf8");
-if (!censoModuleSource.includes("renderOpdFields") || !censoModuleSource.includes("opdFromFormData") || !censoModuleSource.includes("MORBIMORTALIDAD MATERNA/PERINATAL")) {
+const censoSearchPanelSource = readFileSync(join(root, "src/modules/censo/searchPanel.js"), "utf8");
+const censoEpiOptionsSource = readFileSync(join(root, "src/modules/censo/epiOptions.js"), "utf8");
+if (!censoModuleSource.includes("renderOpdFields") || !censoModuleSource.includes("opdFromFormData") || !censoModuleSource.includes("opdEligibilityForPatient") || !censoModuleSource.includes('from "./epiOptions.js"') || !censoEpiOptionsSource.includes("MORBIMORTALIDAD MATERNA/PERINATAL") || !censoEpiOptionsSource.includes("COVID/INFLUENZA") || !censoEpiOptionsSource.includes("ESAVI") || !censoEpiOptionsSource.includes("VIG TRANSMISIBLE / 1 IAAS") || !censoEpiOptionsSource.includes("4 IAAS IMPORTADAS")) {
   fail("modules/censo debe capturar OPD para vigilancia hospitalaria desde el formulario de paciente.");
 }
+if (!censoModuleSource.includes("function dischargeForm") || !censoModuleSource.includes("DISCHARGE_TYPES") || !censoModuleSource.includes("Confirmar egreso") || !censoModuleSource.includes("completeOpdForSave(opdFromFormData") || !censoModuleSource.includes("saveArchivedPatient")) {
+  fail("modules/censo debe confirmar egreso con tipo, fecha, turno y OPD, no con confirmacion simple.");
+}
+if (!censoModuleSource.includes("patientIdFromRoute") || !censoModuleSource.includes("getPatientById(routePatientId)") || !censoModuleSource.includes("Ruta directa OPD/Censo") || !monitoreoModuleSource.includes("patientCensoHref") || !operationalAlertServiceSource.includes("patientCensoHref") || !operationalAlertServiceSource.includes("#/censo/paciente/")) {
+  fail("OPD debe abrir Censo directo por paciente desde alertas y Monitoreo sin mandar al usuario a una lista general.");
+}
+if (!censoModuleSource.includes("renderPatientSearchPanel") || !censoSearchPanelSource.includes("searchPatientsIndex") || !censoSearchPanelSource.includes("patients_search") || !censoSearchPanelSource.includes("No recorre historicos completos")) {
+  fail("modules/censo debe exponer busqueda avanzada por patients_search como accion acotada.");
+}
 const epiIaasModuleSource = readFileSync(join(root, "src/modules/epi-iaas/index.js"), "utf8");
+const epiIaasHelpersSource = readFileSync(join(root, "src/modules/epi-iaas/helpers.js"), "utf8");
+const microbiologyDashboardServiceSource = readFileSync(join(root, "src/services/microbiologyDashboardService.js"), "utf8");
+const microbiologyDashboardSource = readFileSync(join(root, "src/components/microbiologyDashboard.js"), "utf8");
+if (!microbiologyDashboardServiceSource.includes("microbiologyClinicalAlerts") || !microbiologyDashboardServiceSource.includes("clinicalAlerts") || !microbiologyDashboardServiceSource.includes("normalizeDate(options.today) || todayIso()") || !microbiologyDashboardServiceSource.includes("CULTURE_RESULT_STATUSES") || !microbiologyDashboardServiceSource.includes("ACTIVE_ANTIMICROBIAL_STATUSES") || !microbiologyDashboardServiceSource.includes("\"negativo\"") || !microbiologyDashboardServiceSource.includes("\"profilaxis\"") || !microbiologyDashboardSource.includes("Alertas clinicas") || !microbiologyDashboardSource.includes("data.clinicalAlerts")) {
+  fail("Tablero microbiologico debe mostrar alertas clinicas finas derivadas de cultivos y antimicrobianos.");
+}
 if (!epiIaasModuleSource.includes("saveLinkedCulture") || !epiIaasModuleSource.includes("saveLinkedAntimicrobial") || !epiIaasModuleSource.includes("saveCulture(app") || !epiIaasModuleSource.includes("saveAntimicrobial(app")) {
   fail("modules/epi-iaas debe permitir registrar cultivo y antimicrobiano asociados al caso sin cargar historicos globales.");
 }
-if (!epiIaasModuleSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes('name: "vitalFio2"') || !epiIaasModuleSource.includes('name: "vitalPeep"') || !epiIaasModuleSource.includes("followUpSummary")) {
+if (!epiIaasHelpersSource.includes("normalizeIaasClinicalFollowUp(data, iaas)") || !epiIaasHelpersSource.includes("previousIaasSnapshot") || !epiIaasHelpersSource.includes("renderVitalTrendPanel") || !epiIaasHelpersSource.includes("renderDailyIaasTable") || !epiIaasHelpersSource.includes("renderClinicalRevisionPanel") || !epiIaasHelpersSource.includes("iaasClinicalRevisionHistory") || !epiIaasHelpersSource.includes("iaasVitalTrendSeries") || !epiIaasHelpersSource.includes("iaasClinicalTimelineTable") || !epiIaasModuleSource.includes("iaasTypeOptions") || !epiIaasModuleSource.includes("renderCriteriaGuide") || !epiIaasModuleSource.includes("loadCaseClinical") || !epiIaasModuleSource.includes("listCulturesForIaas(row.iaasId)") || !epiIaasModuleSource.includes("listAntimicrobialsForIaas(row.iaasId)") || !epiIaasModuleSource.includes("renderVitalTrendPanel(iaas)") || !epiIaasModuleSource.includes("renderDailyIaasTable(iaas, clinicalData)") || !epiIaasModuleSource.includes("renderClinicalRevisionPanel(iaas)") || !epiIaasModuleSource.includes('name: "criteriaVersion"') || !epiIaasModuleSource.includes('name: "criteria"') || !epiIaasModuleSource.includes('name: "biometry"') || !epiIaasModuleSource.includes('name: "carePlan"') || !epiIaasModuleSource.includes('name: "vitalFio2"') || !epiIaasModuleSource.includes('name: "vitalPeep"') || !epiIaasHelpersSource.includes("followUpSummary")) {
   fail("modules/epi-iaas debe capturar seguimiento clinico IAAS estructurado sin cargar modulos externos.");
 }
-if (!epiIaasModuleSource.includes('textareaInput({ name: "otherStudies"') || !expedienteModuleSource.includes("summarizeIaasCustomStudies")) {
+if (!epiIaasModuleSource.includes("renderClinicalValidation") || !epiIaasModuleSource.includes("linkedClinicalEvidence") || !epiIaasHelpersSource.includes("clinicalValidationBadge") || !epiIaasHelpersSource.includes("Validacion de cedula IAAS")) {
+  fail("modules/epi-iaas debe mostrar validacion de cedula IAAS y guardar evidencia inicial ligada.");
+}
+if (!epiIaasModuleSource.includes("patientIdFromRoute") || !epiIaasModuleSource.includes("draftIaasForRoutePatient") || !epiIaasHelpersSource.includes("lite_iaas_patient_route")) {
+  fail("modules/epi-iaas debe abrir directamente paciente desde la ruta legacy #/seguimiento-iaas/FECHA/paciente/ID.");
+}
+if (!epiIaasModuleSource.includes('textareaInput({ name: "otherStudies"') || !expedienteEventPanelsSource.includes("summarizeIaasCustomStudies")) {
   fail("modules/epi-iaas y expediente deben capturar/mostrar Otros estudios del seguimiento legacy.");
 }
-if (!epiIaasModuleSource.includes("renderOpdFields") || !epiIaasModuleSource.includes("opdEligibilityForIaasCase") || !epiIaasModuleSource.includes("opdFromFormData")) {
+if (!epiIaasModuleSource.includes("renderOpdFields") || !epiIaasModuleSource.includes("opdEligibilityForIaasCase") || !epiIaasHelpersSource.includes("opdFromFormData")) {
   fail("modules/epi-iaas debe capturar OPD para IAAS confirmada sin loader legacy.");
 }
 const dispositivosModuleSource = readFileSync(join(root, "src/modules/dispositivos/index.js"), "utf8");
 const dispositivosFormsSource = readFileSync(join(root, "src/modules/dispositivos/deviceForms.js"), "utf8");
+if (!dispositivosModuleSource.includes("patientIdFromRoute") || !dispositivosModuleSource.includes("listDevicesForPatient(routePatientId)") || !dispositivosModuleSource.includes("getPatientById(routePatientId)") || !expedienteEventPanelsSource.includes("devicePatientHref") || expedienteEventPanelsSource.includes('link("#/dispositivos", "Editar en Dispositivos"')) {
+  fail("Expediente y Dispositivos deben abrir la ruta directa #/dispositivos/paciente/ID sin cargar lista global desde expediente.");
+}
 if (!dispositivosModuleSource.includes("reinstallationDraft") || !dispositivosFormsSource.includes("previousEpisodeId") || !dispositivosFormsSource.includes("isReinstallation: true") || !dispositivosFormsSource.includes("saveDeviceEpisode(app")) {
   fail("modules/dispositivos debe exponer reinstalacion guiada como nuevo episodio activo desde historicos.");
 }
@@ -395,13 +491,15 @@ if (!domSource.includes("frameScheduler") || !domSource.includes("requestAnimati
 if (!domSource.includes("export function pagedTable") || !domSource.includes("rows.length > 100") || !domSource.includes("pageSize = options.pageSize || 50")) {
   fail("components/dom.js debe paginar tablas clinicas grandes a partir de 100 filas.");
 }
-for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.js", "src/modules/ronda-paquetes/index.js"]) {
+for (const file of ["src/modules/censo/index.js", "src/modules/monitoreo/index.js", "src/modules/ronda-paquetes/roundPage.js"]) {
   const source = readFileSync(join(root, file), "utf8");
   if (!source.includes("frameScheduler") || !source.includes("scheduleRedraw")) {
     fail(`${file} debe coalescer busquedas locales con frameScheduler.`);
   }
 }
 const roundModuleSource = readFileSync(join(root, "src/modules/ronda-paquetes/index.js"), "utf8");
+const roundPageSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPage.js"), "utf8");
+const dischargeReviewPanelSource = readFileSync(join(root, "src/modules/ronda-paquetes/dischargeReviewPanel.js"), "utf8");
 const patientRoundSource = readFileSync(join(root, "src/modules/ronda-paquetes/patientRound.js"), "utf8");
 const roundPatientUtilsSource = readFileSync(join(root, "src/modules/ronda-paquetes/roundPatientUtils.js"), "utf8");
 const bedBoardSource = readFileSync(join(root, "src/modules/ronda-paquetes/bedBoard.js"), "utf8");
@@ -412,6 +510,7 @@ const roundNavigationSource = readFileSync(join(root, "src/modules/ronda-paquete
 const saveRoundFlowSource = readFileSync(join(root, "src/modules/ronda-paquetes/saveRoundFlow.js"), "utf8");
 if (
   roundModuleSource.includes("document.querySelectorAll") ||
+  roundPageSource.includes("document.querySelectorAll") ||
   !roundPatientUtilsSource.includes("navigationPatientId(patient, patients = [], direction)") ||
   !roundPatientUtilsSource.includes("bedBoardItems(") ||
   !bedBoardSource.includes("export function renderBedBoard")
@@ -419,9 +518,9 @@ if (
   fail("ronda-paquetes debe calcular navegacion por cama desde datos cargados, sin consultar DOM renderizado.");
 }
 if (
-  !roundModuleSource.includes("const { counts, activeCount } = serviceCounts(patients)") ||
-  roundModuleSource.includes("function activePatientCount") ||
-  roundModuleSource.includes("visiblePatients.filter(isSurgicalSignal)")
+  !roundPageSource.includes("const { counts, activeCount } = serviceCounts(patients)") ||
+  roundPageSource.includes("function activePatientCount") ||
+  roundPageSource.includes("visiblePatients.filter(isSurgicalSignal)")
 ) {
   fail("ronda-paquetes debe evitar pasadas repetidas para conteos de filtros y senales ISQ.");
 }
@@ -434,7 +533,9 @@ if ((saveRoundFlowSource.match(/activeDeviceById/g) || []).length < 2) {
 if (
   !patientRoundSource.includes('from "./preventiveForms.js"') ||
   roundModuleSource.includes("function renderActiveDevicesPanel") ||
+  roundPageSource.includes("function renderActiveDevicesPanel") ||
   roundModuleSource.includes("function renderPreventiveActionsPanel") ||
+  roundPageSource.includes("function renderPreventiveActionsPanel") ||
   !preventiveFormsSource.includes("export function renderActiveDevicesPanel") ||
   !preventiveFormsSource.includes("export function renderAddPackagePanel") ||
   !preventiveFormsSource.includes("export function renderPreventiveActionsPanel") ||
@@ -455,8 +556,11 @@ if (
 if (
   !patientRoundSource.includes('from "./patientRoundPanels.js"') ||
   roundModuleSource.includes("function renderPatientRoundSummary") ||
+  roundPageSource.includes("function renderPatientRoundSummary") ||
   roundModuleSource.includes("function renderDailyPreventiveHistoryPanel") ||
+  roundPageSource.includes("function renderDailyPreventiveHistoryPanel") ||
   roundModuleSource.includes("function peSummaryItems") ||
+  roundPageSource.includes("function peSummaryItems") ||
   !patientRoundPanelsSource.includes("export function renderPatientRoundSummary") ||
   !patientRoundPanelsSource.includes("export function renderDailyPreventiveHistoryPanel") ||
   !patientRoundPanelsSource.includes("export function upsertRoundById") ||
@@ -465,13 +569,27 @@ if (
   fail("ronda-paquetes debe mantener resumen e historial preventivo de paciente en patientRoundPanels.js.");
 }
 if (
-  !roundModuleSource.includes('from "./patientRound.js"') ||
+  !roundModuleSource.includes('import("./patientRound.js")') ||
+  !roundModuleSource.includes('import("./roundPage.js")') ||
+  !roundPageSource.includes("export async function renderRoundPage") ||
   roundModuleSource.includes("async function renderPatientRound") ||
   !patientRoundSource.includes("export async function renderPatientRound") ||
   !patientRoundSource.includes("renderRoundSaveBar") ||
   !patientRoundSource.includes("upsertOrRemovePatient")
 ) {
   fail("ronda-paquetes debe delegar el contenedor de paciente individual a patientRound.js.");
+}
+if (
+  !roundPageSource.includes('from "./dischargeReviewPanel.js"') ||
+  roundPageSource.includes("function renderDischargeReviewPanel") ||
+  roundPageSource.includes("archivePatient") ||
+  roundPageSource.includes("patientStillHospitalizedPayload") ||
+  !dischargeReviewPanelSource.includes("export function renderDischargeReviewPanel") ||
+  !dischargeReviewPanelSource.includes("archivePatient") ||
+  !dischargeReviewPanelSource.includes("savePatient") ||
+  !dischargeReviewPanelSource.includes("patientStillHospitalizedPayload")
+) {
+  fail("ronda-paquetes debe mantener altas por verificar en dischargeReviewPanel.js para no inflar roundPage.js.");
 }
 if (!deviceServiceSource.includes("export function activeDevice") || !patientRoundSource.includes("patientDevices.filter(activeDevice)") || !patientRoundSource.includes("const [patients, rounds, patientRounds, patientDevices]")) {
   fail("ronda-paquetes debe evitar lecturas globales de dispositivos al abrir la ronda individual de paciente.");
@@ -504,14 +622,26 @@ if (
   !snapshotServiceSource.includes("export async function snapshotTrend") ||
   !snapshotServiceSource.includes("snapshotTrendDates") ||
   !snapshotServiceSource.includes("summarizeSnapshotTrend") ||
+  !snapshotServiceSource.includes("snapshotPeriodOverview") ||
+  !snapshotServiceSource.includes("summarizeMonthlySnapshot") ||
+  !snapshotServiceSource.includes("summarizeYearlySnapshot") ||
   !inicioModuleSource.includes("snapshotTrend(undefined, 7)") ||
-  !inicioModuleSource.includes("renderSnapshotTrendPanel")
+  !inicioModuleSource.includes("renderSnapshotTrendPanel") ||
+  !inicioModuleSource.includes("renderSnapshotPeriodPanel")
 ) {
-  fail("Inicio debe migrar tendencia operativa del runtime usando daily_snapshots por rango acotado, no solo snapshot diario.");
+  fail("Inicio debe migrar tendencia operativa del runtime usando daily/monthly/yearly snapshots acotados, no solo snapshot diario.");
 }
 const catalogServiceSource = readFileSync(join(root, "src/services/catalogService.js"), "utf8");
 if (!catalogServiceSource.includes("catalogsPromise") || !catalogServiceSource.includes("cacheSet(CACHE_KEY, rows)") || !catalogServiceSource.includes("cacheGet(CACHE_KEY)")) {
   fail("catalogService debe cachear catalogos y deduplicar lecturas en vuelo.");
+}
+if (!catalogServiceSource.includes("parseCatalogImportText") || !catalogServiceSource.includes("importCatalogEntries") || !catalogServiceSource.includes("CATALOG_IMPORT_MAX_ROWS") || !catalogServiceSource.includes('actionType: "catalog_import"')) {
+  fail("catalogService debe soportar importacion masiva controlada de catalogos con limite y auditoria.");
+}
+const adminModuleSource = readFileSync(join(root, "src/modules/admin/index.js"), "utf8");
+const adminCatalogImportPanelSource = readFileSync(join(root, "src/modules/admin/catalogImportPanel.js"), "utf8");
+if (!adminModuleSource.includes("renderCatalogImportPanel") || !adminCatalogImportPanelSource.includes("Previsualizar importacion") || !adminCatalogImportPanelSource.includes("Importar aceptados") || !adminCatalogImportPanelSource.includes("parseCatalogImportText")) {
+  fail("Admin debe exponer previsualizacion e importacion masiva controlada de catalogos.");
 }
 
 const cssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
@@ -532,16 +662,37 @@ if (!exportServiceSource.includes("CSV_FORMULA_PREFIX") || !exportServiceSource.
 if (!exportServiceSource.includes('addDocOrQueue(app, "exports_log"') || !exportServiceSource.includes('actionType: "export_csv"')) {
   fail("exportService debe registrar audit log y exports_log al exportar CSV.");
 }
+const excelExportServiceSource = readFileSync(join(root, "src/services/excelExportService.js"), "utf8");
+for (const expected of ["workbookBufferFromRows", "downloadWorkbook", "FORMULA_PREFIX", "export_excel", "CompressionStream(\"deflate-raw\")", "sharedStringsXml", "worksheetXml"]) {
+  if (!excelExportServiceSource.includes(expected)) {
+    fail("excelExportService debe generar Excel bajo demanda sin libreria xlsx y con proteccion de formulas.");
+  }
+}
 const reportServiceSource = readFileSync(join(root, "src/services/reportService.js"), "utf8");
 const reportesModuleSource = readFileSync(join(root, "src/modules/reportes/index.js"), "utf8");
-if (!reportServiceSource.includes("dailySnapshotRowsForRange") || !reportServiceSource.includes("MAX_DAILY_SNAPSHOT_DAYS") || !reportServiceSource.includes("getDocData(`daily_snapshots/${date}`)") || reportServiceSource.includes("listCollection(")) {
-  fail("reportService debe exportar rangos desde daily_snapshots acotados, sin listar historicos completos.");
+const reportesSnapshotExportsSource = readFileSync(join(root, "src/modules/reportes/snapshotExports.js"), "utf8");
+const reportesEpidemiologicalExportsSource = readFileSync(join(root, "src/modules/reportes/epidemiologicalExports.js"), "utf8");
+if (!reportServiceSource.includes("dailySnapshotRowsForRange") || !reportServiceSource.includes("monthlySnapshotRowsForRange") || !reportServiceSource.includes("yearlySnapshotRowsForRange") || !reportServiceSource.includes("MAX_DAILY_SNAPSHOT_DAYS") || !reportServiceSource.includes("MAX_MONTHLY_SNAPSHOT_MONTHS") || !reportServiceSource.includes("getDocData(`daily_snapshots/${date}`)") || !reportServiceSource.includes("getDocData(`monthly_snapshots/${month}`)") || !reportServiceSource.includes("getDocData(`yearly_snapshots/${year}`)") || reportServiceSource.includes("listCollection(")) {
+  fail("reportService debe exportar rangos desde daily/monthly/yearly snapshots acotados, sin listar historicos completos.");
 }
-if (!reportesModuleSource.includes("dailySnapshotRowsForRange") || !reportesModuleSource.includes("Exportar snapshots CSV") || reportesModuleSource.includes("xlsx") || reportesModuleSource.includes("XLSX")) {
-  fail("modules/reportes debe usar reportService bajo demanda y no cargar XLSX.");
+if (!reportServiceSource.includes("loadCatalogs") || !reportServiceSource.includes("catalogs: catalogs.length") || !reportesModuleSource.includes("catalogos, cola pendiente")) {
+  fail("Respaldo operativo debe incluir catalogos clinicos y contarlos en Reportes.");
 }
-if (!reportesModuleSource.includes("preventiveCedulaCsvRows") || !reportesModuleSource.includes("preventiveMonthlyCsvRows") || !reportesModuleSource.includes("Exportar cedula diaria CSV")) {
-  fail("modules/reportes debe exponer cedulas preventivas legacy como CSV bajo demanda, sin Sheets ni Excel inicial.");
+if (!reportesModuleSource.includes("renderDailySnapshotExport") || !reportesSnapshotExportsSource.includes("dailySnapshotRowsForRange") || !reportesSnapshotExportsSource.includes("monthlySnapshotRowsForRange") || !reportesSnapshotExportsSource.includes("yearlySnapshotRowsForRange") || !reportesSnapshotExportsSource.includes("Exportar snapshots CSV") || !reportesSnapshotExportsSource.includes("Exportar mensual Excel") || !reportesSnapshotExportsSource.includes("Exportar anual Excel") || !reportesSnapshotExportsSource.includes('import("../../services/excelExportService.js")') || reportesSnapshotExportsSource.includes('from "../../services/excelExportService.js"') || reportesSnapshotExportsSource.includes("XLSX")) {
+  fail("modules/reportes debe usar reportService bajo demanda para snapshots diarios/mensuales/anuales y cargar Excel solo por import dinamico.");
+}
+if (!reportesModuleSource.includes("preventiveCedulaCsvRows") || !reportesModuleSource.includes("preventiveMonthlyCsvRows") || !reportesModuleSource.includes("Exportar cedula diaria CSV") || !reportesModuleSource.includes("Exportar cedula diaria Excel")) {
+  fail("modules/reportes debe exponer cedulas preventivas legacy como CSV/Excel bajo demanda, sin Sheets ni Excel inicial.");
+}
+if (!reportServiceSource.includes("epidemiologicalCensusSummary") || !reportServiceSource.includes("epidemiologicalCensusSummaryRows") || !reportServiceSource.includes("epidemiologicalCensusPatientRows") || !reportServiceSource.includes("epidemiologicalPrintReportModel") || !reportServiceSource.includes("CENSO DE VIGILANCIA EPIDEMIOLOGICA HOSPITALARIA") || !reportServiceSource.includes("CONFIRMADOS INFLUENZA/COVID") || !reportServiceSource.includes("VIG NO TRANSMISIBLES") || !reportServiceSource.includes("MORBIMORTALIDAD MATERNA/PERINATAL")) {
+  fail("reportService debe generar resumen epidemiologico legacy desde patients_active sin Sheets.");
+}
+if (!reportesModuleSource.includes("renderEpidemiologicalCensusExport") || !reportesEpidemiologicalExportsSource.includes("Exportar resumen CSV") || !reportesEpidemiologicalExportsSource.includes("Exportar detalle Excel") || !reportesEpidemiologicalExportsSource.includes("Preparar vista imprimible") || !reportesEpidemiologicalExportsSource.includes("Imprimir vista") || !reportesEpidemiologicalExportsSource.includes("printPreparedEpiReport") || !reportesEpidemiologicalExportsSource.includes("patients_active_epidemiological_summary") || !reportesEpidemiologicalExportsSource.includes('import("../../services/excelExportService.js")') || reportesEpidemiologicalExportsSource.includes('from "../../services/excelExportService.js"') || reportesEpidemiologicalExportsSource.includes("XLSX")) {
+  fail("modules/reportes debe exponer censo epidemiologico legacy en CSV/Excel bajo demanda sin cargar Excel al inicio.");
+}
+const baseCssSource = readFileSync(join(root, "src/styles/base.css"), "utf8");
+if (!baseCssSource.includes("printing-epivida-report") || !baseCssSource.includes("printing-expediente-report") || !baseCssSource.includes(".print-report-table") || !baseCssSource.includes("@media print")) {
+  fail("base.css debe soportar vista imprimible epidemiologica ocultando controles y respetando tabla legacy.");
 }
 const auditServiceSource = readFileSync(join(root, "src/services/auditService.js"), "utf8");
 if (!auditServiceSource.includes("export async function listAuditForPatient") || !auditServiceSource.includes('"audit_logs", [["patientId", "==", patientId]]') || !auditServiceSource.includes('orderBy: [["createdAt", "desc"]]') || !auditServiceSource.includes('pendingPayloadsForCollection("audit_logs")')) {
@@ -549,6 +700,63 @@ if (!auditServiceSource.includes("export async function listAuditForPatient") ||
 }
 if (!auditServiceSource.includes("export async function listRecentAuditLogs") || !auditServiceSource.includes('["module", "==", filters.module]') || !auditServiceSource.includes('["userId", "==", filters.userId]')) {
   fail("auditService debe exponer auditoria reciente filtrada por usuario o modulo, sin lectura global.");
+}
+if (!auditServiceSource.includes("export async function listAuditForEntity") || !auditServiceSource.includes('"audit_logs", [["entityId", "==", entityId]]') || !dispositivosModuleSource.includes("listAuditForEntity") || !dispositivosFormsSource.includes("renderDeviceTimelinePanel")) {
+  fail("Dispositivos debe exponer timeline lazy por episodio basado en audit_logs.entityId, sin lectura global.");
+}
+for (const expected of ["AUDIT_COVERAGE_VERSION", "AUDIT_ACTION_CATALOG", "auditEventMeta", "auditDomain", "auditOperation", "auditSeverity", "auditClinical"]) {
+  if (!auditServiceSource.includes(expected)) {
+    fail(`auditService debe clasificar auditoria critica con metadatos versionados: ${expected}`);
+  }
+}
+for (const expected of [
+  "patient_create",
+  "patient_update",
+  "patient_archive",
+  "patient_archive_update",
+  "patient_iaas_classification_sync",
+  "patient_reconciliation_required",
+  "patient_probable_discharge",
+  "census_import",
+  "device_create",
+  "device_update",
+  "device_reinstallation_create",
+  "device_archive_create",
+  "device_archive_update",
+  "device_remove",
+  "iaas_create",
+  "iaas_update",
+  "iaas_close",
+  "round_review",
+  "round_session_update",
+  "culture_create",
+  "culture_update",
+  "antimicrobial_create",
+  "antimicrobial_update",
+  "catalog_create",
+  "catalog_update",
+  "catalog_import",
+  "user_profile_create",
+  "user_profile_update",
+  "backup_restore",
+  "export_csv",
+  "export_json",
+  "export_excel"
+]) {
+  if (!auditServiceSource.includes(`"${expected}"`)) {
+    fail(`auditService debe declarar cobertura de auditoria para ${expected}.`);
+  }
+}
+if (!auditServiceSource.includes("...payload,\n    ...auditEventMeta(payload)")) {
+  fail("writeAudit debe adjuntar metadatos de cobertura a cada audit_logs sin exigir cambios por modulo.");
+}
+const backupRestoreServiceSource = readFileSync(join(root, "src/services/backupRestoreService.js"), "utf8");
+if (!backupRestoreServiceSource.includes("restoreOperationalBackupPlan") || !backupRestoreServiceSource.includes("daily_snapshots") || !backupRestoreServiceSource.includes("restoreRunId") || !backupRestoreServiceSource.includes("unsupported")) {
+  fail("backupRestoreService debe planear restauracion, soportar snapshots y auditar restoreRunId/datasets no restaurables.");
+}
+const backupRestorePanelSource = readFileSync(join(root, "src/components/backupRestorePanel.js"), "utf8");
+if (!backupRestorePanelSource.includes("restoreOperationalBackupPlan") || !backupRestorePanelSource.includes("fila(s) se omitiran")) {
+  fail("backupRestorePanel debe prevalidar la restauracion antes de escribir.");
 }
 
 const serviceWorkerSource = readFileSync(join(root, "epivida-lite-sw.js"), "utf8");

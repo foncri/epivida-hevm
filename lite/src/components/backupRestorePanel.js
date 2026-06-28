@@ -1,6 +1,7 @@
 import { button, checkboxInput, el, field, notice, numberInput, table, textareaInput } from "./dom.js";
 import {
   parseOperationalBackupText,
+  restoreOperationalBackupPlan,
   restoreOperationalBackup,
   summarizeOperationalBackup
 } from "../services/backupRestoreService.js";
@@ -58,10 +59,16 @@ export function renderBackupRestorePanel(app, onRestored = () => {}) {
             redraw();
             return;
           }
-          if (!globalThis.confirm(`Restaurar ${selected.join(", ")} desde el JSON cargado?`)) return;
-          const result = await restoreOperationalBackup(app, state.backup, selected, { maxRows: state.maxRows });
-          state.message = result.results.map(item => `${item.label}: ${item.written}/${item.total}`).join(" | ");
-          await onRestored(result);
+          try {
+            const plan = restoreOperationalBackupPlan(state.backup, selected, { maxRows: state.maxRows });
+            const skipped = plan.skipped ? ` ${plan.skipped} fila(s) se omitiran por limite o ID invalido.` : "";
+            if (!globalThis.confirm(`Restaurar ${plan.writable} registro(s) desde el JSON cargado?${skipped}`)) return;
+            const result = await restoreOperationalBackup(app, state.backup, selected, { maxRows: state.maxRows });
+            state.message = result.results.map(item => `${item.label}: ${item.written}/${item.total}`).join(" | ");
+            await onRestored(result);
+          } catch (error) {
+            state.message = `Error: ${error.message || String(error || "No se pudo restaurar.")}`;
+          }
           redraw();
         }, { class: "primary", disabled: !state.backup })
       ]),

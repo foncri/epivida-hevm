@@ -30,6 +30,19 @@ function parseJson(path, label = path) {
   }
 }
 
+function parseJsonc(path, label = path) {
+  const source = readRequired(path, label)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  if (!source) return null;
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    fail(`${label} no es JSONC valido: ${error.message}`);
+    return null;
+  }
+}
+
 const wrangler = readRequired("wrangler.toml");
 if (!/name\s*=\s*"epivida-hevm"/.test(wrangler)) {
   fail("wrangler.toml debe publicar el proyecto Cloudflare Pages epivida-hevm.");
@@ -52,6 +65,19 @@ if (!/pages_build_output_dir\s*=\s*"lite"/.test(wrangler)) {
 }
 if (!/compatibility_date\s*=\s*"2026-06-05"/.test(wrangler)) {
   fail("wrangler.toml debe fijar compatibility_date para despliegues reproducibles.");
+}
+
+const wranglerJson = parseJsonc("wrangler.jsonc");
+if (wranglerJson) {
+  if (wranglerJson.name !== "epivida-hevm") {
+    fail("wrangler.jsonc debe publicar el proyecto Cloudflare epivida-hevm.");
+  }
+  if (wranglerJson.pages_build_output_dir !== "lite") {
+    fail("wrangler.jsonc debe usar pages_build_output_dir = \"lite\".");
+  }
+  if (wranglerJson.compatibility_date !== "2026-06-05") {
+    fail("wrangler.jsonc debe fijar compatibility_date para despliegues reproducibles.");
+  }
 }
 
 const firebase = parseJson("firebase.json");
@@ -116,7 +142,7 @@ if (headerSection(headers, "/epivida-lite-config.js").includes("immutable")) {
 if (!/\/epivida-lite-build\.json[\s\S]*?Cache-Control:\s*no-cache/.test(headers)) {
   fail("epivida-lite-build.json debe publicarse con Cache-Control: no-cache.");
 }
-if (!/\/\n\s+Cache-Control:\s*no-cache/.test(headers)) {
+if (!/\/\r?\n\s+Cache-Control:\s*no-cache/.test(headers)) {
   fail("lite/_headers debe marcar / con Cache-Control: no-cache.");
 }
 for (const expected of [

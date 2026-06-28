@@ -294,7 +294,7 @@ function rowFromHeader(values = [], map = {}, currentService = "", currentDate =
   if (!looksLikeName(patient)) return null;
   const rawBed = getMapped(values, map, "bed") || values[0] || "";
   const location = locationForRow(rawBed, currentService, sourceName);
-  const diagnoses = unique([getMapped(values, map, "diagnosisIn"), getMapped(values, map, "diagnosisNow")].filter(isDiagnosisCell));
+  const diagnoses = unique([getMapped(values, map, "diagnosisIn"), getMapped(values, map, "diagnosisNow")]);
   return normalizeRepairRow({
     service: location.service,
     bed: location.bed,

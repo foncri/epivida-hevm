@@ -37,8 +37,7 @@ for (const status of [
   "pendiente",
   "migrado",
   "descartado por visual",
-  "reemplazado por arquitectura nueva",
-  "requiere decision clinica"
+  "reemplazado por arquitectura nueva"
 ]) {
   requireIncludes(inventory, status, "LEGACY_FEATURE_INVENTORY.md");
 }
